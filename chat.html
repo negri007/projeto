@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SocialX - Mensagens</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-main: #000000;
+            --bg-card: #050608;
+            --border-soft: #2f3336;
+            --accent: #1d9bf0;
+            --text-soft: #71767b;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-main);
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .layout {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            border-right: 1px solid var(--border-soft);
+            min-height: 100vh;
+            position: sticky;
+            top: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            margin-bottom: 20px;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--accent);
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .sidebar .nav-link {
+            color: #fff;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(29,155,240,0.15);
+            color: var(--accent);
+        }
+
+        .sidebar-profile {
+            margin-top: auto;
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+        }
+
+        /* Chat Layout */
+        .chat-wrapper {
+            display: flex;
+            height: 100vh;
+        }
+
+        .friends-list {
+            width: 280px;
+            border-right: 1px solid var(--border-soft);
+            overflow-y: auto;
+            background-color: var(--bg-card);
+        }
+
+        .friend-item {
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+        }
+
+        .friend-item:hover {
+            background: rgba(255,255,255,0.04);
+        }
+
+        .friend-avatar {
+            background: #16181c;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .friend-name {
+            font-size: 1rem;
+        }
+
+        .chat-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 14px;
+            border-bottom: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .msg {
+            margin-bottom: 14px;
+            max-width: 60%;
+            padding: 10px 14px;
+            border-radius: 14px;
+            background: #16181c;
+        }
+
+        .msg-me {
+            margin-left: auto;
+            background: var(--accent);
+            color: #000;
+            font-weight: 600;
+        }
+
+        .chat-input-area {
+            padding: 12px;
+            border-top: 1px solid var(--border-soft);
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex-grow: 1;
+        }
+
+        @media (max-width: 992px) {
+            .sidebar {
+                display: none;
+            }
+            .friends-list {
+                width: 200px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .friends-list {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid layout">
+    <div class="row">
+        
+        <!-- SIDEBAR -->
+        <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
+            <div class="logo d-flex align-items-center gap-2">
+                <div class="logo-mark"><i class="fa-solid fa-hashtag"></i></div>
+                <span class="logo-text">SocialX</span>
+            </div>
+
+            <nav class="nav flex-column mb-3">
+                <a class="nav-link" href="explorar.html"><i class="fa-solid fa-magnifying-glass"></i><span> Explorar</span></a>
+                <a class="nav-link" href="inicio.html"><i class="fa-solid fa-house"></i><span> Início</span></a>
+                <a class="nav-link" href="perfil.html"><i class="fa-solid fa-user"></i><span> Perfil</span></a>
+                <a class="nav-link" href="circulos.html"><i class="fa-regular fa-circle"></i><span> Círculos</span></a>
+                <a class="nav-link" href="amigos.html"><i class="fa-solid fa-user-group"></i> <span>Amigos</span></a>
+               <a class="nav-link" href="chat.html"> <i class="fa-solid fa-comments"></i><span>Mensagens</span><span id="msgBadge" style="color:#1d9bf0; font-weight:bold; margin-left:6px;"></span>
+</a>
+
+            </nav>
+
+            <div class="sidebar-profile d-flex align-items-center gap-2">
+                <div class="prof-avatar"><i class="fa-solid fa-user"></i></div>
+                <div class="prof-info">
+                    <div class="prof-name" id="sidebarName">Usuário</div>
+                    <div class="prof-handle" id="sidebarHandle">@user</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" onclick="logout()">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- CHAT AREA -->
+        <main class="col-lg-10 col-md-9 p-0">
+
+            <div class="chat-wrapper">
+
+                <!-- Lista de amigos -->
+                <div class="friends-list" id="friendsList">Carregando amigos...</div>
+
+                <!-- Área do chat -->
+                <div class="chat-area">
+
+                    <div class="chat-header">
+                        <div class="friend-avatar"><i class="fa-solid fa-user"></i></div>
+                        <h5 id="chatTitle" class="m-0">Selecione um amigo</h5>
+                    </div>
+
+                    <div class="chat-messages" id="messagesBox">
+                        <p class="text-secondary">Nenhum chat selecionado.</p>
+                    </div>
+
+                    <div class="chat-input-area">
+                        <input type="text" class="form-control chat-input" id="msgInput" placeholder="Digite uma mensagem..." disabled>
+                        <button class="btn btn-primary" onclick="sendMessage()" id="btnSend" disabled>
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+
+    </div>
+</div>
+
+<script>
+if (!localStorage.getItem("userEmail")) {
+    window.location = "index.html";
+}
+
+const userEmail = localStorage.getItem("userEmail");
+document.getElementById("sidebarName").textContent = userEmail.split("@")[0];
+document.getElementById("sidebarHandle").textContent = "@" + userEmail.split("@")[0];
+
+let currentChat = null;
+let intervalMessages = null;
+
+function logout() {
+    localStorage.removeItem("userEmail");
+    window.location = "index.html";
+}
+
+/* ===========================
+   LISTAR AMIGOS
+=========================== */
+async function loadFriends() {
+    const res = await fetch("api/friends/list.php?email=" + userEmail);
+    const data = await res.json();
+
+    const box = document.getElementById("friendsList");
+    box.innerHTML = "";
+
+    if (!data.ok || data.friends.length === 0) {
+        box.innerHTML = "<p class='text-secondary p-3'>Sem amigos ainda.</p>";
+        return;
+    }
+
+    data.friends.forEach(f => {
+        const html = `
+            <div class="friend-item" onclick="openChat('${f.email}')">
+                <div class="friend-avatar"><i class="fa-solid fa-user"></i></div>
+                <div>
+                    <div class="friend-name">${f.name}</div>
+                    <small class="text-secondary">@${f.email.split("@")[0]}</small>
+                </div>
+            </div>
+        `;
+        box.innerHTML += html;
+    });
+}
+
+loadFriends();
+
+/* ===========================
+   ABRIR CHAT
+=========================== */
+function openChat(email) {
+    currentChat = email;
+    document.getElementById("chatTitle").textContent = email;
+
+    document.getElementById("msgInput").disabled = false;
+    document.getElementById("btnSend").disabled = false;
+
+    loadMessages();
+
+    if (intervalMessages) clearInterval(intervalMessages);
+    intervalMessages = setInterval(loadMessages, 1000);
+}
+
+/* ===========================
+   CARREGAR MENSAGENS
+=========================== */
+async function loadMessages() {
+    if (!currentChat) return;
+
+    const res = await fetch(`api/messages/list.php?me=${userEmail}&friend=${currentChat}`);
+    const data = await res.json();
+
+    const box = document.getElementById("messagesBox");
+    box.innerHTML = "";
+
+    data.forEach(msg => {
+        const isMe = msg.sender === userEmail;
+        const div = document.createElement("div");
+
+        div.className = "msg " + (isMe ? "msg-me" : "");
+        div.textContent = msg.body;
+
+        box.appendChild(div);
+    });
+
+    box.scrollTop = box.scrollHeight;
+}
+
+/* ===========================
+   ENVIAR MENSAGEM
+=========================== */
+async function sendMessage() {
+    const text = document.getElementById("msgInput").value.trim();
+    if (!text || !currentChat) return;
+
+    await fetch("api/messages/send.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            sender: userEmail,
+            receiver: currentChat,
+            body: text
+        })
+    });
+
+    document.getElementById("msgInput").value = "";
+    loadMessages();
+}
+</script>
+
+</body>
+</html>

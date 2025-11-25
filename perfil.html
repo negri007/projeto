@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SocialX - Perfil</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-main: #000000;
+            --bg-card: #050608;
+            --border-soft: #2f3336;
+            --accent: #1d9bf0;
+            --text-soft: #71767b;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-main);
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .layout {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            border-right: 1px solid var(--border-soft);
+            min-height: 100vh;
+            position: sticky;
+            top: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            margin-bottom: 20px;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--accent);
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .sidebar .nav-link {
+            color: #fff;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar .nav-link i {
+            font-size: 1.3rem;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(29, 155, 240, 0.15);
+            color: var(--accent);
+        }
+
+        .sidebar-profile {
+            margin-top: auto;
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+        }
+
+        .sidebar-profile .prof-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #16181c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-profile .prof-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .sidebar-profile .prof-handle {
+            font-size: 0.8rem;
+            color: var(--text-soft);
+        }
+
+        .main-col {
+            border-right: 1px solid var(--border-soft);
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .main-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-soft);
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .profile-avatar-lg {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #16181c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 700;
+            border: 2px solid var(--accent);
+            background-size: cover;
+            background-position: center;
+        }
+
+        .profile-name {
+            font-size: 1.3rem;
+            font-weight: 800;
+        }
+
+        .profile-handle {
+            color: var(--text-soft);
+            font-size: 0.95rem;
+        }
+
+        .profile-email {
+            color: var(--text-soft);
+            font-size: 0.85rem;
+        }
+
+        .profile-stats {
+            display: flex;
+            gap: 18px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .profile-stats span {
+            color: var(--text-soft);
+        }
+
+        .profile-stats strong {
+            color: #fff;
+        }
+
+        .profile-card {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-soft);
+        }
+
+        .profile-card small {
+            color: var(--text-soft);
+        }
+
+        .post {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-soft);
+            display: flex;
+            gap: 10px;
+        }
+
+        .post:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .tweet-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #16181c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .post-body {
+            flex: 1;
+        }
+
+        .post-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.95rem;
+        }
+
+        .post-name {
+            font-weight: 600;
+        }
+
+        .post-handle,
+        .post-time {
+            color: var(--text-soft);
+            font-size: 0.85rem;
+        }
+
+        .post-content {
+            margin-top: 4px;
+            font-size: 0.98rem;
+        }
+
+        .post-image {
+            margin-top: 8px;
+            border-radius: 16px;
+            max-height: 400px;
+            width: 100%;
+            object-fit: cover;
+            border: 1px solid var(--border-soft);
+        }
+
+        .post-actions {
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            max-width: 300px;
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .post-actions .icon-btn {
+            background: none;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-soft);
+            padding: 4px 6px;
+            border-radius: 999px;
+        }
+
+        .post-actions .icon-btn i {
+            font-size: 0.95rem;
+        }
+
+        .post-actions .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+
+        .right-col {
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .right-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-soft);
+        }
+
+        .right-card h5 {
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .right-card small {
+            color: var(--text-soft);
+        }
+
+        /* botão editar perfil minimalista */
+        .btn-edit-profile {
+            border-radius: 999px;
+            padding: 3px 12px;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 992px) {
+            .right-col {
+                display: none;
+            }
+            .sidebar {
+                flex: 0 0 72px;
+                max-width: 72px;
+            }
+            .logo-text {
+                display: none;
+            }
+            .sidebar .nav-link span {
+                display: none;
+            }
+            .sidebar .nav-link {
+                justify-content: center;
+            }
+            .sidebar-profile {
+                justify-content: center;
+                gap: 8px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .main-col {
+                border-right: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid layout">
+    <div class="row">
+        <!-- SIDEBAR -->
+        <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
+            <div class="logo d-flex align-items-center gap-2">
+                <div class="logo-mark">
+                    <i class="fa-solid fa-hashtag"></i>
+                </div>
+                <span class="logo-text">SocialX</span>
+            </div>
+
+            <nav class="nav flex-column mb-3">
+                <a class="nav-link" href="explorar.html">
+                    <i class="fa-solid fa-magnifying-glass"></i><span> Explorar</span>
+                </a>
+                <a class="nav-link" href="inicio.html">
+                    <i class="fa-solid fa-house"></i><span> Início</span>
+                </a>
+                <a class="nav-link active" href="perfil.html">
+                    <i class="fa-solid fa-user"></i><span> Perfil</span>
+                </a>
+                <a class="nav-link" href="circulos.html">
+                    <i class="fa-regular fa-circle"></i><span> Círculos</span>
+                </a>
+                <a class="nav-link" href="Amigos.html">
+                    <i class="fa-solid fa-user-group"></i><span> Amigos</span>
+                </a>
+                <a class="nav-link" href="chat.html">
+                    <i class="fa-solid fa-comments"></i><span>Mensagens</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-profile d-flex align-items-center gap-2">
+                <div class="prof-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="prof-info flex-grow-1">
+                    <div class="prof-name" id="sidebarName">Usuário</div>
+                    <div class="prof-handle" id="sidebarHandle">@usuario</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- COLUNA CENTRAL / PERFIL -->
+        <main class="col-lg-7 col-md-9 main-col">
+            <div class="main-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="profile-header">
+                        <div class="profile-avatar-lg" id="profileAvatar">U</div>
+                        <div>
+                            <div class="profile-name" id="profileName">Usuário</div>
+                            <div class="profile-handle" id="profileHandle">@usuario</div>
+                            <div class="profile-email" id="profileEmail">email@exemplo.com</div>
+                        </div>
+                    </div>
+
+                    <!-- botão minimalista para abrir modal -->
+                    <button
+                        class="btn btn-outline-light btn-edit-profile"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editProfileModal">
+                        <i class="fa-solid fa-pen me-1"></i> Editar
+                    </button>
+                </div>
+
+                <div class="profile-stats mt-3">
+                    <span><strong id="countPosts">0</strong> posts</span>
+                    <span><strong id="countLikes">0</strong> curtidas recebidas</span>
+                    <span><strong id="countFollowers">0</strong> seguidores</span>
+                    <span><strong id="countFollowing">0</strong> seguindo</span>
+                </div>
+            </div>
+
+            <!-- SOBRE -->
+            <div class="profile-card">
+                <h6 class="mb-1">Sobre</h6>
+                <small id="profileAbout">
+                    Usuário do SocialX. Essa parte puxa sua bio do banco de dados.
+                </small>
+            </div>
+
+            <!-- POSTS DO USUÁRIO -->
+            <div id="myPostsContainer"></div>
+        </main>
+
+        <!-- COLUNA DIREITA -->
+        <aside class="col-lg-3 d-none d-lg-block right-col">
+            <div class="right-card">
+                <h5>Resumo rápido</h5>
+                <p class="mb-1">
+                    <i class="fa-solid fa-circle-info me-2"></i>
+                    Este perfil mostra apenas seus próprios posts.
+                </p>
+                <small>As curtidas exibidas aqui são a soma das curtidas recebidas em todos os seus posts.</small>
+            </div>
+
+            <div class="right-card">
+                <h5>Dica</h5>
+                <small>
+                    Use a aba <strong>Explorar</strong> para postar, curtir e ver o feed geral.
+                    O <strong>Perfil</strong> funciona como um "portfólio" dos seus posts.
+                </small>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<!-- MODAL EDITAR PERFIL -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:#050608; border:1px solid var(--border-soft);">
+      <div class="modal-header border-0">
+        <h5 class="modal-title">Editar perfil</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editProfileForm" onsubmit="event.preventDefault(); saveProfile();">
+            <div class="mb-2">
+                <label class="form-label mb-1" style="font-size:0.85rem;color:var(--text-soft);">Nome</label>
+                <input type="text" id="editName" class="form-control form-control-sm"
+                       style="background:#050608;border:1px solid var(--border-soft);color:#fff;">
+            </div>
+            <div class="mb-2">
+                <label class="form-label mb-1" style="font-size:0.85rem;color:var(--text-soft);">Bio</label>
+                <textarea id="editBio" class="form-control form-control-sm"
+                          style="background:#050608;border:1px solid var(--border-soft);color:#fff;min-height:60px;resize:vertical;"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label mb-1" style="font-size:0.85rem;color:var(--text-soft);">Foto de perfil</label>
+                <input type="file" id="editAvatar" accept="image/*"
+                       class="form-control form-control-sm"
+                       style="background:#050608;border:1px solid var(--border-soft);color:#fff;">
+                <small class="text-secondary">Opcional. Se não escolher nada, mantém a atual.</small>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" data-bs-dismiss="modal">
+            Cancelar
+        </button>
+        <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" onclick="saveProfile()">
+            Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+
+<script>
+// proteção: se não estiver logado, volta pro login
+if (!localStorage.getItem("userEmail")) {
+    window.location = "index.html";
+}
+
+const userEmail = localStorage.getItem("userEmail");
+const userName  = userEmail ? userEmail.split("@")[0] : "usuario";
+
+// preencher mini perfil na sidebar
+document.getElementById("sidebarName").textContent   = userName;
+document.getElementById("sidebarHandle").textContent = "@" + userName;
+
+// logout
+function logout() {
+    localStorage.removeItem("userEmail");
+    window.location = "index.html";
+}
+
+// carregar dados do perfil (nome, bio, avatar, stats)
+async function loadProfile() {
+    const res  = await fetch("api/profile/get.php?email=" + encodeURIComponent(userEmail));
+    const data = await res.json();
+
+    if (!data.ok) {
+        console.error(data);
+        return;
+    }
+
+    const u = data.user;
+
+    const name     = u.name || userName;
+    const handle   = userName;
+    const email    = u.email;
+    const bio      = u.bio || "Ainda não adicionou uma bio.";
+    const avatar   = u.avatar;
+    const stats    = u.stats || {};
+    const posts    = stats.posts      ?? 0;
+    const likes    = stats.likes      ?? 0;
+    const followers= stats.followers  ?? 0;
+    const following= stats.following  ?? 0;
+
+    document.getElementById("profileName").textContent   = name;
+    document.getElementById("profileHandle").textContent = "@" + handle;
+    document.getElementById("profileEmail").textContent  = email;
+    document.getElementById("profileAbout").textContent  = bio;
+
+    const avatarDiv = document.getElementById("profileAvatar");
+    avatarDiv.textContent = name.charAt(0).toUpperCase();
+    avatarDiv.style.backgroundImage = "none";
+
+    if (avatar) {
+        avatarDiv.style.backgroundImage = "url('uploads/" + avatar + "')";
+        avatarDiv.textContent = "";
+    }
+
+    document.getElementById("countPosts").textContent      = posts;
+    document.getElementById("countLikes").textContent      = likes;
+    document.getElementById("countFollowers").textContent  = followers;
+    document.getElementById("countFollowing").textContent  = following;
+
+    // preencher modal
+    document.getElementById("editName").value = name;
+    document.getElementById("editBio").value  = (u.bio || "");
+}
+
+// salvar alterações (nome, bio, avatar)
+async function saveProfile() {
+    const name = document.getElementById("editName").value.trim();
+    const bio  = document.getElementById("editBio").value.trim();
+    const file = document.getElementById("editAvatar").files[0];
+
+    if (!name) {
+        alert("Nome não pode ser vazio.");
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append("email", userEmail);
+    fd.append("name", name);
+    fd.append("bio", bio);
+    if (file) {
+        fd.append("avatar", file);
+    }
+
+    const res  = await fetch("api/profile/update.php", {
+        method: "POST",
+        body: fd
+    });
+    const data = await res.json();
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    // fecha modal se estiver aberto
+    const modalEl = document.getElementById('editProfileModal');
+    const modal   = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+
+    alert("Perfil atualizado!");
+    document.getElementById("editAvatar").value = "";
+    await loadProfile();
+}
+
+// apagar post (apenas os seus)
+async function deletePost(postId) {
+    if (!confirm("Deseja realmente apagar este post?")) {
+        return;
+    }
+
+    const res  = await fetch("api/posts/delete.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            email: userEmail,
+            post_id: postId
+        })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    loadMyPosts();
+    loadProfile();
+}
+
+// curtir / descurtir post
+async function toggleLike(postId) {
+    const res  = await fetch("api/posts/like.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            email: userEmail,
+            post_id: postId
+        })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    loadMyPosts();
+    loadProfile();
+}
+
+// compartilhar post
+async function sharePost(postId) {
+    const res  = await fetch("api/posts/share.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            post_id: postId
+        })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    loadMyPosts();
+}
+
+// carregar apenas meus posts
+async function loadMyPosts() {
+    const res  = await fetch("api/posts/list.php?email=" + encodeURIComponent(userEmail));
+    const data = await res.json();
+
+    const container = document.getElementById("myPostsContainer");
+    container.innerHTML = "";
+
+    if (!data.ok) {
+        container.innerHTML = "<p class='text-center text-secondary mt-3'>Erro ao carregar posts.</p>";
+        return;
+    }
+
+    const allPosts = data.posts || [];
+    const myPosts  = allPosts.filter(p => p.email === userEmail);
+
+    if (myPosts.length === 0) {
+        container.innerHTML = "<p class='text-center text-secondary mt-3'>Você ainda não publicou nada. Vá em Explorar e faça seu primeiro post!</p>";
+        return;
+    }
+
+    myPosts.forEach(p => {
+        const handle = p.email.split("@")[0];
+        const likeCount  = Number(p.like_count ?? 0);
+        const shareCount = Number(p.share_count ?? 0);
+        const likedByMe  = Number(p.liked_by_me ?? 0) > 0;
+
+        container.innerHTML += `
+            <div class="post">
+                <div class="tweet-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="post-body">
+                    <div class="post-header">
+                        <span class="post-name">${p.name}</span>
+                        <span class="post-handle">@${handle}</span>
+                        <span class="badge bg-secondary-subtle text-light">você</span>
+                        <span class="post-time"> · ${p.created_at}</span>
+                    </div>
+                    <div class="post-content">
+                        ${p.content ?? ""}
+                    </div>
+                    ${p.image ? `<img class="post-image" src="uploads/${p.image}" alt="">` : ""}
+
+                    <div class="post-actions">
+                        <button class="icon-btn" type="button">
+                            <i class="fa-regular fa-comment"></i><span>0</span>
+                        </button>
+
+                        <button class="icon-btn" type="button" onclick="sharePost(${p.id})">
+                            <i class="fa-solid fa-retweet"></i><span>${shareCount}</span>
+                        </button>
+
+                        <button class="icon-btn" type="button" onclick="toggleLike(${p.id})">
+                            <i class="${likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+                            <span>${likeCount}</span>
+                        </button>
+
+                        <button class="icon-btn" type="button">
+                            <i class="fa-regular fa-bookmark"></i>
+                        </button>
+
+                        <button class="icon-btn" type="button" onclick="deletePost(${p.id})">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+loadProfile();
+loadMyPosts();
+</script>
+</body>
+</html>

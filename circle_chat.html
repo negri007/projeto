@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Círculo – Chat</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+body {
+    background: #000;
+    color: #fff;
+}
+.msg-box {
+    background: #111;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+.msg-you {
+    background: #0d47a1;
+}
+</style>
+</head>
+<body>
+
+<div class="container py-4">
+
+    <h3 id="circleTitle">Chat</h3>
+    <hr>
+
+    <div id="messages" style="height: 70vh; overflow-y: auto;"></div>
+
+    <div class="d-flex mt-3">
+        <input id="msgInput" class="form-control me-2" placeholder="Sua mensagem...">
+        <button class="btn btn-primary" onclick="sendMessage()">Enviar</button>
+    </div>
+
+</div>
+
+<script>
+const email = localStorage.getItem("userEmail");
+const circleId = localStorage.getItem("circle_chat_id");
+
+async function loadMessages() {
+    const res = await fetch("api/circle_messages/list.php?circle_id=" + circleId);
+    const data = await res.json();
+
+    const box = document.getElementById("messages");
+    box.innerHTML = "";
+
+    data.messages.forEach(m => {
+        box.innerHTML += `
+            <div class="msg-box ${m.email === email ? 'msg-you' : ''}">
+                <strong>${m.name}</strong><br>
+                ${m.message}
+            </div>
+        `;
+    });
+
+    box.scrollTop = box.scrollHeight;
+}
+
+async function sendMessage() {
+    const msg = document.getElementById("msgInput").value.trim();
+    if (!msg) return;
+
+    await fetch("api/circle_messages/send.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            email,
+            circle_id: circleId,
+            message: msg
+        })
+    });
+
+    document.getElementById("msgInput").value = "";
+    loadMessages();
+}
+
+setInterval(loadMessages, 1200); // atualizar tipo WhatsApp
+loadMessages();
+</script>
+</body>
+</html>

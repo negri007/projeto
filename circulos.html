@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SocialX - Círculos</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+
+    <style>
+        :root {
+            --bg-main: #000000;
+            --bg-card: #050608;
+            --border-soft: #2f3336;
+            --accent: #1d9bf0;
+            --text-soft: #71767b;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-main);
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .layout {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        /* SIDEBAR (mesmo estilo do explorar) */
+        .sidebar {
+            border-right: 1px solid var(--border-soft);
+            min-height: 100vh;
+            position: sticky;
+            top: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            margin-bottom: 20px;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--accent);
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .sidebar .nav-link {
+            color: #fff;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar .nav-link i {
+            font-size: 1.3rem;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(29, 155, 240, 0.15);
+            color: var(--accent);
+        }
+
+        .sidebar-profile {
+            margin-top: auto;
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+        }
+
+        .prof-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #16181c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .prof-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .prof-handle {
+            font-size: 0.8rem;
+            color: var(--text-soft);
+        }
+
+        /* COLUNA CENTRAL */
+        .main-col {
+            border-right: 1px solid var(--border-soft);
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .main-header {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .main-header-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .badge-pill {
+            border-radius: 999px;
+            font-size: 0.75rem;
+        }
+
+        .circle-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-soft);
+            padding: 16px;
+            margin: 16px;
+        }
+
+        .circle-card h5 {
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .circle-list-item {
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border-soft);
+            background: #050608;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .circle-list-item .circle-info small {
+            color: var(--text-soft);
+        }
+
+        .right-col {
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .right-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-soft);
+        }
+
+        .right-card h5 {
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 992px) {
+            .right-col {
+                display: none;
+            }
+            .sidebar {
+                flex: 0 0 72px;
+                max-width: 72px;
+            }
+            .logo-text {
+                display: none;
+            }
+            .sidebar .nav-link span {
+                display: none;
+            }
+            .sidebar .nav-link {
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .main-col {
+                border-right: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid layout">
+    <div class="row">
+        <!-- SIDEBAR -->
+        <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
+            <div class="logo d-flex align-items-center gap-2">
+                <div class="logo-mark">
+                    <i class="fa-solid fa-hashtag"></i>
+                </div>
+                <span class="logo-text">SocialX</span>
+            </div>
+
+      <nav class="nav flex-column mb-3">
+    <a class="nav-link " href="explorar.html">
+        <i class="fa-solid fa-magnifying-glass"></i><span> Explorar</span>
+    </a>
+    <a class="nav-link" href="inicio.html">
+        <i class="fa-solid fa-house"></i><span> Início</span>
+    </a>
+    <a class="nav-link" href="perfil.html">
+        <i class="fa-solid fa-user"></i><span> Perfil</span>
+    </a>
+    <a class="nav-link active" href="circulos.html">
+        <i class="fa-regular fa-circle"></i><span> Círculos</span>
+    </a>
+    <a class="nav-link " href="amigos.html">
+        <i class="fa-solid fa-user-group"></i><span> Amigos</span>
+    </a>
+    <a class="nav-link " href="chat.html">
+        <i class="fa-solid fa-comments"></i><span> Mensagens</span>
+    </a>
+</nav>
+
+
+            <div class="sidebar-profile d-flex align-items-center gap-2">
+                <div class="prof-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="prof-info flex-grow-1">
+                    <div class="prof-name" id="sidebarName">Usuário</div>
+                    <div class="prof-handle" id="sidebarHandle">@usuario</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- COLUNA CENTRAL -->
+        <main class="col-lg-7 col-md-9 main-col">
+            <div class="main-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="main-header-title">Círculos</span>
+                    <span class="badge bg-secondary-subtle text-light border border-secondary badge-pill">
+                        Comunidades privadas
+                    </span>
+                </div>
+            </div>
+
+            <!-- Card "Criar círculo" -->
+            <div class="circle-card">
+                <h5><i class="fa-regular fa-circle me-2"></i>Criar novo círculo</h5>
+                <p class="mb-2 text-secondary">
+                    Em um círculo, você compartilha posts apenas com pessoas selecionadas.
+                </p>
+
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <input type="text" id="circleName" class="form-control form-control-sm"
+                               placeholder="Nome do círculo (ex: Amigos próximos)">
+                    </div>
+                    <div class="col-md-5">
+                        <input type="text" id="circleDesc" class="form-control form-control-sm"
+                               placeholder="Descrição (opcional)">
+                    </div>
+                    <div class="col-md-3 text-md-end">
+                        <button class="btn btn-primary btn-sm rounded-pill" type="button" onclick="createCircle()">
+                            <i class="fa-solid fa-plus me-1"></i>Criar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lista de círculos (preenchida via JS/PHP) -->
+            <div class="circle-card">
+                <h5>Seus círculos</h5>
+                <div id="circleList">
+                    <!-- preenchido via loadCircles() -->
+                </div>
+
+            
+            </div>
+        </main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+
+<script>
+// protege rota
+if (!localStorage.getItem("userEmail")) {
+    window.location = "index.html";
+}
+
+const userEmail = localStorage.getItem("userEmail");
+const userName  = userEmail ? userEmail.split("@")[0] : "usuario";
+
+document.getElementById("sidebarName").textContent   = userName;
+document.getElementById("sidebarHandle").textContent = "@" + userName;
+
+function logout() {
+    localStorage.removeItem("userEmail");
+    window.location = "index.html";
+}
+
+// Carregar círculos do usuário logado
+async function loadCircles() {
+    const list = document.getElementById("circleList");
+    list.innerHTML = "<p class='text-secondary mb-0'>Carregando círculos...</p>";
+
+    try {
+        const res  = await fetch("api/circles/list.php?email=" + encodeURIComponent(userEmail));
+        const data = await res.json();
+
+        list.innerHTML = "";
+
+        if (data.error) {
+            list.innerHTML = `<p class='text-danger mb-0'>${data.error}</p>`;
+            return;
+        }
+
+        if (!data.ok || data.circles.length === 0) {
+            list.innerHTML = "<p class='text-secondary mb-0'>Você ainda não tem círculos.</p>";
+            return;
+        }
+
+        data.circles.forEach(c => {
+            const el = document.createElement("div");
+            el.className = "circle-list-item";
+            el.innerHTML = `
+                <div class="circle-info">
+                    <div>${c.name}</div>
+                    <small>${c.description || "Círculo sem descrição"} • criado em ${c.created_at}</small>
+                </div>
+                <button class="btn btn-sm btn-info rounded-pill me-1"
+        onclick="enterCircle(${c.id}, '${c.name}')">
+    Entrar
+</button>
+                <button class="btn btn-sm btn-outline-light rounded-pill"
+        onclick="openCircle(${c.id}, '${c.name}')">
+    Gerenciar
+</button>
+
+            `;
+            list.appendChild(el);
+        });
+
+    } catch (e) {
+        list.innerHTML = "<p class='text-danger mb-0'>Erro ao carregar círculos.</p>";
+    }
+}
+
+// Criar círculo de verdade (chama PHP)
+async function createCircle() {
+    const nome = document.getElementById("circleName").value.trim();
+    const desc = document.getElementById("circleDesc").value.trim();
+
+    if (!nome) {
+        alert("Digite um nome para o círculo.");
+        return;
+    }
+
+    try {
+        const res = await fetch("api/circles/create.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                email: userEmail,
+                name: nome,
+                description: desc
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        // limpar campos
+        document.getElementById("circleName").value = "";
+        document.getElementById("circleDesc").value = "";
+
+        // recarregar lista do banco
+        loadCircles();
+
+    } catch (e) {
+        alert("Erro ao criar círculo.");
+    }
+}
+let currentCircleId = null;
+
+async function openCircle(id, name) {
+    currentCircleId = id;
+    document.getElementById("circleModalTitle").textContent =
+        "Círculo: " + name;
+
+    loadCircleMembers();
+    loadFriendSelect();
+
+    const modal = new bootstrap.Modal(document.getElementById('circleModal'));
+    modal.show();
+}
+
+async function loadCircleMembers() {
+    const box = document.getElementById("circleMembers");
+    box.innerHTML = "Carregando...";
+
+    const res = await fetch("api/circles/list_members.php?circle_id=" + currentCircleId);
+    const data = await res.json();
+
+    box.innerHTML = "";
+
+    data.members.forEach(u => {
+        box.innerHTML += `
+            <div class="d-flex justify-content-between border-bottom py-1">
+                <div>${u.name} — <small>${u.email}</small></div>
+                <button class="btn btn-sm btn-danger"
+                        onclick="removeFromCircle('${u.email}')">Remover</button>
+            </div>
+        `;
+    });
+}
+
+async function loadFriendSelect() {
+    const res = await fetch("api/friends/list.php?email=" + userEmail);
+    const data = await res.json();
+
+    const select = document.getElementById("friendSelect");
+    select.innerHTML = "";
+
+    data.friends.forEach(f => {
+        select.innerHTML += `<option value="${f.email}">${f.name} (${f.email})</option>`;
+    });
+}
+
+async function addToCircle() {
+    const email = document.getElementById("friendSelect").value;
+
+    await fetch("api/circles/add_member.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            circle_id: currentCircleId,
+            email
+        })
+    });
+
+    loadCircleMembers();
+}
+
+async function removeFromCircle(email) {
+    await fetch("api/circles/remove_member.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            circle_id: currentCircleId,
+            email
+        })
+    });
+
+    loadCircleMembers();
+}
+function enterCircle(id, name) {
+    localStorage.setItem("circle_id", id);
+    localStorage.setItem("circle_name", name);
+
+    window.location = "circle_chat.html";
+}
+
+
+// Carrega os círculos ao abrir a página
+loadCircles();
+</script>
+<div class="modal fade" id="circleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" style="background:#050608; color:white;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="circleModalTitle"></h5>
+        <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <h6>Membros do círculo</h6>
+        <div id="circleMembers" class="mb-3"></div>
+
+        <h6>Adicionar amigo</h6>
+        <select id="friendSelect" class="form-control mb-2"></select>
+        <button class="btn btn-primary btn-sm" onclick="addToCircle()">Adicionar</button>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SocialX - Amigos</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        /* MESMO TEMA DO EXPLORAR.HTML */
+        :root {
+            --bg-main: #000000;
+            --bg-card: #050608;
+            --border-soft: #2f3336;
+            --accent: #1d9bf0;
+            --text-soft: #71767b;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-main);
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .layout {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            border-right: 1px solid var(--border-soft);
+            min-height: 100vh;
+            position: sticky;
+            top: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            margin-bottom: 20px;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--accent);
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .sidebar .nav-link {
+            color: #fff;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(29, 155, 240, 0.15);
+            color: var(--accent);
+        }
+
+        .sidebar-profile {
+            margin-top: auto;
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+        }
+
+        .sidebar-profile .prof-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #16181c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* COLUNA PRINCIPAL */
+        .main-col {
+            border-right: 1px solid var(--border-soft);
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .main-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-soft);
+        }
+
+        .card-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-soft);
+            border-radius: 14px;
+            padding: 16px;
+            margin: 14px;
+        }
+
+        .user-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #222;
+        }
+
+        .user-row:last-child {
+            border-bottom: none;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 42px;
+            height: 42px;
+            background: #16181c;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-xs {
+            padding: 4px 12px;
+            font-size: 0.8rem;
+            border-radius: 20px;
+        }
+
+        @media (max-width: 992px) {
+            .right-col { display: none; }
+            .sidebar {
+                flex: 0 0 72px;
+                max-width: 72px;
+            }
+            .sidebar .nav-link span { display: none; }
+            .sidebar .nav-link { justify-content: center; }
+            .logo-text { display: none; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-col { border-right: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid layout">
+    <div class="row">
+
+        <!-- SIDEBAR -->
+        <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
+            <div class="logo d-flex align-items-center gap-2">
+                <div class="logo-mark"><i class="fa-solid fa-hashtag"></i></div>
+                <span class="logo-text">SocialX</span>
+            </div>
+
+            <nav class="nav flex-column mb-3">
+                <a class="nav-link" href="explorar.html"><i class="fa-solid fa-magnifying-glass"></i><span> Explorar</span></a>
+                <a class="nav-link" href="inicio.html"><i class="fa-solid fa-house"></i><span> Início</span></a>
+                <a class="nav-link" href="perfil.html"><i class="fa-solid fa-user"></i><span> Perfil</span></a>
+                <a class="nav-link" href="circulos.html"><i class="fa-regular fa-circle"></i><span> Círculos</span></a>
+                <a class="nav-link active" href="amigos.html"><i class="fa-solid fa-user-group"></i><span> Amigos</span></a>
+                <a class="nav-link" href="chat.html"><i class="fa-solid fa-comments"></i><span> Mensagens</span><span 
+                id="messagesCount" 
+                class="badge rounded-pill bg-danger ms-auto" 
+                style="display:none; font-size:0.7rem;"
+    >
+        0
+    </span>
+</a>
+
+            </nav>
+
+            <div class="sidebar-profile d-flex align-items-center gap-2">
+                <div class="prof-avatar"><i class="fa-solid fa-user"></i></div>
+                <div class="prof-info">
+                    <div class="prof-name" id="sidebarName">Usuário</div>
+                    <div class="prof-handle" id="sidebarHandle">@user</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" onclick="logout()">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- COLUNA PRINCIPAL -->
+        <main class="col-lg-7 col-md-9 main-col">
+
+            <!-- HEADER -->
+          <div class="main-header">
+    <h4 class="fw-bold mb-3">Amigos</h4>
+
+    <input id="searchInput" 
+           oninput="searchUsers()" 
+           class="form-control"
+           placeholder="Buscar usuário por nome ou email..."
+           style="background:#0a0c0f; border:1px solid #2f3336; color:#fff;">
+</div>
+
+<div class="card-section" id="searchResults" style="display:none;">
+    <h5 class="mb-3">Resultados da busca</h5>
+    <div id="searchList">Digite algo para buscar...</div>
+</div>
+
+
+            <!-- SOLICITAÇÕES RECEBIDAS -->
+            <div class="card-section">
+                <h5 class="mb-3">Solicitações recebidas</h5>
+                <div id="receivedList">Carregando...</div>
+            </div>
+
+            <!-- SOLICITAÇÕES ENVIADAS -->
+            <div class="card-section">
+                <h5 class="mb-3">Solicitações enviadas</h5>
+                <div id="sentList">Carregando...</div>
+            </div>
+
+            <!-- SUGESTÕES -->
+            <div class="card-section">
+                <h5 class="mb-3">Sugestões de pessoas</h5>
+                <div id="suggestionList">Carregando...</div>
+            </div>
+
+            <!-- AMIGOS -->
+            <div class="card-section">
+                <h5 class="mb-3">Meus amigos</h5>
+                <div id="friendsList">Carregando...</div>
+            </div>
+
+        </main>
+
+        <!-- COLUNA DIREITA (vazia nesta página) -->
+        <aside class="col-lg-3 d-none d-lg-block right-col"></aside>
+
+    </div>
+</div>
+
+<script>
+if (!localStorage.getItem("userEmail")) {
+    window.location = "index.html";
+}
+
+const userEmail = localStorage.getItem("userEmail");
+document.getElementById("sidebarName").textContent = userEmail.split("@")[0];
+document.getElementById("sidebarHandle").textContent = "@" + userEmail.split("@")[0];
+
+function logout() {
+    localStorage.removeItem("userEmail");
+    window.location = "index.html";
+}
+
+/* ======================
+   CARREGAR SEÇÕES
+====================== */
+
+async function loadReceived() {
+    const res = await fetch("api/friends/list_pending.php?email=" + userEmail);
+    const data = await res.json();
+    const box = document.getElementById("receivedList");
+
+    if (!data.ok || data.requests.length === 0) {
+        box.innerHTML = "<p class='text-secondary'>Nenhuma solicitação.</p>";
+        return;
+    }
+
+    box.innerHTML = "";
+    data.requests.forEach(r => {
+        box.innerHTML += `
+            <div class="user-row">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                    <div>
+                        <div>${r.name}</div>
+                        <small class="text-secondary">${r.email}</small>
+                    </div>
+                </div>
+
+                <div>
+                    <button class="btn btn-sm btn-success btn-xs" onclick="accept('${r.sender_id}')">Aceitar</button>
+                    <button class="btn btn-sm btn-danger btn-xs" onclick="reject('${r.sender_id}')">Recusar</button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+async function loadSent() {
+    const res = await fetch("api/friends/sent_list.php?email=" + userEmail);
+    const data = await res.json();
+    const box = document.getElementById("sentList");
+
+    if (!data.ok || data.sent.length === 0) {
+        box.innerHTML = "<p class='text-secondary'>Nenhuma solicitação enviada.</p>";
+        return;
+    }
+
+    box.innerHTML = "";
+    data.sent.forEach(r => {
+        box.innerHTML += `
+            <div class="user-row">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                    <div>
+                        <div>${r.name}</div>
+                        <small class="text-secondary">${r.email}</small>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-warning btn-xs" onclick="cancel('${r.receiver_id}')">Cancelar</button>
+            </div>
+        `;
+    });
+}
+
+async function loadSuggestions() {
+    const res = await fetch("api/friends/suggestions.php?email=" + userEmail);
+    const data = await res.json();
+    const box = document.getElementById("suggestionList");
+
+    if (!data.ok || data.users.length === 0) {
+        box.innerHTML = "<p class='text-secondary'>Sem sugestões.</p>";
+        return;
+    }
+
+    box.innerHTML = "";
+    data.users.forEach(u => {
+        box.innerHTML += `
+            <div class="user-row">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                    <div>
+                        <div>${u.name}</div>
+                        <small class="text-secondary">${u.email}</small>
+                    </div>
+                </div>
+
+               <button class="btn btn-sm btn-primary btn-xs"
+                onclick="addFriend('${u.email}', this)">Adicionar</button>
+
+
+            </div>
+        `;
+    });
+}
+
+async function loadFriends() {
+    const res = await fetch("api/friends/list.php?email=" + userEmail);
+    const data = await res.json();
+    const box = document.getElementById("friendsList");
+
+    if (!data.ok || data.friends.length === 0) {
+        box.innerHTML = "<p class='text-secondary'>Você ainda não tem amigos.</p>";
+        return;
+    }
+
+    box.innerHTML = "";
+    data.friends.forEach(u => {
+        box.innerHTML += `
+            <div class="user-row">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                    <div>
+                        <div>${u.name}</div>
+                        <small class="text-secondary">@${u.email.split("@")[0]}</small>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-info btn-xs" onclick="chat('${u.email}')">Conversar</button>
+            </div>
+        `;
+    });
+}
+
+/* ================================
+   FUNÇÕES PRINCIPAIS (AMIZADE)
+================================ */
+async function addFriend(friend_email) {
+    const btn = document.querySelector(`button[data-email="${friend_email}"]`);
+    if (btn) btn.textContent = "Enviando...";
+
+    const res = await fetch("api/friends/send.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            email: userEmail,
+            friend_email
+        })
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+        alert(data.error);
+        if (btn) btn.textContent = "Adicionar";
+        return;
+    }
+
+    if (btn) {
+        btn.textContent = "Cancelar";
+        btn.classList.remove("btn-primary");
+        btn.classList.add("btn-warning");
+        btn.onclick = () => cancel(friend_email);
+    }
+
+    loadAll();
+}
+
+
+
+
+
+
+async function accept(sender) {
+    await fetch("api/friends/accept.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email: userEmail, sender })
+    });
+    loadAll();
+}
+
+async function reject(sender) {
+    await fetch("api/friends/reject.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ email: userEmail, sender })
+    });
+    loadAll();
+}
+
+async function cancel(friend_email) {
+    const res = await fetch("api/friends/reject.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+            email: userEmail,
+            friend_email
+        })
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+        alert(data.error);
+        return;
+    }
+
+    loadAll();
+}
+
+
+function chat(email) {
+    localStorage.setItem("chat_with", email);
+    window.location = "chat.html";
+}
+
+function loadAll() {
+    loadReceived();
+    loadSent();
+    loadSuggestions();
+    loadFriends();
+
+}
+async function searchUsers() {
+    const q = document.getElementById("searchInput").value.trim();
+    const box = document.getElementById("searchResults");
+    const list = document.getElementById("searchList");
+
+    if (q.length < 2) {
+        box.style.display = "none";
+        return;
+    }
+
+    box.style.display = "block";
+    list.innerHTML = "<p class='text-secondary'>Buscando...</p>";
+
+    const res = await fetch("api/friends/search.php?q=" + encodeURIComponent(q));
+    const data = await res.json();
+
+    if (!data.ok || data.users.length === 0) {
+        list.innerHTML = "<p class='text-secondary'>Nenhum usuário encontrado.</p>";
+        return;
+    }
+
+    list.innerHTML = "";
+
+    data.users.forEach(u => {
+        list.innerHTML += `
+            <div class="user-row">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                    <div>
+                        <div>${u.name}</div>
+                        <small class="text-secondary">${u.email}</small>
+                    </div>
+                </div>
+
+                <button class="btn btn-sm btn-primary btn-xs"
+        data-email="${u.email}"
+        onclick="addFriend('${u.email}')">
+    Adicionar
+</button>
+
+        `;
+    });
+}
+
+
+
+loadAll();
+</script>
+
+</body>
+</html>

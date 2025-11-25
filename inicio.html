@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SocialX - Inicio</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-main: #000000;
+            --bg-card: #050608;
+            --border-soft: #2f3336;
+            --accent: #1d9bf0;
+            --text-soft: #71767b;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-main);
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .layout {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            border-right: 1px solid var(--border-soft);
+            min-height: 100vh;
+            position: sticky;
+            top: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logo {
+            margin-bottom: 20px;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--accent);
+        }
+
+        .logo-text {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+
+        .sidebar .nav-link {
+            color: #fff;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar .nav-link i {
+            font-size: 1.3rem;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(29, 155, 240, 0.15);
+            color: var(--accent);
+        }
+
+        /* mini perfil embaixo */
+        .sidebar-profile {
+            margin-top: auto;
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: #050608;
+            border: 1px solid var(--border-soft);
+        }
+
+        .sidebar-profile .prof-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #16181c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .sidebar-profile .prof-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .sidebar-profile .prof-handle {
+            font-size: 0.8rem;
+            color: var(--text-soft);
+        }
+
+        /* COLUNA CENTRAL */
+        .main-col {
+            border-right: 1px solid var(--border-soft);
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .main-header {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-soft);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .main-header-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .badge-pill {
+            border-radius: 999px;
+            font-size: 0.75rem;
+        }
+
+        .search-box {
+            flex: 1;
+            max-width: 260px;
+        }
+
+        .search-box input {
+            background: #16181c;
+            border: 1px solid #202327;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 0.9rem;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-soft);
+        }
+
+        .btn-logout-top {
+            border-radius: 999px;
+            font-size: 0.8rem;
+            padding-block: 4px;
+            padding-inline: 10px;
+        }
+
+        .tweet-box {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-soft);
+            display: flex;
+            gap: 12px;
+        }
+
+        .tweet-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #16181c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tweet-box textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            resize: none;
+            color: #fff;
+            min-height: 60px;
+            outline: none;
+        }
+
+        .tweet-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .tweet-toolbar button.icon-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            padding: 6px;
+            border-radius: 999px;
+        }
+
+        .tweet-toolbar button.icon-btn:hover {
+            background: rgba(29,155,240,0.15);
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            border-radius: 16px;
+            margin-top: 8px;
+            border: 1px solid var(--border-soft);
+            max-height: 350px;
+            object-fit: cover;
+        }
+
+        .post {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-soft);
+            display: flex;
+            gap: 10px;
+        }
+
+        .post:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .post-body {
+            flex: 1;
+        }
+
+        .post-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.95rem;
+        }
+
+        .post-name {
+            font-weight: 600;
+        }
+
+        .post-handle,
+        .post-time {
+            color: var(--text-soft);
+            font-size: 0.85rem;
+        }
+
+        .post-content {
+            margin-top: 4px;
+            font-size: 0.98rem;
+        }
+
+        .post-image {
+            margin-top: 8px;
+            border-radius: 16px;
+            max-height: 400px;
+            width: 100%;
+            object-fit: cover;
+            border: 1px solid var(--border-soft);
+        }
+
+        .post-actions {
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            max-width: 300px;
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .post-actions .icon-btn {
+            background: none;
+            border: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-soft);
+            padding: 4px 6px;
+            border-radius: 999px;
+        }
+
+        .post-actions .icon-btn i {
+            font-size: 0.95rem;
+        }
+
+        .post-actions .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+
+        /* COLUNA DIREITA */
+        .right-col {
+            padding: 12px 16px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .right-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-soft);
+        }
+
+        .right-card h5 {
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .right-card small {
+            color: var(--text-soft);
+        }
+
+        @media (max-width: 992px) {
+            .right-col {
+                display: none;
+            }
+            .sidebar {
+                flex: 0 0 72px;
+                max-width: 72px;
+            }
+            .logo-text {
+                display: none;
+            }
+            .sidebar .nav-link span {
+                display: none;
+            }
+            .sidebar .nav-link {
+                justify-content: center;
+            }
+            .sidebar-profile {
+                justify-content: center;
+                gap: 8px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .main-col {
+                border-right: none;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container-fluid layout">
+    <div class="row">
+        <!-- SIDEBAR -->
+        <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
+            <div class="logo d-flex align-items-center gap-2">
+                <div class="logo-mark">
+                    <i class="fa-solid fa-hashtag"></i>
+                </div>
+                <span class="logo-text">SocialX</span>
+            </div>
+
+     <nav class="nav flex-column mb-3">
+    <a class="nav-link " href="explorar.html">
+        <i class="fa-solid fa-magnifying-glass"></i><span> Explorar</span>
+    </a>
+    <a class="nav-link active" href="inicio.html">
+        <i class="fa-solid fa-house"></i><span> Início</span>
+    </a>
+    <a class="nav-link " href="perfil.html">
+        <i class="fa-solid fa-user"></i><span> Perfil</span>
+    </a>
+    <a class="nav-link  "href="circulos.html">
+        <i class="fa-regular fa-circle"></i><span> Círculos</span>
+    </a>
+    <a class="nav-link  "href="amigos.html">
+        <i class="fa-solid fa-user-group"></i><span> Amigos</span>
+    </a>
+    <a class="nav-link  "href="chat.html">
+        <i class="fa-solid fa-comments"></i><span> Mensagens</span>
+    </a>
+</nav>
+
+
+            <!-- mini perfil + logout discreto -->
+            <div class="sidebar-profile d-flex align-items-center gap-2">
+                <div class="prof-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="prof-info flex-grow-1">
+                    <div class="prof-name" id="sidebarName">Usuário</div>
+                    <div class="prof-handle" id="sidebarHandle">@usuario</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- FEED EXPLORAR -->
+        <main class="col-lg-7 col-md-9 main-col">
+            <div class="main-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="main-header-title">Início</span>
+                    <span class="badge bg-secondary-subtle text-light border border-secondary badge-pill">Geral</span>
+                </div>
+
+                <div class="search-box d-none d-sm-block">
+                    <input type="text" class="form-control form-control-sm" placeholder="Buscar no SocialX">
+                </div>
+            </div>
+
+            <!-- Caixa de post -->
+            <div class="tweet-box">
+                <div class="tweet-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <textarea id="postText" placeholder="O que está acontecendo?"></textarea>
+
+                    <div class="image-preview" id="imagePreview"></div>
+
+                    <div class="tweet-toolbar">
+                        <div>
+                            <button class="icon-btn" type="button" onclick="document.getElementById('imageInput').click()">
+                                <i class="fa-regular fa-image"></i>
+                            </button>
+                            <button class="icon-btn" type="button">
+                                <i class="fa-regular fa-face-smile"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-primary rounded-pill px-4 py-1" onclick="createPost()">Postar</button>
+                    </div>
+
+                    <input type="file" id="imageInput" accept="image/*" class="d-none">
+                </div>
+            </div>
+
+            <!-- Feed -->
+            <div id="feedContainer"></div>
+        </main>
+
+        <!-- COLUNA DIREITA -->
+        <aside class="col-lg-3 d-none d-lg-block right-col">
+            <div class="right-card">
+                <h5>Tendências para você</h5>
+                <p class="mb-1 text-secondary">Assunto do momento • Programação</p>
+                <p class="mb-2">#PHP</p>
+
+                <p class="mb-1 text-secondary">Assunto do momento • Mundo</p>
+                <p class="mb-2">#Linux</p>
+
+                <p class="mb-1 text-secondary">Assunto do momento • Tecnologia</p>
+                <p class="mb-0">#IA</p>
+            </div>
+
+            <div class="right-card">
+                <h5>Talvez você curta</h5>
+                <small>Apenas visual, sem lógica ainda</small>
+                <div class="mt-2">
+                    <p class="mb-1">Ana Clara • <span class="text-info">@ana</span></p>
+                    <p class="mb-1">João Pedro • <span class="text-info">@jp</span></p>
+                    <p class="mb-0">Dev Nerd • <span class="text-info">@dev</span></p>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+
+<script>
+// se não estiver logado, volta pro login
+if (!localStorage.getItem("userEmail")) {
+    window.location = "index.html";
+}
+
+const userEmail = localStorage.getItem("userEmail");
+const userName  = userEmail ? userEmail.split("@")[0] : "usuario";
+
+let selectedImageFile = null;
+
+const imageInput   = document.getElementById("imageInput");
+const imagePreview = document.getElementById("imagePreview");
+
+// preencher mini perfil na sidebar
+document.getElementById("sidebarName").textContent   = userName;
+document.getElementById("sidebarHandle").textContent = "@" + userName;
+
+imageInput.addEventListener("change", function () {
+    const file = this.files[0];
+    selectedImageFile = null;
+    imagePreview.innerHTML = "";
+
+    if (!file) return;
+
+    selectedImageFile = file;
+    const url = URL.createObjectURL(file);
+    imagePreview.innerHTML = `<img src="${url}" alt="Pré-visualização">`;
+});
+
+// logout
+function logout() {
+    localStorage.removeItem("userEmail");
+    window.location = "index.html";
+}
+
+// apagar post (só se for do usuário logado)
+async function deletePost(postId) {
+    if (!confirm("Deseja realmente apagar este post?")) {
+        return;
+    }
+
+    const res  = await fetch("api/posts/delete.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            email: userEmail,
+            post_id: postId
+        })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    loadPosts();
+}
+
+// curtir / descurtir post
+async function toggleLike(postId) {
+    const res  = await fetch("api/posts/like.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            email: userEmail,
+            post_id: postId
+        })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    loadPosts();
+}
+
+// compartilhar post (só soma no contador)
+async function sharePost(postId) {
+    const res  = await fetch("api/posts/share.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            post_id: postId
+        })
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    loadPosts();
+}
+
+// carregar posts do PHP
+async function loadPosts() {
+    const res  = await fetch("api/posts/list.php?email=" + encodeURIComponent(userEmail));
+    const data = await res.json();
+
+    const feed = document.getElementById("feedContainer");
+    feed.innerHTML = "";
+
+    if (!data.ok) {
+        feed.innerHTML = "<p class='text-center text-secondary mt-3'>Erro ao carregar posts.</p>";
+        return;
+    }
+
+    data.posts.forEach(p => {
+        const handle = p.email.split("@")[0];
+        const isYou  = (p.email === userEmail);
+
+        const likeCount  = Number(p.like_count ?? 0);
+        const shareCount = Number(p.share_count ?? 0);
+        const likedByMe  = Number(p.liked_by_me ?? 0) > 0;
+
+        feed.innerHTML += `
+            <div class="post">
+                <div class="tweet-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="post-body">
+                    <div class="post-header">
+                        <span class="post-name">${p.name}</span>
+                        <span class="post-handle">@${handle}</span>
+                        ${isYou ? `<span class="badge bg-secondary-subtle text-light">você</span>` : ""}
+                        <span class="post-time"> · ${p.created_at}</span>
+                    </div>
+                    <div class="post-content">
+                        ${p.content ?? ""}
+                    </div>
+                    ${p.image ? `<img class="post-image" src="uploads/${p.image}" alt="">` : ""}
+
+                    <div class="post-actions">
+                        <!-- comentário (só visual) -->
+                        <button class="icon-btn" type="button">
+                            <i class="fa-regular fa-comment"></i><span>0</span>
+                        </button>
+
+                        <!-- compartilhar -->
+                        <button class="icon-btn" type="button" onclick="sharePost(${p.id})">
+                            <i class="fa-solid fa-retweet"></i><span>${shareCount}</span>
+                        </button>
+
+                        <!-- like -->
+                        <button class="icon-btn" type="button" onclick="toggleLike(${p.id})">
+                            <i class="${likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+                            <span>${likeCount}</span>
+                        </button>
+
+                        <!-- salvar (só visual) -->
+                        <button class="icon-btn" type="button">
+                            <i class="fa-regular fa-bookmark"></i>
+                        </button>
+
+                        <!-- apagar (se for seu) -->
+                        ${
+                            isYou
+                                ? `<button class="icon-btn" type="button" onclick="deletePost(${p.id})">
+                                       <i class="fa-solid fa-trash"></i>
+                                   </button>`
+                                : ""
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+}
+
+// criar post (texto + imagem opcional)
+async function createPost() {
+    const txt = document.getElementById("postText").value.trim();
+
+    if (!txt && !selectedImageFile) {
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append("email", userEmail);
+    fd.append("content", txt);
+    if (selectedImageFile) {
+        fd.append("image", selectedImageFile);
+    }
+
+    const res  = await fetch("api/posts/create.php", {
+        method: "POST",
+        body: fd
+    });
+
+    const data = await res.json();
+
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    // limpar campos
+    document.getElementById("postText").value = "";
+    imageInput.value = "";
+    selectedImageFile = null;
+    imagePreview.innerHTML = "";
+
+    loadPosts();
+}
+
+loadPosts();
+</script>
+</body>
+</html>
