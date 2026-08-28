@@ -1,52 +1,55 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
 
-// conexão com o mesmo db.php do auth
+require_once __DIR__ . '/../auth/session.php';
 require_once __DIR__ . '/../auth/db.php';
 
-// só aceita POST
+$userId = require_login();
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['error' => 'Método inválido.']);
     exit;
 }
 
-// lê JSON enviado
 $data = json_decode(file_get_contents("php://input"), true);
 
 $post_id = (int)($data['post_id'] ?? 0);
 $body    = trim($data['body'] ?? '');
-$email   = trim($data['email'] ?? ''); // vamos usar o email do usuário logado
 
-if (!$post_id || !$body || !$email) {
-    echo json_encode(['error' => 'post_id, comentário e email são obrigatórios.']);
+if (!$post_id || $body === '') {
+    echo json_encode(['error' => 'post_id e comentário são obrigatórios.']);
     exit;
 }
 
-// busca o user_id pelo email
-$stmt = $pdo->prepare("SELECT id, name FROM users WHERE email = ?");
-$stmt->execute([$email]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare("SELECT id FROM posts WHERE id = ?");
+    $stmt->execute([$post_id]);
 
-if (!$user) {
-    echo json_encode(['error' => 'Usuário não encontrado.']);
-    exit;
-}
+    if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+        echo json_encode(['error' => 'Post não encontrado.']);
+        exit;
+    }
 
-$user_id = (int)$user['id'];
+    $sql = "INSERT INTO comments (post_id, user_id, body, created_at)
+            VALUES (?, ?, ?, NOW())";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$post_id, $userId, $body]);
 
-// insere comentário
-$sql = "INSERT INTO comments (post_id, user_id, body, created_at) 
-        VALUES (:post_id, :user_id, :body, NOW())";
-$stmt = $pdo->prepare($sql);
-$stmt->bindParam(':post_id', $post_id);
-$stmt->bindParam(':user_id', $user_id);
-$stmt->bindParam(':body', $body);
+    $commentId = (int)$pdo->lastInsertId();
 
-if ($stmt->execute()) {
-    echo json_encode([
-        'ok'      => true,
-        'message' => 'Comentário criado com sucesso.'
-    ]);
-} else {
+    // Devolve o comentário já montado para o front renderizar sem
+    // precisar recarregar a lista inteira.
+    $stmt = $pdo->prepare(
+        "SELECT c.id, c.post_id, c.user_id, c.body, c.created_at, u.name, u.email
+         FROM comments c
+         JOIN users u ON u.id = c.user_id
+         WHERE c.id = ?"
+    );
+    $stmt->execute([$commentId]);
+    $comment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    echo json_encode(['ok' => true, 'comment' => $comment]);
+
+} catch (Exception $e) {
     echo json_encode(['error' => 'Erro ao criar comentário.']);
 }

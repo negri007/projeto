@@ -1,76 +1,77 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
-require_once "../auth/db.php";
 
-$data = json_decode(file_get_contents("php://input"));
+require_once __DIR__ . "/../auth/session.php";
+require_once __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/helpers.php";
 
-if (!isset($data->email) || !isset($data->friend_email)) {
-    echo json_encode(["error" => "Dados incompletos"]);
+$userId = require_login();
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    echo json_encode(["error" => "Método inválido."]);
     exit;
 }
 
-$email        = trim($data->email);
-$friendEmail  = trim($data->friend_email);
+$data     = json_decode(file_get_contents("php://input"), true);
+$targetId = friends_target_id($pdo, $data, true);
 
-// pegar IDs
-$stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-$stmt->execute([$email]);
-$user = $stmt->fetch();
-
-$stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-$stmt->execute([$friendEmail]);
-$friend = $stmt->fetch();
-
-if (!$user || !$friend) {
-    echo json_encode(["error" => "Usuário não encontrado"]);
+if ($targetId === null) {
+    echo json_encode(["error" => "Usuário não encontrado."]);
     exit;
 }
 
-$userId   = $user["id"];
-$friendId = $friend["id"];
-
-// checar se JÁ existe relação em qualquer direção
-$stmt = $pdo->prepare("
-    SELECT * FROM friends
-    WHERE (user_id = ? AND friend_id = ?)
-       OR (user_id = ? AND friend_id = ?)
-");
-$stmt->execute([$userId, $friendId, $friendId, $userId]);
-
-$existente = $stmt->fetch();
-
-if ($existente) {
-
-    // já são amigos
-    if ($existente["status"] === "accepted") {
-        echo json_encode(["error" => "Vocês já são amigos"]);
-        exit;
-    }
-
-    // já mandou pedido
-    if ($existente["user_id"] == $userId && $existente["status"] === "pending") {
-        echo json_encode(["error" => "Pedido já enviado"]);
-        exit;
-    }
-
-    // o outro mandou pedido, então aceitar automaticamente
-    if ($existente["friend_id"] == $userId && $existente["status"] === "pending") {
-        $pdo->prepare("
-            UPDATE friends 
-            SET status = 'accepted' 
-            WHERE id = ?
-        ")->execute([$existente["id"]]);
-
-        echo json_encode(["ok" => true, "auto_accepted" => true]);
-        exit;
-    }
+if ($targetId === $userId) {
+    echo json_encode(["error" => "Você não pode adicionar a si mesmo."]);
+    exit;
 }
 
-// criar novo pedido PENDING
-$stmt = $pdo->prepare("
-    INSERT INTO friends (user_id, friend_id, status)
-    VALUES (?, ?, 'pending')
-");
-$stmt->execute([$userId, $friendId]);
+try {
+    // Relação existente em qualquer direção.
+    $stmt = $pdo->prepare(
+        "SELECT id, user_id, friend_id, status
+         FROM friends
+         WHERE (user_id = ? AND friend_id = ?)
+            OR (user_id = ? AND friend_id = ?)
+         LIMIT 1"
+    );
+    $stmt->execute([$userId, $targetId, $targetId, $userId]);
+    $relacao = $stmt->fetch(PDO::FETCH_ASSOC);
 
-echo json_encode(["ok" => true]);
+    if ($relacao) {
+        if ($relacao["status"] === "accepted") {
+            echo json_encode(["error" => "Vocês já são amigos."]);
+            exit;
+        }
+
+        // Pedido meu ainda pendente.
+        if ((int)$relacao["user_id"] === $userId) {
+            echo json_encode(["error" => "Pedido já enviado."]);
+            exit;
+        }
+
+        // O outro já tinha pedido: vira amizade na hora.
+        $stmt = $pdo->prepare("UPDATE friends SET status = 'accepted' WHERE id = ?");
+        $stmt->execute([(int)$relacao["id"]]);
+
+        echo json_encode([
+            "ok"            => true,
+            "status"        => "accepted",
+            "auto_accepted" => true
+        ]);
+        exit;
+    }
+
+    $stmt = $pdo->prepare(
+        "INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, 'pending')"
+    );
+    $stmt->execute([$userId, $targetId]);
+
+    echo json_encode([
+        "ok"            => true,
+        "status"        => "pending",
+        "auto_accepted" => false
+    ]);
+
+} catch (Exception $e) {
+    echo json_encode(["error" => "Erro ao enviar solicitação."]);
+}

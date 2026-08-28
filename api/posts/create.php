@@ -1,31 +1,21 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
 
+require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
 
+$userId = require_login();
+
 try {
-  
-    $email   = trim($_POST["email"]   ?? "");
     $content = trim($_POST["content"] ?? "");
 
-    if ($email === "" && $content === "" && empty($_FILES["image"]["name"])) {
+    if ($content === "" && empty($_FILES["image"]["name"])) {
         echo json_encode(["error" => "Envie texto ou uma imagem."]);
-        exit;
-    }
-
-   
-    $stmt = $pdo->prepare("SELECT id, name FROM users WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$user) {
-        echo json_encode(["error" => "Usuário não encontrado."]);
         exit;
     }
 
     $imageName = null;
 
-    
     if (!empty($_FILES["image"]["name"])) {
         $uploadDir = __DIR__ . "/../../uploads";
 
@@ -50,11 +40,10 @@ try {
         }
     }
 
-   
     $stmt = $pdo->prepare(
         "INSERT INTO posts (user_id, content, image) VALUES (?, ?, ?)"
     );
-    $stmt->execute([$user["id"], $content, $imageName]);
+    $stmt->execute([$userId, $content, $imageName]);
 
     echo json_encode(["ok" => true]);
 

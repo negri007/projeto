@@ -3,121 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SocialX - Amigos</title>
+    <title>ECHO - Amigos</title>
 
-    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <!-- Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/echo.css" rel="stylesheet">
 
     <style>
-        /* MESMO TEMA DO EXPLORAR.HTML */
-        :root {
-            --bg-main: #000000;
-            --bg-card: #050608;
-            --border-soft: #2f3336;
-            --accent: #1d9bf0;
-            --text-soft: #71767b;
-        }
-
-        body {
-            margin: 0;
-            background: var(--bg-main);
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        .layout {
-            max-width: 1300px;
-            margin: 0 auto;
-        }
-
-        /* SIDEBAR */
-        .sidebar {
-            border-right: 1px solid var(--border-soft);
-            min-height: 100vh;
-            position: sticky;
-            top: 0;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .logo {
-            margin-bottom: 20px;
-        }
-
-        .logo-mark {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: #050608;
-            border: 1px solid var(--border-soft);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            color: var(--accent);
-        }
-
-        .logo-text {
-            font-weight: 700;
-            font-size: 1.2rem;
-        }
-
-        .sidebar .nav-link {
-            color: #fff;
-            border-radius: 999px;
-            padding: 10px 18px;
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active {
-            background: rgba(29, 155, 240, 0.15);
-            color: var(--accent);
-        }
-
-        .sidebar-profile {
-            margin-top: auto;
-            padding: 8px 10px;
-            border-radius: 999px;
-            background: #050608;
-            border: 1px solid var(--border-soft);
-        }
-
-        .sidebar-profile .prof-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: #16181c;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* COLUNA PRINCIPAL */
-        .main-col {
-            border-right: 1px solid var(--border-soft);
-            padding: 0;
-            min-height: 100vh;
-        }
-
-        .main-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-soft);
-        }
-
         .card-section {
             background: var(--bg-card);
-            border: 1px solid var(--border-soft);
-            border-radius: 14px;
+            border-radius: var(--radius-lg);
             padding: 16px;
-            margin: 14px;
+            margin: 16px;
+            border: 1px solid var(--border-soft);
         }
 
         .user-row {
@@ -125,7 +23,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 10px 0;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--border-soft);
         }
 
         .user-row:last-child {
@@ -139,74 +37,63 @@
         }
 
         .user-avatar {
-            width: 42px;
-            height: 42px;
-            background: #16181c;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
+            background: var(--bg-input);
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-soft);
         }
 
         .btn-xs {
-            padding: 4px 12px;
+            padding: 2px 12px;
             font-size: 0.8rem;
-            border-radius: 20px;
-        }
-
-        @media (max-width: 992px) {
-            .right-col { display: none; }
-            .sidebar {
-                flex: 0 0 72px;
-                max-width: 72px;
-            }
-            .sidebar .nav-link span { display: none; }
-            .sidebar .nav-link { justify-content: center; }
-            .logo-text { display: none; }
-        }
-
-        @media (max-width: 768px) {
-            .sidebar { display: none; }
-            .main-col { border-right: none; }
+            border-radius: var(--radius-full);
         }
     </style>
 </head>
 <body>
-
 <div class="container-fluid layout">
     <div class="row">
-
         <!-- SIDEBAR -->
         <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
             <div class="logo d-flex align-items-center gap-2">
-                <div class="logo-mark"><i class="fa-solid fa-hashtag"></i></div>
-                <span class="logo-text">SocialX</span>
+                <div class="logo-mark">
+                    <i class="fa-solid fa-hashtag"></i>
+                </div>
+                <span class="logo-text">ECHO</span>
             </div>
 
             <nav class="nav flex-column mb-3">
-                <a class="nav-link" href="explorar.html"><i class="fa-solid fa-magnifying-glass"></i><span> Explorar</span></a>
-                <a class="nav-link" href="inicio.html"><i class="fa-solid fa-house"></i><span> Início</span></a>
-                <a class="nav-link" href="perfil.html"><i class="fa-solid fa-user"></i><span> Perfil</span></a>
-                <a class="nav-link" href="circulos.html"><i class="fa-regular fa-circle"></i><span> Círculos</span></a>
-                <a class="nav-link active" href="amigos.html"><i class="fa-solid fa-user-group"></i><span> Amigos</span></a>
-                <a class="nav-link" href="chat.html"><i class="fa-solid fa-comments"></i><span> Mensagens</span><span 
-                id="messagesCount" 
-                class="badge rounded-pill bg-danger ms-auto" 
-                style="display:none; font-size:0.7rem;"
-    >
-        0
-    </span>
-</a>
-
+                <a class="nav-link" href="explorar.html">
+                    <i class="fa-solid fa-magnifying-glass"></i><span>Explorar</span>
+                </a>
+                <a class="nav-link" href="inicio.html">
+                    <i class="fa-solid fa-house"></i><span>Início</span>
+                </a>
+                <a class="nav-link" href="perfil.html">
+                    <i class="fa-solid fa-user"></i><span>Perfil</span>
+                </a>
+                <a class="nav-link" href="circulos.html">
+                    <i class="fa-regular fa-circle"></i><span>Círculos</span>
+                </a>
+                <a class="nav-link active" href="amigos.html">
+                    <i class="fa-solid fa-user-group"></i><span>Amigos</span>
+                </a>
+                <a class="nav-link" href="chat.html">
+                    <i class="fa-solid fa-comments"></i><span>Mensagens</span>
+                </a>
             </nav>
 
             <div class="sidebar-profile d-flex align-items-center gap-2">
                 <div class="prof-avatar"><i class="fa-solid fa-user"></i></div>
-                <div class="prof-info">
+                <div class="prof-info flex-grow-1">
                     <div class="prof-name" id="sidebarName">Usuário</div>
                     <div class="prof-handle" id="sidebarHandle">@user</div>
                 </div>
-                <button class="btn btn-sm btn-outline-secondary" onclick="logout()">
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()" title="Sair">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                 </button>
             </div>
@@ -214,68 +101,89 @@
 
         <!-- COLUNA PRINCIPAL -->
         <main class="col-lg-7 col-md-9 main-col">
-
             <!-- HEADER -->
-          <div class="main-header">
-    <h4 class="fw-bold mb-3">Amigos</h4>
+            <div class="main-header">
+                <div class="d-flex align-items-center gap-2 flex-grow-1">
+                    <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <span class="main-header-title">Amigos</span>
+                </div>
 
-    <input id="searchInput" 
-           oninput="searchUsers()" 
-           class="form-control"
-           placeholder="Buscar usuário por nome ou email..."
-           style="background:#0a0c0f; border:1px solid #2f3336; color:#fff;">
-</div>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="search-box">
+                        <input id="searchInput" oninput="searchUsers()" class="form-control form-control-sm" placeholder="Buscar conexões...">
+                    </div>
+                    <!-- SINO DE NOTIFICAÇÕES -->
+                    <div id="notificationBellContainer"></div>
+                </div>
+            </div>
 
-<div class="card-section" id="searchResults" style="display:none;">
-    <h5 class="mb-3">Resultados da busca</h5>
-    <div id="searchList">Digite algo para buscar...</div>
-</div>
-
+            <div class="card-section" id="searchResults" style="display:none;">
+                <h5 class="mb-3 text-light font-weight-bold">Resultados da busca</h5>
+                <div id="searchList">Digite algo para buscar...</div>
+            </div>
 
             <!-- SOLICITAÇÕES RECEBIDAS -->
             <div class="card-section">
-                <h5 class="mb-3">Solicitações recebidas</h5>
-                <div id="receivedList">Carregando...</div>
+                <h5 class="mb-3 text-light font-weight-bold">Solicitações recebidas</h5>
+                <div id="receivedList"></div>
             </div>
 
             <!-- SOLICITAÇÕES ENVIADAS -->
             <div class="card-section">
-                <h5 class="mb-3">Solicitações enviadas</h5>
-                <div id="sentList">Carregando...</div>
+                <h5 class="mb-3 text-light font-weight-bold">Solicitações enviadas</h5>
+                <div id="sentList"></div>
             </div>
 
             <!-- SUGESTÕES -->
             <div class="card-section">
-                <h5 class="mb-3">Sugestões de pessoas</h5>
-                <div id="suggestionList">Carregando...</div>
+                <h5 class="mb-3 text-light font-weight-bold">Sugestões de pessoas</h5>
+                <div id="suggestionList"></div>
             </div>
 
             <!-- AMIGOS -->
             <div class="card-section">
-                <h5 class="mb-3">Meus amigos</h5>
-                <div id="friendsList">Carregando...</div>
+                <h5 class="mb-3 text-light font-weight-bold">Meus amigos</h5>
+                <div id="friendsList"></div>
             </div>
-
         </main>
 
-        <!-- COLUNA DIREITA (vazia nesta página) -->
-        <aside class="col-lg-3 d-none d-lg-block right-col"></aside>
-
+        <!-- COLUNA DIREITA -->
+        <aside class="col-lg-3 d-none d-lg-block right-col">
+            <div class="right-card">
+                <h5>Conexões no ECHO</h5>
+                <p class="mb-1 text-secondary small">
+                    Adicione amigos para enviar mensagens privadas e convidá-los para os seus Círculos.
+                </p>
+            </div>
+        </aside>
     </div>
 </div>
 
-<script>
-if (!localStorage.getItem("userEmail")) {
-    window.location = "index.html";
-}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/echo-ui.js"></script>
 
-const userEmail = localStorage.getItem("userEmail");
-document.getElementById("sidebarName").textContent = userEmail.split("@")[0];
-document.getElementById("sidebarHandle").textContent = "@" + userEmail.split("@")[0];
+<script>
+let currentUser = null;
+let userEmail = "";
+
+document.addEventListener("DOMContentLoaded", async function () {
+    // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
+    currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
+    if (!currentUser) return;
+
+    userEmail = currentUser.email;
+
+    // Inicializa Header (Sino + Mobile Sidebar)
+    document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
+    EchoUIInstance.initHeader('amigos');
+
+    reloadAll();
+});
 
 function logout() {
-    localStorage.removeItem("userEmail");
-    window.location = "index.html";
+    EchoUIInstance.logout();
 }
 
 /* ======================
@@ -283,259 +191,306 @@ function logout() {
 ====================== */
 
 async function loadReceived() {
-    const res = await fetch("api/friends/list_pending.php?email=" + userEmail);
-    const data = await res.json();
     const box = document.getElementById("receivedList");
+    box.innerHTML = EchoUIInstance.getListSkeletonHTML(2);
 
-    if (!data.ok || data.requests.length === 0) {
-        box.innerHTML = "<p class='text-secondary'>Nenhuma solicitação.</p>";
-        return;
-    }
+    try {
+        const res = await fetch("api/friends/list_pending.php", { credentials: "same-origin" });
+        const data = await res.json();
 
-    box.innerHTML = "";
-    data.requests.forEach(r => {
-        box.innerHTML += `
-            <div class="user-row">
-                <div class="user-info">
-                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
-                    <div>
-                        <div>${r.name}</div>
-                        <small class="text-secondary">${r.email}</small>
+        box.innerHTML = "";
+
+        if (!data.ok || !data.requests || data.requests.length === 0) {
+            box.innerHTML = "<p class='text-secondary small mb-0'>Nenhuma solicitação pendente.</p>";
+            return;
+        }
+
+        data.requests.forEach(r => {
+            box.innerHTML += `
+                <div class="user-row">
+                    <div class="user-info">
+                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        <div>
+                            <strong class="small text-light">${EchoUIInstance.escapeHTML(r.name)}</strong>
+                            <div class="text-secondary small">${EchoUIInstance.escapeHTML(r.email)}</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-success btn-xs" onclick="accept('${r.user_id}')">Aceitar</button>
+                        <button class="btn btn-sm btn-danger btn-xs" onclick="reject('${r.user_id}')">Recusar</button>
                     </div>
                 </div>
-
-                <div>
-                    <button class="btn btn-sm btn-success btn-xs" onclick="accept('${r.sender_id}')">Aceitar</button>
-                    <button class="btn btn-sm btn-danger btn-xs" onclick="reject('${r.sender_id}')">Recusar</button>
-                </div>
-            </div>
-        `;
-    });
+            `;
+        });
+    } catch(e) {
+        box.innerHTML = "<p class='text-danger small mb-0'>Erro ao carregar solicitações.</p>";
+    }
 }
 
 async function loadSent() {
-    const res = await fetch("api/friends/sent_list.php?email=" + userEmail);
-    const data = await res.json();
     const box = document.getElementById("sentList");
+    box.innerHTML = EchoUIInstance.getListSkeletonHTML(2);
 
-    if (!data.ok || data.sent.length === 0) {
-        box.innerHTML = "<p class='text-secondary'>Nenhuma solicitação enviada.</p>";
-        return;
-    }
+    try {
+        const res = await fetch("api/friends/sent_list.php", { credentials: "same-origin" });
+        const data = await res.json();
 
-    box.innerHTML = "";
-    data.sent.forEach(r => {
-        box.innerHTML += `
-            <div class="user-row">
-                <div class="user-info">
-                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
-                    <div>
-                        <div>${r.name}</div>
-                        <small class="text-secondary">${r.email}</small>
+        box.innerHTML = "";
+
+        if (!data.ok || !data.sent || data.sent.length === 0) {
+            box.innerHTML = "<p class='text-secondary small mb-0'>Nenhuma solicitação enviada pendente.</p>";
+            return;
+        }
+
+        data.sent.forEach(r => {
+            box.innerHTML += `
+                <div class="user-row">
+                    <div class="user-info">
+                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        <div>
+                            <strong class="small text-light">${EchoUIInstance.escapeHTML(r.name)}</strong>
+                            <div class="text-secondary small">${EchoUIInstance.escapeHTML(r.email)}</div>
+                        </div>
                     </div>
+                    <button class="btn btn-sm btn-warning btn-xs" onclick="cancel('${r.user_id}')">Cancelar</button>
                 </div>
-                <button class="btn btn-sm btn-warning btn-xs" onclick="cancel('${r.receiver_id}')">Cancelar</button>
-            </div>
-        `;
-    });
+            `;
+        });
+    } catch(e) {
+        box.innerHTML = "<p class='text-secondary small mb-0'>Nenhuma solicitação enviada pendente.</p>";
+    }
 }
 
 async function loadSuggestions() {
-    const res = await fetch("api/friends/suggestions.php?email=" + userEmail);
-    const data = await res.json();
     const box = document.getElementById("suggestionList");
+    box.innerHTML = EchoUIInstance.getListSkeletonHTML(2);
 
-    if (!data.ok || data.users.length === 0) {
-        box.innerHTML = "<p class='text-secondary'>Sem sugestões.</p>";
-        return;
-    }
+    try {
+        const res = await fetch("api/friends/suggestions.php", { credentials: "same-origin" });
+        const data = await res.json();
 
-    box.innerHTML = "";
-    data.users.forEach(u => {
-        box.innerHTML += `
-            <div class="user-row">
-                <div class="user-info">
-                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
-                    <div>
-                        <div>${u.name}</div>
-                        <small class="text-secondary">${u.email}</small>
+        box.innerHTML = "";
+
+        if (!data.ok || !data.users || data.users.length === 0) {
+            box.innerHTML = "<p class='text-secondary small mb-0'>Sem sugestões no momento.</p>";
+            return;
+        }
+
+        data.users.forEach(u => {
+            box.innerHTML += `
+                <div class="user-row">
+                    <div class="user-info">
+                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        <div>
+                            <strong class="small text-light">${EchoUIInstance.escapeHTML(u.name)}</strong>
+                            <div class="text-secondary small">${EchoUIInstance.escapeHTML(u.email)}</div>
+                        </div>
                     </div>
+                    <button class="btn btn-sm btn-primary btn-xs" onclick="addFriend('${u.user_id}')">Adicionar</button>
                 </div>
-
-               <button class="btn btn-sm btn-primary btn-xs"
-                onclick="addFriend('${u.email}', this)">Adicionar</button>
-
-
-            </div>
-        `;
-    });
+            `;
+        });
+    } catch(e) {
+        box.innerHTML = "<p class='text-secondary small mb-0'>Sem sugestões no momento.</p>";
+    }
 }
 
 async function loadFriends() {
-    const res = await fetch("api/friends/list.php?email=" + userEmail);
-    const data = await res.json();
     const box = document.getElementById("friendsList");
+    box.innerHTML = EchoUIInstance.getListSkeletonHTML(2);
 
-    if (!data.ok || data.friends.length === 0) {
-        box.innerHTML = "<p class='text-secondary'>Você ainda não tem amigos.</p>";
-        return;
-    }
+    try {
+        const res = await fetch("api/friends/list.php", { credentials: "same-origin" });
+        const data = await res.json();
 
-    box.innerHTML = "";
-    data.friends.forEach(u => {
-        box.innerHTML += `
-            <div class="user-row">
-                <div class="user-info">
-                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
-                    <div>
-                        <div>${u.name}</div>
-                        <small class="text-secondary">@${u.email.split("@")[0]}</small>
+        box.innerHTML = "";
+
+        if (!data.ok || !data.friends || data.friends.length === 0) {
+            box.innerHTML = "<p class='text-secondary small mb-0'>Você ainda não possui amigos adicionados.</p>";
+            return;
+        }
+
+        data.friends.forEach(f => {
+            box.innerHTML += `
+                <div class="user-row">
+                    <div class="user-info">
+                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        <div>
+                            <strong class="small text-light">${EchoUIInstance.escapeHTML(f.name)}</strong>
+                            <div class="text-secondary small">${EchoUIInstance.escapeHTML(f.email)}</div>
+                        </div>
                     </div>
+                    <button class="btn btn-sm btn-outline-danger btn-xs" onclick="removeFriend('${f.user_id}')">Remover</button>
                 </div>
-                <button class="btn btn-sm btn-info btn-xs" onclick="chat('${u.email}')">Conversar</button>
-            </div>
-        `;
-    });
+            `;
+        });
+    } catch(e) {
+        box.innerHTML = "<p class='text-secondary small mb-0'>Erro ao carregar lista de amigos.</p>";
+    }
 }
 
-/* ================================
-   FUNÇÕES PRINCIPAIS (AMIZADE)
-================================ */
-async function addFriend(friend_email) {
-    const btn = document.querySelector(`button[data-email="${friend_email}"]`);
-    if (btn) btn.textContent = "Enviando...";
+async function addFriend(target) {
+    try {
+        const payload = (typeof target === 'number' || (!isNaN(target) && !isNaN(parseFloat(target))))
+            ? { user_id: parseInt(target) }
+            : { friend_email: target };
+        const res = await fetch("api/friends/send.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.ok) {
+            if (data.auto_accepted) {
+                alert("Vocês já são amigos!");
+            }
+        } else if (data.error) {
+            alert(data.error);
+        }
+    } catch(e) {
+        alert("Erro ao enviar solicitação.");
+    }
+    reloadAll();
+}
 
-    const res = await fetch("api/friends/send.php", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            email: userEmail,
-            friend_email
-        })
-    });
+async function accept(userId) {
+    try {
+        const res = await fetch("api/friends/accept.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ user_id: parseInt(userId) })
+        });
+        const data = await res.json();
+        if (!data.ok && data.error) {
+            alert(data.error);
+        }
+    } catch(e) {
+        alert("Erro ao aceitar solicitação.");
+    }
+    reloadAll();
+}
 
-    const data = await res.json();
+async function reject(userId) {
+    try {
+        const res = await fetch("api/friends/reject.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ user_id: parseInt(userId) })
+        });
+        const data = await res.json();
+        if (!data.ok && data.error) {
+            alert(data.error);
+        }
+    } catch(e) {
+        alert("Erro ao recusar solicitação.");
+    }
+    reloadAll();
+}
 
-    if (!data.ok) {
-        alert(data.error);
-        if (btn) btn.textContent = "Adicionar";
+async function cancel(userId) {
+    try {
+        const res = await fetch("api/friends/cancel.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ user_id: parseInt(userId) })
+        });
+        const data = await res.json();
+        if (!data.ok && data.error) {
+            alert(data.error);
+        }
+    } catch(e) {
+        alert("Erro ao cancelar solicitação.");
+    }
+    reloadAll();
+}
+
+async function removeFriend(userId) {
+    if (!confirm("Deseja desfazer a amizade?")) return;
+
+    try {
+        const res = await fetch("api/friends/remove.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ user_id: parseInt(userId) })
+        });
+        const data = await res.json();
+        if (!data.ok && data.error) {
+            alert(data.error);
+        }
+    } catch(e) {
+        alert("Erro ao desfazer amizade.");
+    }
+    reloadAll();
+}
+
+async function searchUsers() {
+    const q = document.getElementById("searchInput").value.trim();
+    const resultsBox = document.getElementById("searchResults");
+    const list = document.getElementById("searchList");
+
+    if (q.length < 2) {
+        resultsBox.style.display = "none";
         return;
     }
 
-    if (btn) {
-        btn.textContent = "Cancelar";
-        btn.classList.remove("btn-primary");
-        btn.classList.add("btn-warning");
-        btn.onclick = () => cancel(friend_email);
+    resultsBox.style.display = "block";
+    list.innerHTML = "<small class='text-secondary'>Buscando...</small>";
+
+    try {
+        const res = await fetch(`api/friends/search.php?q=${encodeURIComponent(q)}`, { credentials: "same-origin" });
+        const data = await res.json();
+
+        if (!data.ok || !data.users || data.users.length === 0) {
+            list.innerHTML = "<p class='text-secondary small mb-0'>Nenhum usuário encontrado.</p>";
+            return;
+        }
+
+        list.innerHTML = "";
+        data.users.forEach(u => {
+            let actionBtn = '';
+            if (u.status === 'friends') {
+                actionBtn = `<button class="btn btn-sm btn-outline-danger btn-xs" onclick="removeFriend('${u.user_id}')">Remover</button>`;
+            } else if (u.status === 'pending_sent') {
+                actionBtn = `<button class="btn btn-sm btn-warning btn-xs" onclick="cancel('${u.user_id}')">Cancelar</button>`;
+            } else if (u.status === 'pending_received') {
+                actionBtn = `
+                    <button class="btn btn-sm btn-success btn-xs" onclick="accept('${u.user_id}')">Aceitar</button>
+                    <button class="btn btn-sm btn-danger btn-xs" onclick="reject('${u.user_id}')">Recusar</button>
+                `;
+            } else {
+                actionBtn = `<button class="btn btn-sm btn-primary btn-xs" onclick="addFriend('${u.user_id}')">Adicionar</button>`;
+            }
+
+            list.innerHTML += `
+                <div class="user-row">
+                    <div class="user-info">
+                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        <div>
+                            <strong class="small text-light">${EchoUIInstance.escapeHTML(u.name)}</strong>
+                            <div class="text-secondary small">${EchoUIInstance.escapeHTML(u.email)}</div>
+                        </div>
+                    </div>
+                    ${actionBtn}
+                </div>
+            `;
+        });
+    } catch(e) {
+        list.innerHTML = "<p class='text-danger small mb-0'>Erro na busca.</p>";
     }
-
-    loadAll();
 }
 
-
-
-
-
-
-async function accept(sender) {
-    await fetch("api/friends/accept.php", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ email: userEmail, sender })
-    });
-    loadAll();
-}
-
-async function reject(sender) {
-    await fetch("api/friends/reject.php", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ email: userEmail, sender })
-    });
-    loadAll();
-}
-
-async function cancel(friend_email) {
-    const res = await fetch("api/friends/reject.php", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            email: userEmail,
-            friend_email
-        })
-    });
-
-    const data = await res.json();
-
-    if (!data.ok) {
-        alert(data.error);
-        return;
-    }
-
-    loadAll();
-}
-
-
-function chat(email) {
-    localStorage.setItem("chat_with", email);
-    window.location = "chat.html";
-}
-
-function loadAll() {
+function reloadAll() {
     loadReceived();
     loadSent();
     loadSuggestions();
     loadFriends();
-
 }
-async function searchUsers() {
-    const q = document.getElementById("searchInput").value.trim();
-    const box = document.getElementById("searchResults");
-    const list = document.getElementById("searchList");
-
-    if (q.length < 2) {
-        box.style.display = "none";
-        return;
-    }
-
-    box.style.display = "block";
-    list.innerHTML = "<p class='text-secondary'>Buscando...</p>";
-
-    const res = await fetch("api/friends/search.php?q=" + encodeURIComponent(q));
-    const data = await res.json();
-
-    if (!data.ok || data.users.length === 0) {
-        list.innerHTML = "<p class='text-secondary'>Nenhum usuário encontrado.</p>";
-        return;
-    }
-
-    list.innerHTML = "";
-
-    data.users.forEach(u => {
-        list.innerHTML += `
-            <div class="user-row">
-                <div class="user-info">
-                    <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
-                    <div>
-                        <div>${u.name}</div>
-                        <small class="text-secondary">${u.email}</small>
-                    </div>
-                </div>
-
-                <button class="btn btn-sm btn-primary btn-xs"
-        data-email="${u.email}"
-        onclick="addFriend('${u.email}')">
-    Adicionar
-</button>
-
-        `;
-    });
-}
-
-
-
-loadAll();
 </script>
-
 </body>
 </html>

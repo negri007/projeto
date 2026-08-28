@@ -3,93 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SocialX - Mensagens</title>
+    <title>ECHO - Mensagens</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/echo.css" rel="stylesheet">
 
     <style>
-        :root {
-            --bg-main: #000000;
-            --bg-card: #050608;
-            --border-soft: #2f3336;
-            --accent: #1d9bf0;
-            --text-soft: #71767b;
-        }
-
-        body {
-            margin: 0;
-            background: var(--bg-main);
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        .layout {
-            max-width: 1300px;
-            margin: 0 auto;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            border-right: 1px solid var(--border-soft);
-            min-height: 100vh;
-            position: sticky;
-            top: 0;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .logo {
-            margin-bottom: 20px;
-        }
-
-        .logo-mark {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: #050608;
-            border: 1px solid var(--border-soft);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            color: var(--accent);
-        }
-
-        .logo-text {
-            font-weight: 700;
-            font-size: 1.2rem;
-        }
-
-        .sidebar .nav-link {
-            color: #fff;
-            border-radius: 999px;
-            padding: 10px 18px;
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active {
-            background: rgba(29,155,240,0.15);
-            color: var(--accent);
-        }
-
-        .sidebar-profile {
-            margin-top: auto;
-            padding: 8px 10px;
-            border-radius: 999px;
-            background: #050608;
-            border: 1px solid var(--border-soft);
-        }
-
-        /* Chat Layout */
         .chat-wrapper {
             display: flex;
-            height: 100vh;
+            height: calc(100vh - 65px);
         }
 
         .friends-list {
@@ -100,256 +23,273 @@
         }
 
         .friend-item {
-            padding: 12px;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
             gap: 12px;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--border-soft);
             cursor: pointer;
+            transition: background-color var(--transition-fast);
         }
 
-        .friend-item:hover {
-            background: rgba(255,255,255,0.04);
+        .friend-item:hover, .friend-item.active {
+            background: rgba(29, 155, 240, 0.1);
         }
 
         .friend-avatar {
-            background: #16181c;
+            background: var(--bg-input);
             width: 42px;
             height: 42px;
             border-radius: 50%;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-soft);
+            color: var(--text-soft);
+            flex-shrink: 0;
         }
 
         .friend-name {
-            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            font-size: 0.95rem;
         }
 
         .chat-area {
-            flex-grow: 1;
+            flex: 1;
             display: flex;
             flex-direction: column;
+            background: var(--bg-main);
         }
 
         .chat-header {
-            padding: 14px;
+            padding: 12px 16px;
             border-bottom: 1px solid var(--border-soft);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            background: var(--bg-card-alt);
         }
 
         .chat-messages {
-            flex-grow: 1;
-            overflow-y: auto;
+            flex: 1;
             padding: 16px;
-        }
-
-        .msg {
-            margin-bottom: 14px;
-            max-width: 60%;
-            padding: 10px 14px;
-            border-radius: 14px;
-            background: #16181c;
-        }
-
-        .msg-me {
-            margin-left: auto;
-            background: var(--accent);
-            color: #000;
-            font-weight: 600;
-        }
-
-        .chat-input-area {
-            padding: 12px;
-            border-top: 1px solid var(--border-soft);
+            overflow-y: auto;
             display: flex;
+            flex-direction: column;
             gap: 10px;
         }
 
-        .chat-input {
-            flex-grow: 1;
+        .msg {
+            max-width: 70%;
+            padding: 10px 14px;
+            border-radius: var(--radius-lg);
+            background: var(--bg-card);
+            border: 1px solid var(--border-soft);
+            color: var(--text-main);
+            align-self: flex-start;
+            word-break: break-word;
         }
 
-        @media (max-width: 992px) {
-            .sidebar {
-                display: none;
-            }
-            .friends-list {
-                width: 200px;
-            }
+        .msg-me {
+            align-self: flex-end;
+            background: var(--accent-hover);
+            border-color: var(--accent);
         }
 
-        @media (max-width: 768px) {
-            .friends-list {
-                display: none;
-            }
+        .chat-input-area {
+            padding: 14px 16px;
+            border-top: 1px solid var(--border-soft);
+            display: flex;
+            gap: 10px;
+            background: var(--bg-card-alt);
         }
     </style>
 </head>
 <body>
-
 <div class="container-fluid layout">
     <div class="row">
-        
         <!-- SIDEBAR -->
         <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
             <div class="logo d-flex align-items-center gap-2">
-                <div class="logo-mark"><i class="fa-solid fa-hashtag"></i></div>
-                <span class="logo-text">SocialX</span>
+                <div class="logo-mark">
+                    <i class="fa-solid fa-hashtag"></i>
+                </div>
+                <span class="logo-text">ECHO</span>
             </div>
 
             <nav class="nav flex-column mb-3">
-                <a class="nav-link" href="explorar.html"><i class="fa-solid fa-magnifying-glass"></i><span> Explorar</span></a>
-                <a class="nav-link" href="inicio.html"><i class="fa-solid fa-house"></i><span> Início</span></a>
-                <a class="nav-link" href="perfil.html"><i class="fa-solid fa-user"></i><span> Perfil</span></a>
-                <a class="nav-link" href="circulos.html"><i class="fa-regular fa-circle"></i><span> Círculos</span></a>
-                <a class="nav-link" href="amigos.html"><i class="fa-solid fa-user-group"></i> <span>Amigos</span></a>
-               <a class="nav-link" href="chat.html"> <i class="fa-solid fa-comments"></i><span>Mensagens</span><span id="msgBadge" style="color:#1d9bf0; font-weight:bold; margin-left:6px;"></span>
-</a>
-
+                <a class="nav-link" href="explorar.html"><i class="fa-solid fa-magnifying-glass"></i><span>Explorar</span></a>
+                <a class="nav-link" href="inicio.html"><i class="fa-solid fa-house"></i><span>Início</span></a>
+                <a class="nav-link" href="perfil.html"><i class="fa-solid fa-user"></i><span>Perfil</span></a>
+                <a class="nav-link" href="circulos.html"><i class="fa-regular fa-circle"></i><span>Círculos</span></a>
+                <a class="nav-link" href="amigos.html"><i class="fa-solid fa-user-group"></i><span>Amigos</span></a>
+                <a class="nav-link active" href="chat.html"><i class="fa-solid fa-comments"></i><span>Mensagens</span></a>
             </nav>
 
             <div class="sidebar-profile d-flex align-items-center gap-2">
                 <div class="prof-avatar"><i class="fa-solid fa-user"></i></div>
-                <div class="prof-info">
+                <div class="prof-info flex-grow-1">
                     <div class="prof-name" id="sidebarName">Usuário</div>
                     <div class="prof-handle" id="sidebarHandle">@user</div>
                 </div>
-                <button class="btn btn-sm btn-outline-secondary" onclick="logout()">
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()" title="Sair">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                 </button>
             </div>
         </aside>
 
         <!-- CHAT AREA -->
-        <main class="col-lg-10 col-md-9 p-0">
+        <main class="col-lg-10 col-md-9 p-0 main-col">
+            <div class="main-header border-bottom border-secondary px-3 py-2">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <span class="main-header-title">Mensagens Privadas</span>
+                </div>
+
+                <!-- SINO DE NOTIFICAÇÕES -->
+                <div id="notificationBellContainer"></div>
+            </div>
 
             <div class="chat-wrapper">
-
                 <!-- Lista de amigos -->
-                <div class="friends-list" id="friendsList">Carregando amigos...</div>
+                <div class="friends-list" id="friendsList"></div>
 
                 <!-- Área do chat -->
                 <div class="chat-area">
-
                     <div class="chat-header">
                         <div class="friend-avatar"><i class="fa-solid fa-user"></i></div>
-                        <h5 id="chatTitle" class="m-0">Selecione um amigo</h5>
+                        <h6 id="chatTitle" class="m-0 fw-bold">Selecione uma conversa ao lado</h6>
                     </div>
 
                     <div class="chat-messages" id="messagesBox">
-                        <p class="text-secondary">Nenhum chat selecionado.</p>
+                        <div class="text-center my-auto text-secondary">
+                            <i class="fa-regular fa-comments display-4 d-block mb-2 text-muted"></i>
+                            Escolha um contato para iniciar uma conversa.
+                        </div>
                     </div>
 
                     <div class="chat-input-area">
-                        <input type="text" class="form-control chat-input" id="msgInput" placeholder="Digite uma mensagem..." disabled>
-                        <button class="btn btn-primary" onclick="sendMessage()" id="btnSend" disabled>
-                            <i class="fa-solid fa-paper-plane"></i>
+                        <input type="text" class="form-control form-control-sm rounded-pill" id="msgInput" placeholder="Digite uma mensagem..." disabled onkeypress="if(event.key==='Enter') sendMessage()">
+                        <button class="btn btn-primary btn-sm rounded-pill px-4" onclick="sendMessage()" id="btnSend" disabled>
+                            <i class="fa-solid fa-paper-plane me-1"></i>Enviar
                         </button>
                     </div>
-
                 </div>
             </div>
-
         </main>
-
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/echo-ui.js"></script>
+
 <script>
-if (!localStorage.getItem("userEmail")) {
-    window.location = "index.html";
-}
-
-const userEmail = localStorage.getItem("userEmail");
-document.getElementById("sidebarName").textContent = userEmail.split("@")[0];
-document.getElementById("sidebarHandle").textContent = "@" + userEmail.split("@")[0];
-
+let currentUser = null;
+let userEmail = "";
 let currentChat = null;
 let intervalMessages = null;
 
+document.addEventListener("DOMContentLoaded", async function () {
+    // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
+    currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
+    if (!currentUser) return;
+
+    userEmail = currentUser.email;
+
+    // Inicializa Header (Sino + Mobile Sidebar)
+    document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
+    EchoUIInstance.initHeader('chat');
+
+    loadFriends();
+});
+
 function logout() {
-    localStorage.removeItem("userEmail");
-    window.location = "index.html";
+    EchoUIInstance.logout();
 }
 
-/* ===========================
-   LISTAR AMIGOS
-=========================== */
 async function loadFriends() {
-    const res = await fetch("api/friends/list.php?email=" + userEmail);
-    const data = await res.json();
-
     const box = document.getElementById("friendsList");
-    box.innerHTML = "";
+    box.innerHTML = EchoUIInstance.getListSkeletonHTML(3);
 
-    if (!data.ok || data.friends.length === 0) {
-        box.innerHTML = "<p class='text-secondary p-3'>Sem amigos ainda.</p>";
-        return;
-    }
+    try {
+        const res = await fetch("api/friends/list.php", { credentials: "same-origin" });
+        const data = await res.json();
 
-    data.friends.forEach(f => {
-        const html = `
-            <div class="friend-item" onclick="openChat('${f.email}')">
-                <div class="friend-avatar"><i class="fa-solid fa-user"></i></div>
-                <div>
-                    <div class="friend-name">${f.name}</div>
-                    <small class="text-secondary">@${f.email.split("@")[0]}</small>
+        box.innerHTML = "";
+
+        if (!data.ok || !data.friends || data.friends.length === 0) {
+            box.innerHTML = "<p class='text-secondary p-3 text-center small'>Você ainda não possui amigos. Adicione conexões para conversar.</p>";
+            return;
+        }
+
+        data.friends.forEach(f => {
+            const html = `
+                <div class="friend-item" id="friend-item-${f.email.replace(/[@.]/g, '_')}" onclick="openChat('${EchoUIInstance.escapeHTML(f.email)}', '${EchoUIInstance.escapeHTML(f.name)}')">
+                    <div class="friend-avatar"><i class="fa-solid fa-user"></i></div>
+                    <div>
+                        <div class="friend-name">${EchoUIInstance.escapeHTML(f.name)}</div>
+                        <small class="text-secondary">@${EchoUIInstance.escapeHTML(f.email.split("@")[0])}</small>
+                    </div>
                 </div>
-            </div>
-        `;
-        box.innerHTML += html;
-    });
+            `;
+            box.innerHTML += html;
+        });
+    } catch(e) {
+        box.innerHTML = "<p class='text-danger p-3 text-center small'>Erro ao carregar lista de conversas.</p>";
+    }
 }
 
-loadFriends();
-
-/* ===========================
-   ABRIR CHAT
-=========================== */
-function openChat(email) {
+function openChat(email, name) {
     currentChat = email;
-    document.getElementById("chatTitle").textContent = email;
+    document.getElementById("chatTitle").textContent = name ? `${name} (@${email.split("@")[0]})` : email;
 
     document.getElementById("msgInput").disabled = false;
     document.getElementById("btnSend").disabled = false;
 
+    document.querySelectorAll('.friend-item').forEach(el => el.classList.remove('active'));
+    const activeItem = document.getElementById(`friend-item-${email.replace(/[@.]/g, '_')}`);
+    if (activeItem) activeItem.classList.add('active');
+
     loadMessages();
 
     if (intervalMessages) clearInterval(intervalMessages);
-    intervalMessages = setInterval(loadMessages, 1000);
+    intervalMessages = setInterval(loadMessages, 2000);
 }
 
-/* ===========================
-   CARREGAR MENSAGENS
-=========================== */
 async function loadMessages() {
     if (!currentChat) return;
 
-    const res = await fetch(`api/messages/list.php?me=${userEmail}&friend=${currentChat}`);
-    const data = await res.json();
+    try {
+        const res = await fetch(`api/messages/list.php?me=${encodeURIComponent(userEmail)}&friend=${encodeURIComponent(currentChat)}`);
+        const data = await res.json();
 
-    const box = document.getElementById("messagesBox");
-    box.innerHTML = "";
+        const box = document.getElementById("messagesBox");
+        
+        if (!Array.isArray(data) || data.length === 0) {
+            box.innerHTML = "<p class='text-secondary text-center my-auto small'>Nenhuma mensagem trocada ainda.</p>";
+            return;
+        }
 
-    data.forEach(msg => {
-        const isMe = msg.sender === userEmail;
-        const div = document.createElement("div");
+        box.innerHTML = "";
+        data.forEach(msg => {
+            const isMe = msg.sender === userEmail;
+            const div = document.createElement("div");
 
-        div.className = "msg " + (isMe ? "msg-me" : "");
-        div.textContent = msg.body;
+            div.className = "msg " + (isMe ? "msg-me" : "");
+            div.textContent = msg.body;
 
-        box.appendChild(div);
-    });
+            box.appendChild(div);
+        });
 
-    box.scrollTop = box.scrollHeight;
+        box.scrollTop = box.scrollHeight;
+    } catch(e) {
+        console.error(e);
+    }
 }
 
-/* ===========================
-   ENVIAR MENSAGEM
-=========================== */
 async function sendMessage() {
     const text = document.getElementById("msgInput").value.trim();
     if (!text || !currentChat) return;
@@ -368,6 +308,5 @@ async function sendMessage() {
     loadMessages();
 }
 </script>
-
 </body>
 </html>

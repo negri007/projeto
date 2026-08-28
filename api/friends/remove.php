@@ -14,7 +14,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-// `user_id` aqui é quem MANDOU o pedido que estou recusando.
+// `user_id` aqui é o amigo que estou removendo.
 $targetId = friends_target_id($pdo, $data);
 
 if ($targetId === null) {
@@ -23,19 +23,21 @@ if ($targetId === null) {
 }
 
 try {
+    // A amizade é uma linha só, em qualquer uma das duas direções.
     $stmt = $pdo->prepare(
         "DELETE FROM friends
-         WHERE user_id = ? AND friend_id = ? AND status = 'pending'"
+         WHERE status = 'accepted'
+           AND ((user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?))"
     );
-    $stmt->execute([$targetId, $userId]);
+    $stmt->execute([$userId, $targetId, $targetId, $userId]);
 
     if ($stmt->rowCount() === 0) {
-        echo json_encode(["error" => "Solicitação não encontrada."]);
+        echo json_encode(["error" => "Amizade não encontrada."]);
         exit;
     }
 
     echo json_encode(["ok" => true]);
 
 } catch (Exception $e) {
-    echo json_encode(["error" => "Erro ao recusar solicitação."]);
+    echo json_encode(["error" => "Erro ao desfazer amizade."]);
 }

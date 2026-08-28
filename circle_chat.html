@@ -1,69 +1,188 @@
 <!DOCTYPE html>
 <html lang="pt-BR" data-bs-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Círculo – Chat</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECHO - Chat do Círculo</title>
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/echo.css" rel="stylesheet">
 
-<style>
-body {
-    background: #000;
-    color: #fff;
-}
-.msg-box {
-    background: #111;
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 8px;
-}
-.msg-you {
-    background: #0d47a1;
-}
-</style>
+    <style>
+        .circle-chat-box {
+            height: calc(100vh - 160px);
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .msg-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-soft);
+            padding: 10px 14px;
+            border-radius: var(--radius-lg);
+            max-width: 75%;
+            align-self: flex-start;
+        }
+
+        .msg-you {
+            background: var(--accent-hover);
+            border-color: var(--accent);
+            align-self: flex-end;
+        }
+
+        .msg-author {
+            font-size: 0.8rem;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .msg-you .msg-author {
+            color: #fff;
+        }
+    </style>
 </head>
 <body>
+<div class="container-fluid layout">
+    <div class="row">
+        <!-- SIDEBAR -->
+        <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
+            <div class="logo d-flex align-items-center gap-2">
+                <div class="logo-mark">
+                    <i class="fa-solid fa-hashtag"></i>
+                </div>
+                <span class="logo-text">ECHO</span>
+            </div>
 
-<div class="container py-4">
+            <nav class="nav flex-column mb-3">
+                <a class="nav-link" href="explorar.html">
+                    <i class="fa-solid fa-magnifying-glass"></i><span>Explorar</span>
+                </a>
+                <a class="nav-link" href="inicio.html">
+                    <i class="fa-solid fa-house"></i><span>Início</span>
+                </a>
+                <a class="nav-link" href="perfil.html">
+                    <i class="fa-solid fa-user"></i><span>Perfil</span>
+                </a>
+                <a class="nav-link active" href="circulos.html">
+                    <i class="fa-regular fa-circle"></i><span>Círculos</span>
+                </a>
+                <a class="nav-link" href="amigos.html">
+                    <i class="fa-solid fa-user-group"></i><span>Amigos</span>
+                </a>
+                <a class="nav-link" href="chat.html">
+                    <i class="fa-solid fa-comments"></i><span>Mensagens</span>
+                </a>
+            </nav>
+        </aside>
 
-    <h3 id="circleTitle">Chat</h3>
-    <hr>
+        <!-- COLUNA CENTRAL -->
+        <main class="col-lg-10 col-md-9 main-col">
+            <div class="main-header">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="circulos.html" class="btn btn-sm btn-outline-secondary rounded-pill me-1" title="Voltar para Círculos">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </a>
+                    <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <span class="main-header-title" id="circleTitle">Chat do Círculo</span>
+                </div>
 
-    <div id="messages" style="height: 70vh; overflow-y: auto;"></div>
+                <!-- SINO DE NOTIFICAÇÕES -->
+                <div id="notificationBellContainer"></div>
+            </div>
 
-    <div class="d-flex mt-3">
-        <input id="msgInput" class="form-control me-2" placeholder="Sua mensagem...">
-        <button class="btn btn-primary" onclick="sendMessage()">Enviar</button>
+            <div id="messages" class="circle-chat-box"></div>
+
+            <div class="p-3 border-top border-secondary bg-black">
+                <div class="d-flex gap-2">
+                    <input id="msgInput" class="form-control form-control-sm rounded-pill" placeholder="Digite sua mensagem no círculo..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button class="btn btn-primary btn-sm rounded-pill px-4" onclick="sendMessage()">
+                        <i class="fa-solid fa-paper-plane me-1"></i>Enviar
+                    </button>
+                </div>
+            </div>
+        </main>
     </div>
-
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/echo-ui.js"></script>
+
 <script>
-const email = localStorage.getItem("userEmail");
-const circleId = localStorage.getItem("circle_chat_id");
+let currentUser = null;
+let email = "";
+let circleId = localStorage.getItem("circle_id") || localStorage.getItem("circle_chat_id");
+let circleName = localStorage.getItem("circle_name");
+let isFirstLoad = true;
+
+document.addEventListener("DOMContentLoaded", async function () {
+    // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
+    currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
+    if (!currentUser) return;
+
+    email = currentUser.email;
+
+    if (circleName) {
+        document.getElementById("circleTitle").textContent = "Círculo: " + circleName;
+    }
+
+    // Inicializa Header (Sino + Mobile Sidebar)
+    document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
+    EchoUIInstance.initHeader('circulos');
+
+    loadMessages();
+    setInterval(loadMessages, 3000);
+});
 
 async function loadMessages() {
-    const res = await fetch("api/circle_messages/list.php?circle_id=" + circleId);
-    const data = await res.json();
-
     const box = document.getElementById("messages");
-    box.innerHTML = "";
+    if (isFirstLoad) {
+        box.innerHTML = EchoUIInstance.getListSkeletonHTML(3);
+    }
 
-    data.messages.forEach(m => {
-        box.innerHTML += `
-            <div class="msg-box ${m.email === email ? 'msg-you' : ''}">
-                <strong>${m.name}</strong><br>
-                ${m.message}
-            </div>
-        `;
-    });
+    try {
+        const res = await fetch("api/circle_messages/list.php?circle_id=" + circleId);
+        const data = await res.json();
 
-    box.scrollTop = box.scrollHeight;
+        if (isFirstLoad) {
+            box.innerHTML = "";
+            isFirstLoad = false;
+        }
+
+        if (!data.messages || data.messages.length === 0) {
+            if (box.children.length === 0) {
+                box.innerHTML = "<p class='text-secondary text-center my-auto'>Nenhuma mensagem no círculo ainda. Comece a conversa!</p>";
+            }
+            return;
+        }
+
+        box.innerHTML = "";
+        data.messages.forEach(m => {
+            const isYou = m.email === email;
+            box.innerHTML += `
+                <div class="msg-box ${isYou ? 'msg-you' : ''}">
+                    <div class="msg-author">${EchoUIInstance.escapeHTML(m.name)}</div>
+                    <div>${EchoUIInstance.escapeHTML(m.message)}</div>
+                </div>
+            `;
+        });
+
+        box.scrollTop = box.scrollHeight;
+    } catch(e) {
+        if (isFirstLoad) {
+            box.innerHTML = "<p class='text-danger text-center my-auto'>Erro ao carregar mensagens do círculo.</p>";
+        }
+    }
 }
 
 async function sendMessage() {
-    const msg = document.getElementById("msgInput").value.trim();
+    const msgInput = document.getElementById("msgInput");
+    const msg = msgInput.value.trim();
     if (!msg) return;
 
     await fetch("api/circle_messages/send.php", {
@@ -76,12 +195,9 @@ async function sendMessage() {
         })
     });
 
-    document.getElementById("msgInput").value = "";
+    msgInput.value = "";
     loadMessages();
 }
-
-setInterval(loadMessages, 1200); // atualizar tipo WhatsApp
-loadMessages();
 </script>
 </body>
 </html>

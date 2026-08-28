@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ECHO - Redefinir Senha</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <!-- Echo Core Stylesheet -->
+    <link href="css/echo.css" rel="stylesheet" />
+</head>
+<body>
+    <div class="container-fluid auth-layout">
+        <div class="row">
+            <!-- LADO ESQUERDO (HERO) -->
+            <div class="col-lg-7 d-none d-lg-flex auth-hero">
+                <div>
+                    <div class="auth-logo">
+                        <i class="fa-solid fa-hashtag"></i>
+                    </div>
+                    <div class="auth-title">Nova Senha</div>
+                    <div class="auth-subtitle">Crie uma senha forte e segura para proteger a sua conta ECHO.</div>
+
+                    <div class="auth-highlight">
+                        <p><i class="fa-solid fa-lock"></i> Crie senhas com pelo menos 6 caracteres.</p>
+                        <p><i class="fa-solid fa-shield-halved"></i> Mantenha suas credenciais em segurança.</p>
+                        <p><i class="fa-solid fa-check"></i> Redefinição instantânea e fácil.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LADO DIREITO (CARD DE RESET) -->
+            <div class="col-lg-5 col-md-8 mx-auto auth-card-wrap">
+                <div class="auth-card">
+                    <h2>Criar nova senha</h2>
+                    <p class="auth-card-sub">Informe e confirme sua nova senha de acesso.</p>
+
+                    <!-- Banner de Feedback -->
+                    <div id="feedbackBanner" style="display: none;"></div>
+
+                    <!-- Formulário de Reset -->
+                    <div id="resetFormArea">
+                        <div class="mb-3">
+                            <label class="form-label">Nova Senha</label>
+                            <div class="input-icon-wrapper">
+                                <i class="fa-solid fa-lock"></i>
+                                <input id="newPassword" type="password" class="form-control" placeholder="Mínimo 6 caracteres" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Confirmar Nova Senha</label>
+                            <div class="input-icon-wrapper">
+                                <i class="fa-solid fa-shield-halved"></i>
+                                <input id="confirmPassword" type="password" class="form-control" placeholder="Digite novamente a senha" />
+                            </div>
+                        </div>
+
+                        <button id="btnSubmitReset" class="btn btn-primary w-100 btn-auth" onclick="handleResetPassword()">
+                            Redefinir Senha
+                        </button>
+                    </div>
+
+                    <div class="auth-links">
+                        <p>
+                            <a href="index.html" class="text-info">
+                                <i class="fa-solid fa-arrow-left me-1"></i>Voltar para o Login
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let resetToken = null;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            resetToken = urlParams.get("token");
+
+            if (!resetToken) {
+                showBanner("danger", "Link de redefinição inválido ou token ausente. Por favor, solicite um novo link de recuperação na tela de login.");
+                document.getElementById("resetFormArea").style.display = "none";
+            }
+        });
+
+        function showBanner(type, message) {
+            const banner = document.getElementById("feedbackBanner");
+            banner.className = `alert-custom alert-custom-${type}`;
+            banner.innerHTML = `
+                <i class="fa-solid ${type === 'danger' ? 'fa-triangle-exclamation' : (type === 'success' ? 'fa-circle-check' : 'fa-circle-info')}"></i>
+                <div>${message}</div>
+            `;
+            banner.style.display = "flex";
+        }
+
+        async function handleResetPassword() {
+            const newPassword = document.getElementById("newPassword").value.trim();
+            const confirmPassword = document.getElementById("confirmPassword").value.trim();
+            const btn = document.getElementById("btnSubmitReset");
+
+            if (!newPassword || !confirmPassword) {
+                showBanner("danger", "Preencha ambos os campos de senha.");
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                showBanner("danger", "A nova senha deve ter pelo menos 6 caracteres.");
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showBanner("danger", "As senhas digitadas não coincidem.");
+                return;
+            }
+
+            // Ativa spinner no botão
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-echo me-2" style="width:16px;height:16px;border-width:2px;"></span>Redefinindo...`;
+
+            /*
+            // =========================================================================
+            // TODO: INTEGRAÇÃO COM A API DO BACK-END (POST /api/auth/reset_password.php)
+            // =========================================================================
+            // Conforme o docs/API_CONTRACT.md:
+            // Request: { "token": resetToken, "new_password": newPassword }
+            // Response 200: { "ok": true }
+            // Response 400: { "error": string }
+
+            try {
+                const res = await fetch("api/auth/reset_password.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({
+                        token: resetToken,
+                        new_password: newPassword
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.error) {
+                    showBanner("danger", data.error);
+                    btn.disabled = false;
+                    btn.innerHTML = "Redefinir Senha";
+                    return;
+                }
+
+                showBanner("success", "Sua senha foi alterada com sucesso! Redirecionando para o login...");
+                setTimeout(() => { window.location = "index.html"; }, 2000);
+            } catch (e) {
+                showBanner("danger", "Erro de conexão ao redefinir a senha.");
+                btn.disabled = false;
+                btn.innerHTML = "Redefinir Senha";
+            }
+            */
+
+            // Simulação visual de sucesso antes da ativação do backend:
+            setTimeout(() => {
+                showBanner("success", "Sua senha foi alterada com sucesso! Você já pode entrar com a nova senha.");
+                document.getElementById("resetFormArea").style.display = "none";
+                btn.disabled = false;
+                btn.innerHTML = "Redefinir Senha";
+            }, 800);
+        }
+    </script>
+</body>
+</html>

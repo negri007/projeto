@@ -3,353 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SocialX - Explorar</title>
+    <title>ECHO - Explorar</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-
-    <style>
-        :root {
-            --bg-main: #000000;
-            --bg-card: #050608;
-            --border-soft: #2f3336;
-            --accent: #1d9bf0;
-            --text-soft: #71767b;
-        }
-
-        body {
-            margin: 0;
-            background: var(--bg-main);
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        .layout {
-            max-width: 1300px;
-            margin: 0 auto;
-        }
-
-        /* SIDEBAR */
-        .sidebar {
-            border-right: 1px solid var(--border-soft);
-            min-height: 100vh;
-            position: sticky;
-            top: 0;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .logo {
-            margin-bottom: 20px;
-        }
-
-        .logo-mark {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: #050608;
-            border: 1px solid var(--border-soft);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            color: var(--accent);
-        }
-
-        .logo-text {
-            font-weight: 700;
-            font-size: 1.2rem;
-        }
-
-        .sidebar .nav-link {
-            color: #fff;
-            border-radius: 999px;
-            padding: 10px 18px;
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .sidebar .nav-link i {
-            font-size: 1.3rem;
-        }
-
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active {
-            background: rgba(29, 155, 240, 0.15);
-            color: var(--accent);
-        }
-
-        /* mini perfil embaixo */
-        .sidebar-profile {
-            margin-top: auto;
-            padding: 8px 10px;
-            border-radius: 999px;
-            background: #050608;
-            border: 1px solid var(--border-soft);
-        }
-
-        .sidebar-profile .prof-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: #16181c;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .sidebar-profile .prof-name {
-            font-size: 0.95rem;
-            font-weight: 600;
-        }
-
-        .sidebar-profile .prof-handle {
-            font-size: 0.8rem;
-            color: var(--text-soft);
-        }
-
-        /* COLUNA CENTRAL */
-        .main-col {
-            border-right: 1px solid var(--border-soft);
-            padding: 0;
-            min-height: 100vh;
-        }
-
-        .main-header {
-            padding: 10px 16px;
-            border-bottom: 1px solid var(--border-soft);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .main-header-title {
-            font-size: 1.2rem;
-            font-weight: 700;
-        }
-
-        .badge-pill {
-            border-radius: 999px;
-            font-size: 0.75rem;
-        }
-
-        .search-box {
-            flex: 1;
-            max-width: 260px;
-        }
-
-        .search-box input {
-            background: #16181c;
-            border: 1px solid #202327;
-            border-radius: 999px;
-            color: #fff;
-            font-size: 0.9rem;
-        }
-
-        .search-box input::placeholder {
-            color: var(--text-soft);
-        }
-
-        .btn-logout-top {
-            border-radius: 999px;
-            font-size: 0.8rem;
-            padding-block: 4px;
-            padding-inline: 10px;
-        }
-
-        .tweet-box {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-soft);
-            display: flex;
-            gap: 12px;
-        }
-
-        .tweet-avatar {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: #16181c;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .tweet-box textarea {
-            width: 100%;
-            background: transparent;
-            border: none;
-            resize: none;
-            color: #fff;
-            min-height: 60px;
-            outline: none;
-        }
-
-        .tweet-toolbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 4px;
-        }
-
-        .tweet-toolbar button.icon-btn {
-            background: none;
-            border: none;
-            color: var(--accent);
-            padding: 6px;
-            border-radius: 999px;
-        }
-
-        .tweet-toolbar button.icon-btn:hover {
-            background: rgba(29,155,240,0.15);
-        }
-
-        .image-preview img {
-            max-width: 100%;
-            border-radius: 16px;
-            margin-top: 8px;
-            border: 1px solid var(--border-soft);
-            max-height: 350px;
-            object-fit: cover;
-        }
-
-        .post {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-soft);
-            display: flex;
-            gap: 10px;
-        }
-
-        .post:hover {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .post-body {
-            flex: 1;
-        }
-
-        .post-header {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.95rem;
-        }
-
-        .post-name {
-            font-weight: 600;
-        }
-
-        .post-handle,
-        .post-time {
-            color: var(--text-soft);
-            font-size: 0.85rem;
-        }
-
-        .post-content {
-            margin-top: 4px;
-            font-size: 0.98rem;
-        }
-
-        .post-image {
-            margin-top: 8px;
-            border-radius: 16px;
-            max-height: 400px;
-            width: 100%;
-            object-fit: cover;
-            border: 1px solid var(--border-soft);
-        }
-
-        .post-actions {
-            margin-top: 6px;
-            display: flex;
-            justify-content: space-between;
-            max-width: 300px;
-            font-size: 0.85rem;
-            flex-wrap: wrap;
-            gap: 4px;
-        }
-
-        .post-actions .icon-btn {
-            background: none;
-            border: none;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            color: var(--text-soft);
-            padding: 4px 6px;
-            border-radius: 999px;
-        }
-
-        .post-actions .icon-btn i {
-            font-size: 0.95rem;
-        }
-
-        .post-actions .icon-btn:hover {
-            background: rgba(255, 255, 255, 0.06);
-            color: #fff;
-        }
-
-        /* COLUNA DIREITA */
-        .right-col {
-            padding: 12px 16px;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto;
-        }
-
-        .right-card {
-            background: var(--bg-card);
-            border-radius: 16px;
-            padding: 14px 16px;
-            margin-bottom: 16px;
-            border: 1px solid var(--border-soft);
-        }
-
-        .right-card h5 {
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-
-        .right-card small {
-            color: var(--text-soft);
-        }
-
-        @media (max-width: 992px) {
-            .right-col {
-                display: none;
-            }
-            .sidebar {
-                flex: 0 0 72px;
-                max-width: 72px;
-            }
-            .logo-text {
-                display: none;
-            }
-            .sidebar .nav-link span {
-                display: none;
-            }
-            .sidebar .nav-link {
-                justify-content: center;
-            }
-            .sidebar-profile {
-                justify-content: center;
-                gap: 8px;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .sidebar {
-                display: none;
-            }
-            .main-col {
-                border-right: none;
-            }
-        }
-    </style>
+    <link href="css/echo.css" rel="stylesheet">
 </head>
 <body>
 <div class="container-fluid layout">
@@ -360,33 +18,30 @@
                 <div class="logo-mark">
                     <i class="fa-solid fa-hashtag"></i>
                 </div>
-                <span class="logo-text">SocialX</span>
+                <span class="logo-text">ECHO</span>
             </div>
 
-     <nav class="nav flex-column mb-3">
-    <a class="nav-link active" href="explorar.html">
-        <i class="fa-solid fa-magnifying-glass"></i><span> Explorar</span>
-    </a>
-    <a class="nav-link " href="inicio.html">
-        <i class="fa-solid fa-house"></i><span> Início</span>
-    </a>
-    <a class="nav-link " href="perfil.html">
-        <i class="fa-solid fa-user"></i><span> Perfil</span>
-    </a>
-    <a class="nav-link  "href="circulos.html">
-        <i class="fa-regular fa-circle"></i><span> Círculos</span>
-    </a>
-    <a class="nav-link  "href="amigos.html">
-        <i class="fa-solid fa-user-group"></i><span> Amigos</span>
-    </a>
-    <a class="nav-link  "href="chat.html">
-        <i class="fa-solid fa-comments"></i><span> Mensagens</span>
-    </a>
-  
-</nav>
+            <nav class="nav flex-column mb-3">
+                <a class="nav-link active" href="explorar.html">
+                    <i class="fa-solid fa-magnifying-glass"></i><span>Explorar</span>
+                </a>
+                <a class="nav-link" href="inicio.html">
+                    <i class="fa-solid fa-house"></i><span>Início</span>
+                </a>
+                <a class="nav-link" href="perfil.html">
+                    <i class="fa-solid fa-user"></i><span>Perfil</span>
+                </a>
+                <a class="nav-link" href="circulos.html">
+                    <i class="fa-regular fa-circle"></i><span>Círculos</span>
+                </a>
+                <a class="nav-link" href="amigos.html">
+                    <i class="fa-solid fa-user-group"></i><span>Amigos</span>
+                </a>
+                <a class="nav-link" href="chat.html">
+                    <i class="fa-solid fa-comments"></i><span>Mensagens</span>
+                </a>
+            </nav>
 
-
-            <!-- mini perfil + logout discreto -->
             <div class="sidebar-profile d-flex align-items-center gap-2">
                 <div class="prof-avatar">
                     <i class="fa-solid fa-user"></i>
@@ -395,7 +50,7 @@
                     <div class="prof-name" id="sidebarName">Usuário</div>
                     <div class="prof-handle" id="sidebarHandle">@usuario</div>
                 </div>
-                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()">
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()" title="Sair">
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                 </button>
             </div>
@@ -405,12 +60,19 @@
         <main class="col-lg-7 col-md-9 main-col">
             <div class="main-header">
                 <div class="d-flex align-items-center gap-2">
+                    <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
                     <span class="main-header-title">Explorar</span>
                     <span class="badge bg-secondary-subtle text-light border border-secondary badge-pill">Geral</span>
                 </div>
 
-                <div class="search-box d-none d-sm-block">
-                    <input type="text" class="form-control form-control-sm" placeholder="Buscar no SocialX">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="search-box d-none d-sm-block">
+                        <input type="text" class="form-control form-control-sm" placeholder="Buscar no ECHO">
+                    </div>
+                    <!-- SINO DE NOTIFICAÇÕES -->
+                    <div id="notificationBellContainer"></div>
                 </div>
             </div>
 
@@ -426,10 +88,10 @@
 
                     <div class="tweet-toolbar">
                         <div>
-                            <button class="icon-btn" type="button" onclick="document.getElementById('imageInput').click()">
+                            <button class="icon-btn" type="button" onclick="document.getElementById('imageInput').click()" title="Adicionar Imagem">
                                 <i class="fa-regular fa-image"></i>
                             </button>
-                            <button class="icon-btn" type="button">
+                            <button class="icon-btn" type="button" title="Emoji">
                                 <i class="fa-regular fa-face-smile"></i>
                             </button>
                         </div>
@@ -460,7 +122,7 @@
 
             <div class="right-card">
                 <h5>Talvez você curta</h5>
-                <small>Apenas visual, sem lógica ainda</small>
+                <small class="text-secondary">Sugestões de perfis</small>
                 <div class="mt-2">
                     <p class="mb-1">Ana Clara • <span class="text-info">@ana</span></p>
                     <p class="mb-1">João Pedro • <span class="text-info">@jp</span></p>
@@ -472,25 +134,29 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+<script src="js/echo-ui.js"></script>
 
 <script>
-// se não estiver logado, volta pro login
-if (!localStorage.getItem("userEmail")) {
-    window.location = "index.html";
-}
-
-const userEmail = localStorage.getItem("userEmail");
-const userName  = userEmail ? userEmail.split("@")[0] : "usuario";
-
+let currentUser = null;
+let userEmail = "";
 let selectedImageFile = null;
 
 const imageInput   = document.getElementById("imageInput");
 const imagePreview = document.getElementById("imagePreview");
 
-// preencher mini perfil na sidebar
-document.getElementById("sidebarName").textContent   = userName;
-document.getElementById("sidebarHandle").textContent = "@" + userName;
+document.addEventListener("DOMContentLoaded", async function () {
+    // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
+    currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
+    if (!currentUser) return;
+
+    userEmail = currentUser.email;
+
+    // Inicializa Header (Sino de Notificações + Mobile Offcanvas Sidebar)
+    document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
+    EchoUIInstance.initHeader('explorar');
+
+    loadPosts();
+});
 
 imageInput.addEventListener("change", function () {
     const file = this.files[0];
@@ -504,23 +170,20 @@ imageInput.addEventListener("change", function () {
     imagePreview.innerHTML = `<img src="${url}" alt="Pré-visualização">`;
 });
 
-// logout
 function logout() {
-    localStorage.removeItem("userEmail");
-    window.location = "index.html";
+    EchoUIInstance.logout();
 }
 
-// apagar post (só se for do usuário logado)
 async function deletePost(postId) {
     if (!confirm("Deseja realmente apagar este post?")) {
         return;
     }
 
-    const res  = await fetch("api/posts/delete.php", {
+    const res = await fetch("api/posts/delete.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
-            email: userEmail,
             post_id: postId
         })
     });
@@ -535,13 +198,12 @@ async function deletePost(postId) {
     loadPosts();
 }
 
-// curtir / descurtir post
 async function toggleLike(postId) {
-    const res  = await fetch("api/posts/like.php", {
+    const res = await fetch("api/posts/like.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
-            email: userEmail,
             post_id: postId
         })
     });
@@ -556,11 +218,11 @@ async function toggleLike(postId) {
     loadPosts();
 }
 
-// compartilhar post (só soma no contador)
 async function sharePost(postId) {
-    const res  = await fetch("api/posts/share.php", {
+    const res = await fetch("api/posts/share.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
             post_id: postId
         })
@@ -576,100 +238,96 @@ async function sharePost(postId) {
     loadPosts();
 }
 
-// carregar posts do PHP
 async function loadPosts() {
-    const res  = await fetch("api/posts/list.php?email=" + encodeURIComponent(userEmail));
-    const data = await res.json();
-
     const feed = document.getElementById("feedContainer");
-    feed.innerHTML = "";
+    feed.innerHTML = EchoUIInstance.getFeedSkeletonHTML(3);
 
-    if (!data.ok) {
-        feed.innerHTML = "<p class='text-center text-secondary mt-3'>Erro ao carregar posts.</p>";
-        return;
-    }
+    try {
+        const res = await fetch("api/posts/list.php", { credentials: "same-origin" });
+        const data = await res.json();
 
-    data.posts.forEach(p => {
-        const handle = p.email.split("@")[0];
-        const isYou  = (p.email === userEmail);
+        feed.innerHTML = "";
 
-        const likeCount  = Number(p.like_count ?? 0);
-        const shareCount = Number(p.share_count ?? 0);
-        const likedByMe  = Number(p.liked_by_me ?? 0) > 0;
+        if (!data.ok || !data.posts) {
+            feed.innerHTML = "<p class='text-center text-secondary p-4'>Nenhuma publicação encontrada.</p>";
+            return;
+        }
 
-        feed.innerHTML += `
-            <div class="post">
-                <div class="tweet-avatar">
-                    <i class="fa-solid fa-user"></i>
-                </div>
-                <div class="post-body">
-                    <div class="post-header">
-                        <span class="post-name">${p.name}</span>
-                        <span class="post-handle">@${handle}</span>
-                        ${isYou ? `<span class="badge bg-secondary-subtle text-light">você</span>` : ""}
-                        <span class="post-time"> · ${p.created_at}</span>
+        data.posts.forEach(p => {
+            const handle = p.email ? p.email.split("@")[0] : "usuario";
+            const isYou = Boolean(p.is_my_post || (currentUser && Number(p.user_id) === Number(currentUser.id)));
+
+            const likeCount  = Number(p.like_count ?? 0);
+            const shareCount = Number(p.share_count ?? 0);
+            const likedByMe  = Number(p.liked_by_me ?? 0) > 0;
+
+            feed.innerHTML += `
+                <div class="post">
+                    <div class="tweet-avatar">
+                        <i class="fa-solid fa-user"></i>
                     </div>
-                    <div class="post-content">
-                        ${p.content ?? ""}
+                    <div class="post-body">
+                        <div class="post-header">
+                            <span class="post-name">${EchoUIInstance.escapeHTML(p.name)}</span>
+                            <span class="post-handle">@${EchoUIInstance.escapeHTML(handle)}</span>
+                            ${isYou ? `<span class="badge bg-secondary-subtle text-light">você</span>` : ""}
+                            <span class="post-time"> · ${p.created_at}</span>
+                        </div>
+                        <div class="post-content">
+                            ${EchoUIInstance.escapeHTML(p.content ?? "")}
+                        </div>
+                        ${p.image ? `<img class="post-image" src="uploads/${p.image}" alt="">` : ""}
+
+                        <div class="post-actions">
+                            <button class="icon-btn" type="button" onclick="toggleComments(${p.id})">
+                                <i class="fa-regular fa-comment"></i><span>${p.comment_count || 0}</span>
+                            </button>
+
+                            <button class="icon-btn" type="button" onclick="sharePost(${p.id})">
+                                <i class="fa-solid fa-retweet"></i><span>${shareCount}</span>
+                            </button>
+
+                            <button class="icon-btn ${likedByMe ? 'liked' : ''}" type="button" onclick="toggleLike(${p.id})">
+                                <i class="${likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+                                <span>${likeCount}</span>
+                            </button>
+
+                            <button class="icon-btn" type="button">
+                                <i class="fa-regular fa-bookmark"></i>
+                            </button>
+
+                            ${
+                                isYou
+                                    ? `<button class="icon-btn" type="button" onclick="deletePost(${p.id})">
+                                           <i class="fa-solid fa-trash"></i>
+                                       </button>`
+                                    : ""
+                            }
+                        </div>
+
+                        <div class="mt-2" id="comments-box-${p.id}" style="display:none;">
+                            <div id="comment-list-${p.id}" class="mb-2 border-start border-secondary ps-2"></div>
+                            <div class="d-flex gap-2">
+                                <input 
+                                    type="text" 
+                                    class="form-control form-control-sm" 
+                                    id="comment-input-${p.id}" 
+                                    placeholder="Escreva um comentário..."
+                                >
+                                <button class="btn btn-sm btn-primary rounded-pill px-3" type="button" onclick="sendComment(${p.id})">
+                                    Comentar
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    ${p.image ? `<img class="post-image" src="uploads/${p.image}" alt="">` : ""}
-
-                   <div class="post-actions">
-    <!-- comentário (agora abre/fecha a área) -->
-    <button class="icon-btn" type="button" onclick="toggleComments(${p.id})">
-        <i class="fa-regular fa-comment"></i><span>${p.comment_count}</span>
-
-    </button>
-
-    <!-- compartilhar -->
-    <button class="icon-btn" type="button" onclick="sharePost(${p.id})">
-        <i class="fa-solid fa-retweet"></i><span>${shareCount}</span>
-    </button>
-
-    <!-- like -->
-    <button class="icon-btn" type="button" onclick="toggleLike(${p.id})">
-        <i class="${likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-        <span>${likeCount}</span>
-    </button>
-
-    <!-- salvar (ainda só visual por enquanto) -->
-    <button class="icon-btn" type="button">
-        <i class="fa-regular fa-bookmark"></i>
-    </button>
-
-    <!-- apagar (se for seu) -->
-    ${
-        isYou
-            ? `<button class="icon-btn" type="button" onclick="deletePost(${p.id})">
-                   <i class="fa-solid fa-trash"></i>
-               </button>`
-            : ""
-    }
-</div>
-
-
-        <div class="mt-2" id="comments-box-${p.id}" style="display:none;">
-                <div id="comment-list-${p.id}" class="mb-2" style="border-left:1px solid #333; padding-left:8px;"></div>
-                <div class="d-flex gap-2">
-                    <input 
-                        type="text" 
-                        class="form-control form-control-sm" 
-                        id="comment-input-${p.id}" 
-                        placeholder="Escreva um comentário..."
-                    >
-                    <button class="btn btn-sm btn-primary" type="button" onclick="sendComment(${p.id})">
-                        Comentar
-                    </button>
                 </div>
-            </div>
-
-        </div>
-    </div>
-`;
-    });
+            `;
+        });
+    } catch(e) {
+        feed.innerHTML = "<p class='text-center text-danger p-4'><i class='fa-solid fa-circle-exclamation me-2'></i>Erro ao carregar posts.</p>";
+    }
 }
 
-// criar post (texto + imagem opcional)
 async function createPost() {
     const txt = document.getElementById("postText").value.trim();
 
@@ -678,14 +336,14 @@ async function createPost() {
     }
 
     const fd = new FormData();
-    fd.append("email", userEmail);
     fd.append("content", txt);
     if (selectedImageFile) {
         fd.append("image", selectedImageFile);
     }
 
-    const res  = await fetch("api/posts/create.php", {
+    const res = await fetch("api/posts/create.php", {
         method: "POST",
+        credentials: "same-origin",
         body: fd
     });
 
@@ -696,7 +354,6 @@ async function createPost() {
         return;
     }
 
-    // limpar campos
     document.getElementById("postText").value = "";
     imageInput.value = "";
     selectedImageFile = null;
@@ -704,6 +361,7 @@ async function createPost() {
 
     loadPosts();
 }
+
 async function toggleComments(postId) {
     const box = document.getElementById("comments-box-" + postId);
     if (!box) return;
@@ -721,30 +379,37 @@ async function loadComments(postId) {
     const listEl = document.getElementById("comment-list-" + postId);
     if (!listEl) return;
 
-    listEl.innerHTML = "<small style='color:#71767b;'>Carregando comentários...</small>";
+    listEl.innerHTML = "<small class='text-secondary'><span class='spinner-echo me-1' style='width:12px;height:12px;border-width:2px;'></span>Carregando comentários...</small>";
 
     try {
-        const res = await fetch("api/comments/list.php?post_id=" + postId);
+        const res = await fetch("api/comments/list.php?post_id=" + postId, {
+            credentials: "same-origin"
+        });
         const data = await res.json();
 
         if (data.error) {
-            listEl.innerHTML = "<small style='color:#f66;'>" + data.error + "</small>";
+            listEl.innerHTML = "<small style='color:#f66;'>" + EchoUIInstance.escapeHTML(data.error) + "</small>";
             return;
         }
 
-        if (!data.length) {
-            listEl.innerHTML = "<small style='color:#71767b;'>Seja o primeiro a comentar.</small>";
+        const comments = data.comments || (Array.isArray(data) ? data : []);
+
+        if (!comments.length) {
+            listEl.innerHTML = "<small class='text-secondary'>Seja o primeiro a comentar.</small>";
             return;
         }
 
         listEl.innerHTML = "";
-        data.forEach(c => {
+        comments.forEach(c => {
+            const handle = c.email ? c.email.split('@')[0] : (c.name || 'usuario');
             const d = document.createElement("div");
-            d.style.marginBottom = "4px";
+            d.className = "mb-2";
             d.innerHTML = `
-                <strong>${c.name}</strong>
-                <span style="color:#71767b; font-size:0.8rem;">@${(c.email || '').split('@')[0]}</span>
-                <div style="font-size:0.9rem;">${c.body}</div>
+                <div class="d-flex align-items-center gap-1">
+                    <strong class="small">${EchoUIInstance.escapeHTML(c.name || handle)}</strong>
+                    <span class="text-secondary small">@${EchoUIInstance.escapeHTML(handle)}</span>
+                </div>
+                <div class="small text-light">${EchoUIInstance.escapeHTML(c.body)}</div>
             `;
             listEl.appendChild(d);
         });
@@ -763,19 +428,13 @@ async function sendComment(postId) {
         return;
     }
 
-    const email = localStorage.getItem("userEmail");
-    if (!email) {
-        alert("Você precisa estar logado para comentar.");
-        return;
-    }
-
     const res = await fetch("api/comments/create.php", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
             post_id: postId,
-            body: body,
-            email: email
+            body: body
         })
     });
 
@@ -787,10 +446,30 @@ async function sendComment(postId) {
     }
 
     input.value = "";
-    await loadComments(postId);
-}
 
-loadPosts();
+    if (data.ok && data.comment) {
+        const listEl = document.getElementById("comment-list-" + postId);
+        if (listEl) {
+            if (listEl.querySelector(".text-secondary") || listEl.querySelector("[style*='color:#f66']")) {
+                listEl.innerHTML = "";
+            }
+            const c = data.comment;
+            const handle = c.email ? c.email.split('@')[0] : (c.name || 'usuario');
+            const d = document.createElement("div");
+            d.className = "mb-2";
+            d.innerHTML = `
+                <div class="d-flex align-items-center gap-1">
+                    <strong class="small">${EchoUIInstance.escapeHTML(c.name || handle)}</strong>
+                    <span class="text-secondary small">@${EchoUIInstance.escapeHTML(handle)}</span>
+                </div>
+                <div class="small text-light">${EchoUIInstance.escapeHTML(c.body)}</div>
+            `;
+            listEl.appendChild(d);
+        }
+    } else {
+        await loadComments(postId);
+    }
+}
 </script>
 </body>
 </html>

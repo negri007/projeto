@@ -1,35 +1,42 @@
 <?php
-header("Content-Type: application/json");
-require_once "../auth/db.php";
+header("Content-Type: application/json; charset=utf-8");
 
+require_once __DIR__ . "/../auth/session.php";
+require_once __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/helpers.php";
 
-$data = json_decode(file_get_contents("php://input"));
+$userId = require_login();
 
-if (!$data || !isset($data->email) || !isset($data->sender)) {
-    echo json_encode(["error" => "Dados incompletos"]);
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    echo json_encode(["error" => "Método inválido."]);
     exit;
 }
 
-$receiverEmail = trim($data->email);
-$senderId = (int)$data->sender;
+$data = json_decode(file_get_contents("php://input"), true);
 
-// pega ID do receiver
-$stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-$stmt->execute([$receiverEmail]);
-$receiver = $stmt->fetch();
+// `user_id` aqui é quem MANDOU o pedido que estou aceitando.
+$targetId = friends_target_id($pdo, $data);
 
-if (!$receiver) {
-    echo json_encode(["error" => "Usuário não encontrado"]);
+if ($targetId === null) {
+    echo json_encode(["error" => "Usuário não encontrado."]);
     exit;
 }
 
-$receiverId = $receiver["id"];
+try {
+    $stmt = $pdo->prepare(
+        "UPDATE friends
+         SET status = 'accepted'
+         WHERE user_id = ? AND friend_id = ? AND status = 'pending'"
+    );
+    $stmt->execute([$targetId, $userId]);
 
-$stmt = $pdo->prepare("
-    UPDATE friends
-    SET status = 'accepted'
-    WHERE user_id = ? AND friend_id = ? AND status = 'pending'
-");
-$stmt->execute([$senderId, $receiverId]);
+    if ($stmt->rowCount() === 0) {
+        echo json_encode(["error" => "Solicitação não encontrada."]);
+        exit;
+    }
 
-echo json_encode(["ok" => true]);
+    echo json_encode(["ok" => true]);
+
+} catch (Exception $e) {
+    echo json_encode(["error" => "Erro ao aceitar solicitação."]);
+}

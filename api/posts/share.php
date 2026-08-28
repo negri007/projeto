@@ -1,7 +1,10 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
 
+require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
+
+$userId = require_login();
 
 try {
     $input  = json_decode(file_get_contents("php://input"), true);
@@ -21,9 +24,9 @@ try {
         exit;
     }
 
-  
-    $stmt = $pdo->prepare("INSERT INTO post_shares (post_id) VALUES (?)");
-    $stmt->execute([$postId]);
+    // Registra quem compartilhou (antes o INSERT gravava só o post_id).
+    $stmt = $pdo->prepare("INSERT INTO post_shares (post_id, user_id) VALUES (?, ?)");
+    $stmt->execute([$postId, $userId]);
 
     echo json_encode(["ok" => true]);
 

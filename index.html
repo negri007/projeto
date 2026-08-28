@@ -3,240 +3,30 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ECHO - Login</title>
+    <title>ECHO - Entrar ou Criar Conta</title>
 
     <!-- Bootstrap -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
     <!-- Font Awesome -->
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-      rel="stylesheet"
-    />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     <!-- Fonte do efeito -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap"
-      rel="stylesheet"
-    />
-
-    <style>
-        :root {
-            --bg-main: #000000;
-            --bg-card: #0f1419;
-            --border-soft: #2f3336;
-            --accent: #1d9bf0;
-            --text-soft: #71767b;
-        }
-
-        body {
-            margin: 0;
-            background: var(--bg-main);
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-
-        .auth-layout {
-            max-width: 1300px;
-            margin: 0 auto;
-            min-height: 100vh;
-        }
-
-        /* ========= SPLASH ECHO DECODER ========= */
-        .splash-container {
-            margin: 0;
-            padding: 0;
-            font-family: 'Share Tech Mono', monospace;
-            background: #000;
-            color: var(--accent);
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        .splash-text-wrapper {
-            text-align: center;
-        }
-
-        .splash-text {
-            font-weight: 400;
-            font-size: clamp(2.5rem, 10vw, 8rem);
-            position: relative;
-            color: var(--accent);
-            text-shadow:
-                0 0 5px var(--accent),
-                0 0 15px var(--accent),
-                0 0 30px var(--accent);
-            cursor: default;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .splash-text span {
-            display: inline-block;
-            position: relative;
-            min-width: 0.5ch;
-            will-change: contents;
-        }
-
-        /* ========= LADO ESQUERDO (marca / destaque) ========= */
-        .auth-hero {
-            border-right: 1px solid var(--border-soft);
-            min-height: 100vh;
-            padding: 32px 24px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .auth-logo {
-            font-size: 3rem;
-            color: var(--accent);
-            margin-bottom: 24px;
-        }
-
-        .auth-title {
-            font-size: 3rem;
-            font-weight: 900;
-            margin-bottom: 8px;
-        }
-
-        .auth-subtitle {
-            font-size: 1.1rem;
-            color: var(--text-soft);
-            margin-bottom: 24px;
-        }
-
-        .auth-highlight {
-            margin-top: 12px;
-            font-size: 0.95rem;
-            color: var(--text-soft);
-        }
-
-        .auth-highlight i {
-            color: var(--accent);
-            margin-right: 6px;
-        }
-
-        /* ========= CARD DIREITA (login/cadastro/reset) ========= */
-        .auth-card-wrap {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px 16px;
-        }
-
-        .auth-card {
-            width: 100%;
-            max-width: 420px;
-            background: var(--bg-card);
-            border-radius: 16px;
-            border: 1px solid var(--border-soft);
-            padding: 24px 20px;
-        }
-
-        .auth-card h2 {
-            font-weight: 800;
-            margin-bottom: 4px;
-        }
-
-        .auth-card-sub {
-            font-size: 0.95rem;
-            color: var(--text-soft);
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            font-size: 0.9rem;
-            color: var(--text-soft);
-        }
-
-        .form-control {
-            background: transparent;
-            border-radius: 999px;
-            border: 1px solid var(--border-soft);
-            color: #ffffff;
-            padding-left: 40px;
-        }
-
-        .form-control::placeholder {
-            color: #555;
-        }
-
-        .form-control:focus {
-            box-shadow: none;
-            border-color: var(--accent);
-        }
-
-        .input-icon-wrapper {
-            position: relative;
-        }
-
-        .input-icon-wrapper i {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-soft);
-            font-size: 0.9rem;
-        }
-
-        .btn-auth {
-            border-radius: 999px;
-            font-weight: 700;
-            padding: 10px 0;
-            margin-top: 4px;
-        }
-
-        .auth-links {
-            text-align: center;
-            margin-top: 18px;
-            font-size: 0.92rem;
-        }
-
-        .auth-links button {
-            background: none;
-            border: none;
-            color: var(--accent);
-            padding: 0;
-            cursor: pointer;
-            font-size: 0.92rem;
-        }
-
-        .auth-links button:hover {
-            text-decoration: underline;
-        }
-
-        .auth-links p {
-            margin-bottom: 4px;
-            color: var(--text-soft);
-        }
-
-        @media (max-width: 992px) {
-            .auth-hero {
-                display: none;
-            }
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <!-- Echo Core Stylesheet -->
+    <link href="css/echo.css" rel="stylesheet" />
 </head>
-
 <body>
     <div id="app"></div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- GSAP para o efeito -->
+    <!-- GSAP para o efeito splash -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+    <script src="js/echo-ui.js"></script>
 
     <script>
         /* =====================================================
-           SPLASH ECHO (DECODER) – baseado no que você mandou
+           SPLASH ECHO (DECODER)
         ===================================================== */
-
         function renderSplash() {
             document.getElementById("app").innerHTML = `
                 <div class="splash-container">
@@ -250,7 +40,6 @@
             const originalText = "ECHO";
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_-+=[]{}|;:,.<>?';
 
-            // monta os spans
             originalText.split('').forEach(char => {
                 const span = document.createElement('span');
                 span.innerHTML = char === ' ' ? '&nbsp;' : char;
@@ -262,7 +51,6 @@
             function createDecoderAnimation() {
                 const tl = gsap.timeline({
                     onComplete: () => {
-                        // depois da animação, chama o login
                         setTimeout(renderLogin, 400);
                     }
                 });
@@ -288,7 +76,6 @@
                     }, i * 0.12);
                 });
 
-                // só uma vez, sem loop infinito
                 tl.to({}, { duration: 0.3 });
             }
 
@@ -296,8 +83,7 @@
         }
 
         /* =====================================================
-           RENDER DE TELAS (LOGIN / REGISTER / RESET)
-           – mesma lógica que você já tinha
+           RENDER DE TELAS (LOGIN / REGISTER / FORGOT PASSWORD)
         ===================================================== */
 
         function renderLogin() {
@@ -308,15 +94,15 @@
                     <div class="col-lg-7 d-none d-lg-flex auth-hero">
                         <div>
                             <div class="auth-logo">
-                                <i class="fa-brands fa-x-twitter"></i>
+                                <i class="fa-solid fa-hashtag"></i>
                             </div>
-                            <div class="auth-title">Acontecendo agora</div>
-                            <div class="auth-subtitle">Entre no Echo para ver o que está rolando na sua rede.</div>
+                            <div class="auth-title">Acontecendo agora no ECHO</div>
+                            <div class="auth-subtitle">Entre no Echo para acompanhar os assuntos e interagir com sua rede.</div>
 
                             <div class="auth-highlight">
-                                <p><i class="fa-regular fa-bell"></i> Notificações em tempo real.</p>
-                                <p><i class="fa-regular fa-comment"></i> Interações rápidas e simples.</p>
-                                <p><i class="fa-regular fa-star"></i> Conteúdos feitos para você.</p>
+                                <p><i class="fa-regular fa-bell"></i> Notificações e alertas em tempo real.</p>
+                                <p><i class="fa-regular fa-comment"></i> Publicações e conversas dinâmicas.</p>
+                                <p><i class="fa-regular fa-star"></i> Círculos e conteúdos exclusivos.</p>
                             </div>
                         </div>
                     </div>
@@ -350,7 +136,7 @@
                                     <button onclick="renderRegister()">Criar conta</button>
                                 </p>
                                 <p>
-                                    <button onclick="renderReset()">Esqueci a senha</button>
+                                    <button onclick="renderReset()">Esqueci minha senha</button>
                                 </p>
                             </div>
                         </div>
@@ -367,14 +153,14 @@
                     <div class="col-lg-7 d-none d-lg-flex auth-hero">
                         <div>
                             <div class="auth-logo">
-                                <i class="fa-brands fa-x-twitter"></i>
+                                <i class="fa-solid fa-hashtag"></i>
                             </div>
                             <div class="auth-title">Junte-se ao Echo</div>
-                            <div class="auth-subtitle">Crie sua conta e comece a postar em poucos segundos.</div>
+                            <div class="auth-subtitle">Crie sua conta e comece a compartilhar em poucos segundos.</div>
 
                             <div class="auth-highlight">
                                 <p><i class="fa-solid fa-bolt"></i> Cadastro simples e objetivo.</p>
-                                <p><i class="fa-regular fa-heart"></i> Conecte-se com amigos e comunidades.</p>
+                                <p><i class="fa-regular fa-heart"></i> Conecte-se com amigos e círculos.</p>
                                 <p><i class="fa-solid fa-shield-halved"></i> Seus dados, sob seu controle.</p>
                             </div>
                         </div>
@@ -423,6 +209,7 @@
             </div>`;
         }
 
+        // TELA DE ESQUECI MINHA SENHA (ENVIO DE LINK)
         function renderReset() {
             document.getElementById("app").innerHTML = `
             <div class="container-fluid auth-layout">
@@ -431,45 +218,41 @@
                     <div class="col-lg-7 d-none d-lg-flex auth-hero">
                         <div>
                             <div class="auth-logo">
-                                <i class="fa-brands fa-x-twitter"></i>
+                                <i class="fa-solid fa-hashtag"></i>
                             </div>
                             <div class="auth-title">Esqueceu a senha?</div>
-                            <div class="auth-subtitle">Não se preocupe, você pode criar uma nova agora mesmo.</div>
+                            <div class="auth-subtitle">Digite seu e-mail para receber um link seguro de redefinição de senha.</div>
 
                             <div class="auth-highlight">
-                                <p><i class="fa-solid fa-unlock-keyhole"></i> Processo rápido e seguro.</p>
-                                <p><i class="fa-regular fa-face-smile"></i> Volte a usar sua conta em instantes.</p>
+                                <p><i class="fa-solid fa-paper-plane"></i> Envio automático de link para o e-mail.</p>
+                                <p><i class="fa-solid fa-lock"></i> Token de recuperação seguro e temporário.</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- LADO DIREITO - RESET -->
+                    <!-- LADO DIREITO - FORGOT PASSWORD -->
                     <div class="col-lg-5 col-md-8 mx-auto auth-card-wrap">
                         <div class="auth-card">
-                            <h2>Resetar senha</h2>
-                            <p class="auth-card-sub">Informe seu e-mail e a nova senha desejada.</p>
+                            <h2>Recuperar senha</h2>
+                            <p class="auth-card-sub">Informe seu e-mail para enviarmos o link de recuperação.</p>
 
-                            <div class="mb-3">
-                                <label class="form-label">Email</label>
-                                <div class="input-icon-wrapper">
-                                    <i class="fa-regular fa-envelope"></i>
-                                    <input id="x-email" type="email" class="form-control" placeholder="email@exemplo.com">
+                            <div id="forgotAlert" style="display:none;"></div>
+
+                            <div id="forgotFormArea">
+                                <div class="mb-3">
+                                    <label class="form-label">Email cadastrado</label>
+                                    <div class="input-icon-wrapper">
+                                        <i class="fa-regular fa-envelope"></i>
+                                        <input id="x-email" type="email" class="form-control" placeholder="email@exemplo.com">
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">Nova senha</label>
-                                <div class="input-icon-wrapper">
-                                    <i class="fa-solid fa-lock"></i>
-                                    <input id="x-pass" type="password" class="form-control" placeholder="••••••••">
-                                </div>
+                                <button id="btnForgotSubmit" class="btn btn-primary w-100 btn-auth" onclick="requestForgotPassword()">Enviar link de recuperação</button>
                             </div>
-
-                            <button class="btn btn-primary w-100 btn-auth" onclick="resetPassword()">Alterar senha</button>
 
                             <div class="auth-links">
                                 <p>
-                                    <button onclick="renderLogin()">Voltar ao login</button>
+                                    <button onclick="renderLogin()"><i class="fa-solid fa-arrow-left me-1"></i>Voltar ao login</button>
                                 </p>
                             </div>
                         </div>
@@ -479,16 +262,22 @@
         }
 
         /* =====================================================
-           LÓGICA ORIGINAL (NÃO MEXI)
+           AUTENTICAÇÃO E CHAMADAS DE API
         ===================================================== */
 
         async function login() {
             let email = document.getElementById("email").value.trim();
             let senha = document.getElementById("senha").value.trim();
 
+            if (!email || !senha) {
+                alert("Por favor, preencha o e-mail e a senha.");
+                return;
+            }
+
             let res = await fetch("api/auth/login.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
                 body: JSON.stringify({ email: email, password: senha })
             });
 
@@ -499,8 +288,12 @@
                 return;
             }
 
-            localStorage.setItem("userEmail", email);
-            window.location = "explorar.html";
+            if (data.success || data.ok || (data.user && data.user.id)) {
+                localStorage.setItem("userEmail", email);
+                window.location = "inicio.html";
+            } else {
+                alert("Erro ao realizar login.");
+            }
         }
 
         async function registerUser() {
@@ -525,29 +318,71 @@
             renderLogin();
         }
 
-        async function resetPassword() {
+        async function requestForgotPassword() {
             let email = document.getElementById("x-email").value.trim();
-            let novaSenha = document.getElementById("x-pass").value.trim();
+            let alertBox = document.getElementById("forgotAlert");
+            let btn = document.getElementById("btnForgotSubmit");
 
-            let res = await fetch("api/auth/reset.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email, new_pass: novaSenha })
-            });
-
-            let data = await res.json();
-
-            if (data.error) {
-                alert(data.error);
+            if (!email) {
+                alertBox.className = "alert-custom alert-custom-danger";
+                alertBox.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><div>Por favor, digite seu e-mail.</div>';
+                alertBox.style.display = "flex";
                 return;
             }
 
-            alert("Senha alterada com sucesso!");
-            renderLogin();
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-echo me-2" style="width:16px;height:16px;border-width:2px;"></span>Enviando...`;
+
+            /*
+            // =========================================================================
+            // TODO: INTEGRAÇÃO COM A API DO BACK-END (POST /api/auth/forgot_password.php)
+            // =========================================================================
+            // Conforme docs/API_CONTRACT.md:
+            // Request: { "email": string }
+            // Response 200 (sempre): { "ok": true, "message": "Se o e-mail existir, um link foi enviado." }
+
+            try {
+                let res = await fetch("api/auth/forgot_password.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({ email: email })
+                });
+                let data = await res.json();
+
+                alertBox.className = "alert-custom alert-custom-success";
+                alertBox.innerHTML = `<i class="fa-solid fa-circle-check"></i><div>${data.message || "Se o e-mail existir, um link foi enviado."}</div>`;
+                alertBox.style.display = "flex";
+                document.getElementById("forgotFormArea").style.display = "none";
+            } catch (e) {
+                alertBox.className = "alert-custom alert-custom-danger";
+                alertBox.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i><div>Erro ao solicitar recuperação. Tente novamente.</div>';
+                alertBox.style.display = "flex";
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = "Enviar link de recuperação";
+            }
+            */
+
+            // Simulação de resposta visual conforme o contrato de API:
+            setTimeout(() => {
+                alertBox.className = "alert-custom alert-custom-success";
+                alertBox.innerHTML = '<i class="fa-solid fa-circle-check"></i><div>Se o e-mail existir, um link foi enviado para sua caixa de entrada.</div>';
+                alertBox.style.display = "flex";
+                document.getElementById("forgotFormArea").style.display = "none";
+                btn.disabled = false;
+                btn.innerHTML = "Enviar link de recuperação";
+            }, 800);
         }
 
-        // começa na intro ECHO
-        document.addEventListener("DOMContentLoaded", renderSplash);
+        document.addEventListener("DOMContentLoaded", async function () {
+            const user = await EchoUIInstance.checkAuth({ redirectOnFail: false });
+            if (user) {
+                window.location = "inicio.html";
+                return;
+            }
+            renderSplash();
+        });
     </script>
 </body>
 </html>

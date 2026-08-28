@@ -1,39 +1,41 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
-require_once "../auth/db.php";
+
+require_once __DIR__ . "/../auth/session.php";
+require_once __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/helpers.php";
+
+$userId = require_login();
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    echo json_encode(["error" => "Método inválido."]);
+    exit;
+}
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!$data || !isset($data["email"]) || !isset($data["friend_email"])) {
-    echo json_encode(["error" => "Dados incompletos"]);
+// `user_id` aqui é o destinatário do pedido que eu enviei.
+$targetId = friends_target_id($pdo, $data);
+
+if ($targetId === null) {
+    echo json_encode(["error" => "Usuário não encontrado."]);
     exit;
 }
 
-$email = trim($data["email"]);
-$friendEmail = trim($data["friend_email"]);
+try {
+    $stmt = $pdo->prepare(
+        "DELETE FROM friends
+         WHERE user_id = ? AND friend_id = ? AND status = 'pending'"
+    );
+    $stmt->execute([$userId, $targetId]);
 
-// pegar IDs
-$stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-$stmt->execute([$email]);
-$user = $stmt->fetch();
+    if ($stmt->rowCount() === 0) {
+        echo json_encode(["error" => "Solicitação não encontrada."]);
+        exit;
+    }
 
-$stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-$stmt->execute([$friendEmail]);
-$friend = $stmt->fetch();
+    echo json_encode(["ok" => true]);
 
-if (!$user || !$friend) {
-    echo json_encode(["error" => "Usuário não encontrado"]);
-    exit;
+} catch (Exception $e) {
+    echo json_encode(["error" => "Erro ao cancelar solicitação."]);
 }
-
-$userId = $user["id"];
-$friendId = $friend["id"];
-
-// cancelar só se status = pending e enviado por mim
-$stmt = $pdo->prepare("
-    DELETE FROM friends
-    WHERE user_id = ? AND friend_id = ? AND status = 'pending'
-");
-$stmt->execute([$userId, $friendId]);
-
-echo json_encode(["ok" => true]);
