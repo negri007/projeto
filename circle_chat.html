@@ -230,14 +230,14 @@ async function sendMessage() {
         const data = await res.json();
 
         if (data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
             return;
         }
 
         msgInput.value = "";
         loadMessages();
     } catch (e) {
-        alert("Erro ao enviar mensagem.");
+        EchoUIInstance.toastError("Erro ao enviar mensagem.");
     } finally {
         msgInput.disabled = false;
         msgInput.focus();

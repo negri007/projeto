@@ -153,18 +153,24 @@ class EchoUI {
 
         if (!item) return;
 
+        // `reference_id` e o post em like/comment/share e o remetente em
+        // message — por isso cada tipo monta um link diferente.
         switch (item.type) {
             case 'like':
             case 'comment':
             case 'share':
-                window.location = "inicio.html";
+                window.location = item.reference_id
+                    ? "inicio.html?post=" + encodeURIComponent(item.reference_id)
+                    : "inicio.html";
                 break;
             case 'friend_request':
             case 'friend_accept':
                 window.location = "amigos.html";
                 break;
             case 'message':
-                window.location = "chat.html";
+                window.location = item.reference_id
+                    ? "chat.html?friend=" + encodeURIComponent(item.reference_id)
+                    : "chat.html";
                 break;
         }
     }
@@ -488,6 +494,276 @@ class EchoUI {
 
     setupNotificationDropdown() {
         // Dropdown setup listener if needed
+    }
+
+    /* ======================================================================
+       TOASTS — feedback nao bloqueante
+       ====================================================================== */
+
+    /**
+     * Mostra um aviso no canto da tela. Substitui alert(): nao trava a
+     * aba, nao exige clique, e some sozinho.
+     *
+     * @param {string} message
+     * @param {"success"|"danger"|"info"} type
+     * @param {number} duration ms; 0 mantem ate o usuario fechar
+     */
+    toast(message, type = "info", duration = 4000) {
+        let stack = document.getElementById("echoToastStack");
+
+        if (!stack) {
+            stack = document.createElement("div");
+            stack.className = "echo-toast-stack";
+            stack.id = "echoToastStack";
+            document.body.appendChild(stack);
+        }
+
+        const icones = {
+            success: "fa-circle-check",
+            danger:  "fa-circle-exclamation",
+            info:    "fa-circle-info"
+        };
+
+        const el = document.createElement("div");
+        el.className = `echo-toast echo-toast-${type}`;
+        el.setAttribute("role", type === "danger" ? "alert" : "status");
+        el.innerHTML = `
+            <i class="fa-solid ${icones[type] || icones.info} echo-toast-icon"></i>
+            <div class="echo-toast-body">${this.escapeHTML(message)}</div>
+            <button class="echo-toast-close" type="button" aria-label="Fechar">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        `;
+
+        const remover = () => {
+            if (!el.isConnected) return;
+            el.classList.add("leaving");
+            // Espera a animacao de saida antes de tirar do DOM.
+            setTimeout(() => el.remove(), 200);
+        };
+
+        el.querySelector(".echo-toast-close").onclick = remover;
+        stack.appendChild(el);
+
+        if (duration > 0) setTimeout(remover, duration);
+
+        return el;
+    }
+
+    /** Atalhos de leitura mais direta nas telas. */
+    toastSuccess(msg) { return this.toast(msg, "success"); }
+    toastError(msg)   { return this.toast(msg, "danger", 6000); }
+
+    /**
+     * Mostra o campo `error` de uma resposta da API, se houver.
+     * Devolve true quando havia erro — o padrao das telas vira:
+     *
+     *     if (EchoUIInstance.showApiError(data)) return;
+     */
+    showApiError(data, fallback = "Não foi possível completar a ação.") {
+        if (data && data.error) {
+            this.toastError(data.error);
+            return true;
+        }
+        return false;
+    }
+
+    /* ======================================================================
+       CONFIRMACAO
+       ====================================================================== */
+
+    /**
+     * Dialogo de confirmacao no tema do app. Substitui confirm(), que
+     * trava a aba e ignora o CSS da pagina.
+     *
+     * @returns {Promise<boolean>}
+     */
+    confirm({ title = "Tem certeza?", message = "", confirmText = "Confirmar",
+              cancelText = "Cancelar", danger = false } = {}) {
+        return new Promise(resolve => {
+            const backdrop = document.createElement("div");
+            backdrop.className = "echo-dialog-backdrop";
+            backdrop.innerHTML = `
+                <div class="echo-dialog" role="dialog" aria-modal="true">
+                    <h5>${this.escapeHTML(title)}</h5>
+                    ${message ? `<p>${this.escapeHTML(message)}</p>` : ""}
+                    <div class="echo-dialog-actions">
+                        <button type="button" class="echo-dialog-cancel">${this.escapeHTML(cancelText)}</button>
+                        <button type="button" class="echo-dialog-confirm ${danger ? "danger" : ""}">${this.escapeHTML(confirmText)}</button>
+                    </div>
+                </div>
+            `;
+
+            const fechar = (resultado) => {
+                document.removeEventListener("keydown", aoTeclar);
+                backdrop.remove();
+                resolve(resultado);
+            };
+
+            const aoTeclar = (e) => {
+                if (e.key === "Escape") fechar(false);
+                if (e.key === "Enter")  fechar(true);
+            };
+
+            backdrop.querySelector(".echo-dialog-cancel").onclick  = () => fechar(false);
+            backdrop.querySelector(".echo-dialog-confirm").onclick = () => fechar(true);
+            // Clique fora cancela; clique dentro do card, nao.
+            backdrop.onclick = (e) => { if (e.target === backdrop) fechar(false); };
+
+            document.addEventListener("keydown", aoTeclar);
+            document.body.appendChild(backdrop);
+            backdrop.querySelector(".echo-dialog-confirm").focus();
+        });
+    }
+
+    /* ======================================================================
+       AVATARES
+       ====================================================================== */
+
+    /**
+     * Cor estavel a partir do id do usuario: a mesma pessoa recebe
+     * sempre a mesma cor, em qualquer tela, sem guardar nada no banco.
+     */
+    avatarColor(userId) {
+        const paleta = [
+            "#1d9bf0", "#00ba7c", "#f91880", "#ff7a00", "#7856ff",
+            "#00b0d8", "#e0245e", "#17bf63", "#794bc4", "#f45d22"
+        ];
+        return paleta[Math.abs(Number(userId) || 0) % paleta.length];
+    }
+
+    /**
+     * HTML do avatar: a foto quando existe, senao a inicial do nome
+     * sobre a cor da pessoa.
+     *
+     * @param {{user_id?:number, id?:number, name?:string, avatar?:string}} user
+     * @param {"sm"|"md"|"lg"} size
+     * @param {boolean} link se true, clicar abre o perfil da pessoa
+     */
+    avatarHTML(user, size = "md", link = false) {
+        const id      = Number(user?.user_id ?? user?.id ?? 0);
+        const nome    = user?.name || "?";
+        const inicial = this.escapeHTML(nome.trim().charAt(0) || "?");
+        const classes = `echo-avatar echo-avatar-${size}${link ? " echo-avatar-link" : ""}`;
+        const onclick = link && id ? ` onclick="EchoUIInstance.openProfile(${id})"` : "";
+
+        if (user?.avatar) {
+            const url = `uploads/${encodeURIComponent(user.avatar)}`;
+            return `<div class="${classes}" style="background-image:url('${url}')"
+                         title="${this.escapeHTML(nome)}"${onclick}></div>`;
+        }
+
+        return `<div class="${classes}" style="background:${this.avatarColor(id)}"
+                     title="${this.escapeHTML(nome)}"${onclick}>${inicial}</div>`;
+    }
+
+    /** Abre o perfil de alguem. O proprio perfil vai sem parametro. */
+    openProfile(userId) {
+        const id = Number(userId);
+
+        if (this.currentUser && id === Number(this.currentUser.id)) {
+            window.location = "perfil.html";
+            return;
+        }
+
+        window.location = "perfil.html?user_id=" + encodeURIComponent(id);
+    }
+
+    /** Nome clicavel que leva ao perfil da pessoa. */
+    authorLinkHTML(user, className = "") {
+        const id = Number(user?.user_id ?? user?.id ?? 0);
+        const nome = this.escapeHTML(user?.name || "Usuário");
+
+        if (!id) return `<span class="${className}">${nome}</span>`;
+
+        return `<a class="echo-author-link ${className}" role="button"
+                   onclick="EchoUIInstance.openProfile(${id})">${nome}</a>`;
+    }
+
+    /* ======================================================================
+       EDICAO DE POST
+       ====================================================================== */
+
+    /**
+     * Troca o texto do post por um editor no lugar. Fica aqui, e nao em
+     * cada tela, porque o feed aparece igual em inicio, explorar e
+     * perfil — e um editor duplicado tres vezes vira tres bugs.
+     *
+     * @param {number} postId
+     * @param {Function} onSaved chamado apos salvar (a tela recarrega o feed)
+     */
+    async editPost(postId, onSaved) {
+        const box = document.getElementById(`post-content-${postId}`);
+        if (!box || box.dataset.editing === "1") return;
+
+        const textoOriginal = box.textContent.trim();
+        box.dataset.editing = "1";
+        box.dataset.original = textoOriginal;
+
+        box.innerHTML = `
+            <textarea class="form-control form-control-sm mb-2"
+                      id="post-edit-input-${postId}" rows="3"
+                      maxlength="5000">${this.escapeHTML(textoOriginal)}</textarea>
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-sm btn-outline-light rounded-pill px-3"
+                        type="button" id="post-edit-cancel-${postId}">Cancelar</button>
+                <button class="btn btn-sm btn-primary rounded-pill px-3"
+                        type="button" id="post-edit-save-${postId}">Salvar</button>
+            </div>
+        `;
+
+        const input  = document.getElementById(`post-edit-input-${postId}`);
+        const salvar = document.getElementById(`post-edit-save-${postId}`);
+
+        input.focus();
+        // Cursor no fim, nao no comeco do texto.
+        input.setSelectionRange(input.value.length, input.value.length);
+
+        const cancelar = () => {
+            box.dataset.editing = "0";
+            box.textContent = textoOriginal;
+        };
+
+        document.getElementById(`post-edit-cancel-${postId}`).onclick = cancelar;
+
+        input.onkeydown = (e) => {
+            if (e.key === "Escape") cancelar();
+            // Ctrl+Enter salva, como em qualquer caixa de texto longa.
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) salvar.click();
+        };
+
+        salvar.onclick = async () => {
+            const novo = input.value.trim();
+
+            if (novo === textoOriginal) {
+                cancelar();
+                return;
+            }
+
+            salvar.disabled = true;
+
+            try {
+                const res = await fetch("api/posts/edit.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "same-origin",
+                    body: JSON.stringify({ post_id: postId, content: novo })
+                });
+                const data = await res.json();
+
+                if (this.showApiError(data)) {
+                    salvar.disabled = false;
+                    return;
+                }
+
+                box.dataset.editing = "0";
+                this.toastSuccess("Publicação atualizada.");
+                if (typeof onSaved === "function") onSaved();
+            } catch (e) {
+                this.toastError("Erro de conexão ao salvar a edição.");
+                salvar.disabled = false;
+            }
+        };
     }
 
     escapeHTML(str) {

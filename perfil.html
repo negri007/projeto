@@ -125,19 +125,19 @@
                         <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
                             <i class="fa-solid fa-bars"></i>
                         </button>
-                        <span class="main-header-title">Perfil</span>
+                        <span class="main-header-title page-title">Perfil</span>
                     </div>
 
                     <div class="d-flex align-items-center gap-2">
                         <div id="notificationBellContainer"></div>
-                        <button class="btn btn-outline-light btn-edit-profile" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                        <button class="btn btn-outline-light btn-edit-profile" id="btnEditProfile" data-bs-toggle="modal" data-bs-target="#editProfileModal">
                             <i class="fa-solid fa-pen me-1"></i> Editar
                         </button>
                     </div>
                 </div>
 
                 <div class="profile-header mt-2">
-                    <div class="profile-avatar-lg" id="profileAvatar">U</div>
+                    <div class="echo-avatar echo-avatar-lg" id="profileAvatar">U</div>
                     <div>
                         <div class="profile-name" id="profileName">Usuário</div>
                         <div class="profile-handle" id="profileHandle">@usuario</div>
@@ -171,7 +171,7 @@
                 <h5>Resumo rápido</h5>
                 <p class="mb-1">
                     <i class="fa-solid fa-circle-info me-2 text-info"></i>
-                    Este perfil mostra apenas suas publicações.
+                    <span id="perfilResumoTexto">Este perfil mostra apenas suas publicações.</span>
                 </p>
                 <small class="text-secondary">As curtidas exibidas são a soma das curtidas recebidas em seus posts.</small>
             </div>
@@ -224,6 +224,12 @@
 <script>
 let currentUser = null;
 
+// Perfil aberto: sem ?user_id na URL, e o meu. Com, e o de outra pessoa
+// — a mesma tela serve os dois casos, so muda o que aparece.
+const perfilParams = new URLSearchParams(window.location.search);
+const perfilUserId = Number(perfilParams.get("user_id")) || null;
+let perfilEhMeu = true;
+
 document.addEventListener("DOMContentLoaded", async function () {
     // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
     currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
@@ -243,29 +249,31 @@ function logout() {
 
 async function loadProfileData() {
     try {
-        // Sem parametro: o back devolve o perfil do usuario da sessao.
-        const res = await fetch("api/profile/get.php", { credentials: "same-origin" });
+        // Sem parametro o back devolve o perfil da sessao; com `user_id`,
+        // o daquela pessoa.
+        const url = "api/profile/get.php"
+                  + (perfilUserId ? "?user_id=" + encodeURIComponent(perfilUserId) : "");
+
+        const res = await fetch(url, { credentials: "same-origin" });
         const data = await res.json();
 
         if (data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
             return;
         }
+
+        // `is_me` vem do servidor: e ele quem decide de quem e o perfil,
+        // nao a URL.
+        perfilEhMeu = Boolean(data.user.is_me);
+        aplicarModoDoPerfil(data.user);
 
         const user  = data.user;
         const stats = data.stats || {};
 
-        const avatarEl = document.getElementById("profileAvatar");
-
-        if (user.avatar) {
-            avatarEl.textContent = "";
-            avatarEl.style.backgroundImage = `url("uploads/${user.avatar}")`;
-            avatarEl.style.backgroundSize = "cover";
-            avatarEl.style.backgroundPosition = "center";
-        } else {
-            avatarEl.style.backgroundImage = "";
-            avatarEl.textContent = (user.name || "U").charAt(0).toUpperCase();
-        }
+        // Mesmo avatar do resto do app (foto ou inicial colorida).
+        document.getElementById("profileAvatar").outerHTML =
+            EchoUIInstance.avatarHTML(user, "lg").replace(
+                'class="echo-avatar', 'id="profileAvatar" class="echo-avatar');
 
         document.getElementById("profileName").textContent   = user.name;
         document.getElementById("profileHandle").textContent = "@" + (user.email ? user.email.split("@")[0] : "usuario");
@@ -287,12 +295,60 @@ async function loadProfileData() {
     }
 }
 
+/**
+ * Ajusta a tela ao dono do perfil: o botao "Editar" e as dicas de dono
+ * so fazem sentido no proprio perfil. Num perfil alheio, entra um atalho
+ * para conversar.
+ */
+function aplicarModoDoPerfil(user) {
+    document.title = perfilEhMeu
+        ? "ECHO - Perfil"
+        : `ECHO - ${user.name}`;
+
+    const tituloPagina = document.querySelector(".page-title");
+    if (tituloPagina) tituloPagina.textContent = perfilEhMeu ? "Perfil" : user.name;
+
+    const btnEditar = document.getElementById("btnEditProfile");
+    if (btnEditar) btnEditar.style.display = perfilEhMeu ? "" : "none";
+
+    const resumo = document.getElementById("perfilResumoTexto");
+    if (resumo) {
+        resumo.textContent = perfilEhMeu
+            ? "Este perfil mostra apenas suas publicações."
+            : `Este perfil mostra apenas as publicações de ${user.name}.`;
+    }
+
+    // Atalho de conversa no perfil dos outros. Se nao forem amigos, o
+    // back recusa a conversa e o chat mostra o motivo.
+    let acoes = document.getElementById("perfilAcoes");
+
+    if (!perfilEhMeu) {
+        if (!acoes) {
+            acoes = document.createElement("div");
+            acoes.id = "perfilAcoes";
+            acoes.className = "d-flex gap-2 mt-3";
+            document.getElementById("profileAbout")?.parentElement?.appendChild(acoes);
+        }
+        acoes.innerHTML = `
+            <button class="btn btn-sm btn-primary rounded-pill px-3" type="button"
+                    onclick="window.location='chat.html?friend=${user.user_id}'">
+                <i class="fa-solid fa-paper-plane me-1"></i>Enviar mensagem
+            </button>
+            <a class="btn btn-sm btn-outline-light rounded-pill px-3" href="perfil.html">
+                Voltar ao meu perfil
+            </a>
+        `;
+    } else if (acoes) {
+        acoes.remove();
+    }
+}
+
 async function saveProfile() {
     const newName  = document.getElementById("editName").value.trim();
     const newAbout = document.getElementById("editAbout").value.trim();
 
     if (!newName) {
-        alert("O nome não pode ficar em branco.");
+        EchoUIInstance.toastError("O nome não pode ficar em branco.");
         return;
     }
 
@@ -317,7 +373,7 @@ async function saveProfile() {
         const data = await res.json();
 
         if (data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
             return;
         }
 
@@ -335,12 +391,17 @@ async function saveProfile() {
 
         loadProfileData();
     } catch (e) {
-        alert("Erro ao atualizar o perfil.");
+        EchoUIInstance.toastError("Erro ao atualizar o perfil.");
     }
 }
 
 async function deletePost(postId) {
-    if (!confirm("Deseja realmente apagar este post?")) return;
+    if (!await EchoUIInstance.confirm({
+        title: "Apagar publicação",
+        message: "Esta publicação, seus comentários e suas curtidas serão apagados. Não dá para desfazer.",
+        confirmText: "Apagar",
+        danger: true
+    })) return;
 
     const res = await fetch("api/posts/delete.php", {
         method: "POST",
@@ -353,7 +414,7 @@ async function deletePost(postId) {
 
     const data = await res.json();
     if (data.error) {
-        alert(data.error);
+        EchoUIInstance.toastError(data.error);
         return;
     }
 
@@ -373,7 +434,7 @@ async function toggleLike(postId) {
 
     const data = await res.json();
     if (data.error) {
-        alert(data.error);
+        EchoUIInstance.toastError(data.error);
         return;
     }
 
@@ -393,7 +454,7 @@ async function sharePost(postId) {
 
     const data = await res.json();
     if (data.error) {
-        alert(data.error);
+        EchoUIInstance.toastError(data.error);
         return;
     }
 
@@ -405,7 +466,14 @@ async function loadMyPosts() {
     container.innerHTML = EchoUIInstance.getFeedSkeletonHTML(2);
 
     try {
-        const res = await fetch("api/posts/list.php", { credentials: "same-origin" });
+        // Filtro no servidor. Antes a tela baixava o feed inteiro e
+        // descartava no cliente o que nao era do dono do perfil.
+        const autorId = perfilUserId || (currentUser ? currentUser.id : 0);
+
+        const res = await fetch(
+            "api/posts/list.php?limit=20&user_id=" + encodeURIComponent(autorId),
+            { credentials: "same-origin" }
+        );
         const data = await res.json();
 
         container.innerHTML = "";
@@ -415,10 +483,12 @@ async function loadMyPosts() {
             return;
         }
 
-        const myPosts = data.posts.filter(p => Boolean(p.is_my_post || (currentUser && Number(p.user_id) === Number(currentUser.id))));
+        const myPosts = data.posts;
 
         if (myPosts.length === 0) {
-            container.innerHTML = "<p class='text-center text-secondary p-4'>Você ainda não fez publicações.</p>";
+            container.innerHTML = perfilEhMeu
+                ? "<p class='text-center text-secondary p-4'>Você ainda não fez publicações.</p>"
+                : "<p class='text-center text-secondary p-4'>Esta pessoa ainda não publicou nada.</p>";
             return;
         }
 
@@ -430,17 +500,16 @@ async function loadMyPosts() {
 
             container.innerHTML += `
                 <div class="post">
-                    <div class="tweet-avatar">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
+                    ${EchoUIInstance.avatarHTML(p, "md", true)}
                     <div class="post-body">
                         <div class="post-header">
-                            <span class="post-name">${EchoUIInstance.escapeHTML(p.name)}</span>
+                            ${EchoUIInstance.authorLinkHTML(p, "post-name")}
                             <span class="post-handle">@${EchoUIInstance.escapeHTML(handle)}</span>
-                            <span class="badge bg-secondary-subtle text-light">você</span>
-                            <span class="post-time"> · ${p.created_at}</span>
+                            ${perfilEhMeu ? `<span class="badge bg-secondary-subtle text-light">você</span>` : ""}
+                            <span class="post-time" title="${p.created_at}"> · ${EchoUIInstance.formatTime(p.created_at)}</span>
+                            ${p.edited_at ? `<span class="post-edited" title="Editado em ${p.edited_at}">· editado</span>` : ""}
                         </div>
-                        <div class="post-content">
+                        <div class="post-content" id="post-content-${p.id}">
                             ${EchoUIInstance.escapeHTML(p.content ?? "")}
                         </div>
                         ${p.image ? `<img class="post-image" src="uploads/${p.image}" alt="">` : ""}
@@ -459,9 +528,16 @@ async function loadMyPosts() {
                                 <span>${likeCount}</span>
                             </button>
 
-                            <button class="icon-btn" type="button" onclick="deletePost(${p.id})">
-                                <i class="fa-solid fa-trash"></i>
+                            ${perfilEhMeu ? `
+                            <button class="icon-btn" type="button" title="Editar"
+                                    onclick="EchoUIInstance.editPost(${p.id}, loadMyPosts)">
+                                <i class="fa-solid fa-pen"></i>
                             </button>
+
+                            <button class="icon-btn" type="button" title="Apagar"
+                                    onclick="deletePost(${p.id})">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>` : ""}
                         </div>
                     </div>
                 </div>

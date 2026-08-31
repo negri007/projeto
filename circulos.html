@@ -235,10 +235,17 @@ async function loadCircles() {
             // comum tentando adicionar ou remover terceiros.
             if (c.is_owner) {
                 const btnGerenciar = document.createElement("button");
-                btnGerenciar.className = "btn btn-sm btn-outline-light rounded-pill px-3";
+                btnGerenciar.className = "btn btn-sm btn-outline-light rounded-pill px-3 me-1";
                 btnGerenciar.textContent = "Gerenciar";
                 btnGerenciar.onclick = () => openCircle(c.id, c.name);
                 acoes.appendChild(btnGerenciar);
+
+                const btnApagar = document.createElement("button");
+                btnApagar.className = "btn btn-sm btn-outline-danger rounded-pill px-3";
+                btnApagar.title = "Apagar círculo";
+                btnApagar.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                btnApagar.onclick = () => deleteCircle(c.id, c.name);
+                acoes.appendChild(btnApagar);
             } else {
                 const btnSair = document.createElement("button");
                 btnSair.className = "btn btn-sm btn-outline-danger rounded-pill px-3";
@@ -260,7 +267,7 @@ async function createCircle() {
     const desc = document.getElementById("circleDesc").value.trim();
 
     if (!nome) {
-        alert("Digite um nome para o círculo.");
+        EchoUIInstance.toastError("Digite um nome para o círculo.");
         return;
     }
 
@@ -275,7 +282,7 @@ async function createCircle() {
         const data = await res.json();
 
         if (data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
             return;
         }
 
@@ -285,7 +292,7 @@ async function createCircle() {
         loadCircles();
 
     } catch (e) {
-        alert("Erro ao criar círculo.");
+        EchoUIInstance.toastError("Erro ao criar círculo.");
     }
 }
 
@@ -326,9 +333,12 @@ async function loadCircleMembers() {
             const dono = document.createElement("div");
             dono.className = "d-flex justify-content-between align-items-center border-bottom border-secondary py-2";
             dono.innerHTML = `
-                <div>
-                    <strong class="small">${EchoUIInstance.escapeHTML(data.owner.name)}</strong>
-                    <span class="text-secondary small">(${EchoUIInstance.escapeHTML(data.owner.email)})</span>
+                <div class="d-flex align-items-center gap-2">
+                    ${EchoUIInstance.avatarHTML(data.owner, "sm", true)}
+                    <div>
+                        <strong class="small">${EchoUIInstance.authorLinkHTML(data.owner)}</strong>
+                        <span class="text-secondary small">(${EchoUIInstance.escapeHTML(data.owner.email)})</span>
+                    </div>
                 </div>
                 <span class="badge bg-info text-dark">Dono</span>
             `;
@@ -347,9 +357,12 @@ async function loadCircleMembers() {
             const linha = document.createElement("div");
             linha.className = "d-flex justify-content-between align-items-center border-bottom border-secondary py-2";
             linha.innerHTML = `
-                <div>
-                    <strong class="small">${EchoUIInstance.escapeHTML(u.name)}</strong>
-                    <span class="text-secondary small">(${EchoUIInstance.escapeHTML(u.email)})</span>
+                <div class="d-flex align-items-center gap-2">
+                    ${EchoUIInstance.avatarHTML(u, "sm", true)}
+                    <div>
+                        <strong class="small">${EchoUIInstance.authorLinkHTML(u)}</strong>
+                        <span class="text-secondary small">(${EchoUIInstance.escapeHTML(u.email)})</span>
+                    </div>
                 </div>
             `;
 
@@ -405,19 +418,24 @@ async function addToCircle() {
         const data = await res.json();
 
         if (data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
             return;
         }
 
         loadCircleMembers();
         loadCircles();
     } catch (e) {
-        alert("Erro ao adicionar membro.");
+        EchoUIInstance.toastError("Erro ao adicionar membro.");
     }
 }
 
 async function removeFromCircle(userId) {
-    if (!confirm("Remover este membro do círculo?")) return;
+    if (!await EchoUIInstance.confirm({
+        title: "Remover membro",
+        message: "A pessoa deixa de ver as mensagens deste círculo imediatamente.",
+        confirmText: "Remover",
+        danger: true
+    })) return;
 
     try {
         const res = await fetch("api/circles/remove_member.php", {
@@ -429,14 +447,44 @@ async function removeFromCircle(userId) {
         const data = await res.json();
 
         if (data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
             return;
         }
 
         loadCircleMembers();
         loadCircles();
     } catch (e) {
-        alert("Erro ao remover membro.");
+        EchoUIInstance.toastError("Erro ao remover membro.");
+    }
+}
+
+/**
+ * Apagar um circulo que eu criei. Membros e conversa vao junto — o banco
+ * cuida disso com ON DELETE CASCADE.
+ */
+async function deleteCircle(circleId, name) {
+    if (!await EchoUIInstance.confirm({
+        title: "Apagar círculo",
+        message: `"${name}", seus membros e toda a conversa serão apagados. Não dá para desfazer.`,
+        confirmText: "Apagar círculo",
+        danger: true
+    })) return;
+
+    try {
+        const res = await fetch("api/circles/delete.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ circle_id: circleId })
+        });
+        const data = await res.json();
+
+        if (EchoUIInstance.showApiError(data)) return;
+
+        EchoUIInstance.toastSuccess("Círculo apagado.");
+        loadCircles();
+    } catch (e) {
+        EchoUIInstance.toastError("Erro ao apagar círculo.");
     }
 }
 
@@ -445,7 +493,12 @@ async function removeFromCircle(userId) {
  * comum removendo a si mesmo - e so a si mesmo.
  */
 async function leaveCircle(circleId, name) {
-    if (!confirm(`Sair do círculo "${name}"?`)) return;
+    if (!await EchoUIInstance.confirm({
+        title: "Sair do círculo",
+        message: `Você deixará de ver as mensagens de "${name}". Para voltar, o dono precisa te adicionar de novo.`,
+        confirmText: "Sair do círculo",
+        danger: true
+    })) return;
 
     try {
         const res = await fetch("api/circles/remove_member.php", {
@@ -457,13 +510,13 @@ async function leaveCircle(circleId, name) {
         const data = await res.json();
 
         if (data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
             return;
         }
 
         loadCircles();
     } catch (e) {
-        alert("Erro ao sair do círculo.");
+        EchoUIInstance.toastError("Erro ao sair do círculo.");
     }
 }
 

@@ -1007,3 +1007,220 @@ a:hover {
         padding: 24px 18px;
     }
 }
+
+/* ==========================================================================
+   TOASTS — feedback não bloqueante
+   Substitui alert(): a página continua utilizável enquanto o aviso some
+   sozinho. Empilha no canto, o mais novo embaixo.
+   ========================================================================== */
+
+.echo-toast-stack {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    max-width: min(380px, calc(100vw - 32px));
+}
+
+.echo-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--accent);
+    box-shadow: var(--shadow-dropdown);
+    color: var(--text-main);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    pointer-events: auto;
+    animation: echo-toast-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.echo-toast.leaving {
+    animation: echo-toast-out 0.18s ease forwards;
+}
+
+.echo-toast-icon { flex-shrink: 0; margin-top: 1px; font-size: 1rem; }
+.echo-toast-body { flex: 1; min-width: 0; word-wrap: break-word; }
+
+.echo-toast-close {
+    background: none;
+    border: 0;
+    color: var(--text-soft);
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 0.85rem;
+    transition: color var(--transition-fast);
+}
+.echo-toast-close:hover { color: var(--text-main); }
+
+.echo-toast-success { border-left-color: var(--success); }
+.echo-toast-success .echo-toast-icon { color: var(--success); }
+.echo-toast-danger  { border-left-color: var(--danger); }
+.echo-toast-danger .echo-toast-icon  { color: var(--danger); }
+.echo-toast-info    { border-left-color: var(--accent); }
+.echo-toast-info .echo-toast-icon    { color: var(--accent); }
+
+@keyframes echo-toast-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes echo-toast-out {
+    to { opacity: 0; transform: translateX(24px); }
+}
+
+/* ==========================================================================
+   DIÁLOGO DE CONFIRMAÇÃO
+   Substitui confirm(), que trava a aba inteira e não combina com o tema.
+   ========================================================================== */
+
+.echo-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: echo-fade-in 0.15s ease;
+}
+
+.echo-dialog {
+    width: 100%;
+    max-width: 400px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-dropdown);
+    animation: echo-dialog-in 0.2s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.echo-dialog h5 { margin: 0 0 8px; font-weight: 800; color: var(--text-main); }
+.echo-dialog p  { margin: 0 0 20px; color: var(--text-soft); font-size: 0.92rem; line-height: 1.5; }
+
+.echo-dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+.echo-dialog-actions button {
+    border: 0;
+    border-radius: var(--radius-full);
+    padding: 9px 20px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: filter var(--transition-fast);
+}
+.echo-dialog-actions button:hover { filter: brightness(1.15); }
+
+.echo-dialog-cancel  { background: transparent; color: var(--text-main); border: 1px solid var(--border-soft) !important; }
+.echo-dialog-confirm { background: var(--accent); color: #fff; }
+.echo-dialog-confirm.danger { background: var(--danger); }
+
+@keyframes echo-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes echo-dialog-in {
+    from { opacity: 0; transform: translateY(-10px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ==========================================================================
+   AVATARES
+   Foto quando existe; senão a inicial sobre uma cor derivada do id do
+   usuário — a mesma pessoa fica sempre com a mesma cor, em toda tela.
+   ========================================================================== */
+
+.echo-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    color: #fff;
+    font-weight: 800;
+    text-transform: uppercase;
+    user-select: none;
+    overflow: hidden;
+    line-height: 1;
+}
+
+.echo-avatar-sm { width: 32px; height: 32px; font-size: 0.8rem; }
+.echo-avatar-md { width: 44px; height: 44px; font-size: 1rem; }
+.echo-avatar-lg { width: 96px; height: 96px; font-size: 2.2rem; }
+
+a.echo-author-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+a.echo-author-link:hover { text-decoration: underline; }
+
+.echo-avatar-link { cursor: pointer; transition: filter var(--transition-fast); }
+.echo-avatar-link:hover { filter: brightness(1.15); }
+
+/* Selo de post editado */
+.post-edited {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-style: italic;
+}
+
+/* Badge de mensagens não lidas na lista de conversas */
+.echo-unread-badge {
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    min-width: 20px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.friend-item.tem-nao-lida .friend-name { font-weight: 800; }
+
+.friend-preview {
+    color: var(--text-soft);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 170px;
+}
+.friend-item.tem-nao-lida .friend-preview { color: var(--text-main); font-weight: 600; }
+
+/* Botão "carregar mais" do feed */
+.echo-load-more {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 0;
+    border-top: 1px solid var(--border-soft);
+    color: var(--accent);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+.echo-load-more:hover:not(:disabled) { background: var(--accent-hover); }
+.echo-load-more:disabled { color: var(--text-muted); cursor: default; }
+
+/* Utilitário: sem isso, texto com ellipsis dentro de flex não encolhe. */
+.min-width-0 { min-width: 0; }
+
+/* Post apontado por uma notificação: pisca para o olho achar na lista. */
+@keyframes echo-destaque {
+    0%   { background: var(--accent-hover); }
+    100% { background: transparent; }
+}
+.post.destacado { animation: echo-destaque 2.5s ease-out; }

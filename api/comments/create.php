@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . '/../auth/session.php';
 require_once __DIR__ . '/../auth/db.php';
 require_once __DIR__ . '/../notifications/helpers.php';
+require_once __DIR__ . '/helpers.php';
 
 $userId = require_login();
 
@@ -19,6 +20,11 @@ $body    = trim($data['body'] ?? '');
 
 if (!$post_id || $body === '') {
     echo json_encode(['error' => 'post_id e comentário são obrigatórios.']);
+    exit;
+}
+
+if (mb_strlen($body) > 2000) {
+    echo json_encode(['error' => 'Comentário é longo demais (máx. 2000 caracteres).']);
     exit;
 }
 
@@ -42,13 +48,18 @@ try {
     // Devolve o comentário já montado para o front renderizar sem
     // precisar recarregar a lista inteira.
     $stmt = $pdo->prepare(
-        "SELECT c.id, c.post_id, c.user_id, c.body, c.created_at, u.name, u.email
+        "SELECT c.id, c.post_id, c.user_id, c.body, c.created_at,
+                u.name, u.email, u.avatar
          FROM comments c
          JOIN users u ON u.id = c.user_id
          WHERE c.id = ?"
     );
     $stmt->execute([$commentId]);
-    $comment = $stmt->fetch(PDO::FETCH_ASSOC);
+    $comment = comments_comment_row(
+        $stmt->fetch(PDO::FETCH_ASSOC),
+        $userId,
+        (int)$post['user_id']
+    );
 
     // `reference_id` é o post, não o comentário: o front navega
     // para o post ao clicar na notificação.

@@ -209,9 +209,9 @@ async function loadReceived() {
             box.innerHTML += `
                 <div class="user-row">
                     <div class="user-info">
-                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        ${EchoUIInstance.avatarHTML(r, "sm", true)}
                         <div>
-                            <strong class="small text-light">${EchoUIInstance.escapeHTML(r.name)}</strong>
+                            <strong class="small text-light">${EchoUIInstance.authorLinkHTML(r)}</strong>
                             <div class="text-secondary small">${EchoUIInstance.escapeHTML(r.email)}</div>
                         </div>
                     </div>
@@ -247,9 +247,9 @@ async function loadSent() {
             box.innerHTML += `
                 <div class="user-row">
                     <div class="user-info">
-                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        ${EchoUIInstance.avatarHTML(r, "sm", true)}
                         <div>
-                            <strong class="small text-light">${EchoUIInstance.escapeHTML(r.name)}</strong>
+                            <strong class="small text-light">${EchoUIInstance.authorLinkHTML(r)}</strong>
                             <div class="text-secondary small">${EchoUIInstance.escapeHTML(r.email)}</div>
                         </div>
                     </div>
@@ -281,9 +281,9 @@ async function loadSuggestions() {
             box.innerHTML += `
                 <div class="user-row">
                     <div class="user-info">
-                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        ${EchoUIInstance.avatarHTML(u, "sm", true)}
                         <div>
-                            <strong class="small text-light">${EchoUIInstance.escapeHTML(u.name)}</strong>
+                            <strong class="small text-light">${EchoUIInstance.authorLinkHTML(u)}</strong>
                             <div class="text-secondary small">${EchoUIInstance.escapeHTML(u.email)}</div>
                         </div>
                     </div>
@@ -315,9 +315,9 @@ async function loadFriends() {
             box.innerHTML += `
                 <div class="user-row">
                     <div class="user-info">
-                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        ${EchoUIInstance.avatarHTML(f, "sm", true)}
                         <div>
-                            <strong class="small text-light">${EchoUIInstance.escapeHTML(f.name)}</strong>
+                            <strong class="small text-light">${EchoUIInstance.authorLinkHTML(f)}</strong>
                             <div class="text-secondary small">${EchoUIInstance.escapeHTML(f.email)}</div>
                         </div>
                     </div>
@@ -344,13 +344,13 @@ async function addFriend(target) {
         const data = await res.json();
         if (data.ok) {
             if (data.auto_accepted) {
-                alert("Vocês já são amigos!");
+                EchoUIInstance.toastError("Vocês já são amigos!");
             }
         } else if (data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
         }
     } catch(e) {
-        alert("Erro ao enviar solicitação.");
+        EchoUIInstance.toastError("Erro ao enviar solicitação.");
     }
     reloadAll();
 }
@@ -365,10 +365,10 @@ async function accept(userId) {
         });
         const data = await res.json();
         if (!data.ok && data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
         }
     } catch(e) {
-        alert("Erro ao aceitar solicitação.");
+        EchoUIInstance.toastSuccess("Erro ao aceitar solicitação.");
     }
     reloadAll();
 }
@@ -383,10 +383,10 @@ async function reject(userId) {
         });
         const data = await res.json();
         if (!data.ok && data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
         }
     } catch(e) {
-        alert("Erro ao recusar solicitação.");
+        EchoUIInstance.toastError("Erro ao recusar solicitação.");
     }
     reloadAll();
 }
@@ -401,16 +401,21 @@ async function cancel(userId) {
         });
         const data = await res.json();
         if (!data.ok && data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
         }
     } catch(e) {
-        alert("Erro ao cancelar solicitação.");
+        EchoUIInstance.toastError("Erro ao cancelar solicitação.");
     }
     reloadAll();
 }
 
 async function removeFriend(userId) {
-    if (!confirm("Deseja desfazer a amizade?")) return;
+    if (!await EchoUIInstance.confirm({
+        title: "Desfazer amizade",
+        message: "Vocês deixam de trocar mensagens e de aparecer um na lista do outro.",
+        confirmText: "Desfazer amizade",
+        danger: true
+    })) return;
 
     try {
         const res = await fetch("api/friends/remove.php", {
@@ -421,10 +426,10 @@ async function removeFriend(userId) {
         });
         const data = await res.json();
         if (!data.ok && data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
         }
     } catch(e) {
-        alert("Erro ao desfazer amizade.");
+        EchoUIInstance.toastError("Erro ao desfazer amizade.");
     }
     reloadAll();
 }
@@ -470,9 +475,9 @@ async function searchUsers() {
             list.innerHTML += `
                 <div class="user-row">
                     <div class="user-info">
-                        <div class="user-avatar"><i class="fa-solid fa-user"></i></div>
+                        ${EchoUIInstance.avatarHTML(u, "sm", true)}
                         <div>
-                            <strong class="small text-light">${EchoUIInstance.escapeHTML(u.name)}</strong>
+                            <strong class="small text-light">${EchoUIInstance.authorLinkHTML(u)}</strong>
                             <div class="text-secondary small">${EchoUIInstance.escapeHTML(u.email)}</div>
                         </div>
                     </div>

@@ -58,7 +58,7 @@ try {
     // Devolve a mensagem pronta para o front renderizar sem esperar o
     // próximo ciclo do poller.
     $stmt = $pdo->prepare(
-        "SELECT m.id, m.sender_id, m.receiver_id, m.body, m.created_at,
+        "SELECT m.id, m.sender_id, m.receiver_id, m.body, m.created_at, m.read_at,
                 u.name, u.email
          FROM messages m
          JOIN users u ON u.id = m.sender_id

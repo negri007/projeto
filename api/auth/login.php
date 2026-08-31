@@ -3,6 +3,7 @@ header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . "/session.php";
 require __DIR__ . "/db.php";
+require_once __DIR__ . "/rate_limit.php";
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -13,6 +14,18 @@ $password = (string)($data["password"] ?? "");
 
 if (!$email || !$password) {
     echo json_encode(["error" => "Informe email e senha."]);
+    exit;
+}
+
+// Freio de força bruta antes de qualquer consulta ao usuário.
+$espera = login_bloqueado_por($pdo, $email);
+
+if ($espera > 0) {
+    http_response_code(429);
+    echo json_encode([
+        "error" => "Muitas tentativas de login. Tente de novo em "
+                 . login_tempo_legivel($espera) . "."
+    ]);
     exit;
 }
 
@@ -27,10 +40,12 @@ try {
 }
 
 if (!$user || !password_verify($password, $user["password_hash"])) {
+    login_registrar_tentativa($pdo, $email, false);
     echo json_encode(["error" => "Email ou senha incorretos."]);
     exit;
 }
 
+login_registrar_tentativa($pdo, $email, true);
 start_user_session((int)$user["id"], $user["name"]);
 
 echo json_encode([

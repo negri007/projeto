@@ -174,6 +174,17 @@ CREATE TABLE IF NOT EXISTS password_resets (
 -- =====================================================================
 -- Migração de bancos já existentes
 --
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(150) NOT NULL,
+    ip VARCHAR(45) NOT NULL,
+    succeeded TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_email_time (email, created_at),
+    KEY idx_ip_time (ip, created_at)
+) ENGINE=InnoDB;
+
+-- =====================================================================
 -- Os CREATE TABLE acima não alteram tabelas que já existem. Este bloco
 -- adiciona as colunas que faltam em instalações antigas, sem dar erro
 -- caso elas já tenham sido criadas à mão.
@@ -231,6 +242,32 @@ END $$
 
 DELIMITER ;
 
+DELIMITER $$
+
+DROP PROCEDURE IF EXISTS echo_add_index_if_missing $$
+
+CREATE PROCEDURE echo_add_index_if_missing(
+    IN p_table VARCHAR(64),
+    IN p_name VARCHAR(64),
+    IN p_columns TEXT
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = p_table
+          AND INDEX_NAME   = p_name
+    ) THEN
+        SET @echo_idx = CONCAT('ALTER TABLE `', p_table, '` ADD INDEX `', p_name, '` (', p_columns, ')');
+        PREPARE echo_idx_stmt FROM @echo_idx;
+        EXECUTE echo_idx_stmt;
+        DEALLOCATE PREPARE echo_idx_stmt;
+    END IF;
+END $$
+
+DELIMITER ;
+
 CALL echo_add_column_if_missing('friends', 'status', 'ENUM(''pending'', ''accepted'') NOT NULL DEFAULT ''pending'' AFTER friend_id');
 CALL echo_add_column_if_missing('users',   'bio',    'VARCHAR(500) DEFAULT NULL AFTER password_hash');
 CALL echo_add_column_if_missing('users',   'avatar', 'VARCHAR(255) DEFAULT NULL AFTER bio');
@@ -240,5 +277,38 @@ CALL echo_add_column_if_missing('users',   'avatar', 'VARCHAR(255) DEFAULT NULL 
 CALL echo_add_column_if_missing('post_shares', 'user_id', 'INT DEFAULT NULL AFTER post_id');
 CALL echo_add_fk_if_missing('post_shares', 'fk_post_shares_user', 'FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE');
 
+-- Marcação de leitura das mensagens privadas (api/messages/mark_read.php).
+-- NULL = ainda não lida.
+CALL echo_add_column_if_missing('messages', 'read_at', 'TIMESTAMP NULL DEFAULT NULL AFTER created_at');
+
+-- Edição de post (api/posts/edit.php). NULL = nunca editado; o front
+-- mostra o selo "editado" quando vier preenchido.
+CALL echo_add_column_if_missing('posts', 'edited_at', 'TIMESTAMP NULL DEFAULT NULL AFTER created_at');
+
+-- =====================================================================
+-- Índices das consultas mais quentes. Sem eles, o feed e o chat fazem
+-- varredura de tabela assim que o volume cresce.
+-- =====================================================================
+
+-- Feed: ORDER BY id DESC com JOIN em users.
+CALL echo_add_index_if_missing('posts', 'idx_posts_user', 'user_id');
+
+-- Contadores por post (comment_count, like_count, share_count) e a
+-- listagem de comentários de um post.
+CALL echo_add_index_if_missing('comments', 'idx_comments_post', 'post_id, id');
+CALL echo_add_index_if_missing('post_likes', 'idx_likes_post', 'post_id');
+CALL echo_add_index_if_missing('post_shares', 'idx_shares_post', 'post_id');
+
+-- Conversa entre duas pessoas, nas duas direções.
+CALL echo_add_index_if_missing('messages', 'idx_msg_conversa', 'sender_id, receiver_id, id');
+CALL echo_add_index_if_missing('messages', 'idx_msg_recebidas', 'receiver_id, sender_id, id');
+
+-- Amizade em qualquer direção.
+CALL echo_add_index_if_missing('friends', 'idx_friends_friend', 'friend_id, status');
+
+-- Chat de círculo em ordem cronológica.
+CALL echo_add_index_if_missing('circle_messages', 'idx_circle_msg', 'circle_id, id');
+
+DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_fk_if_missing;

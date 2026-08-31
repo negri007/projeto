@@ -95,7 +95,7 @@
                                 <i class="fa-regular fa-face-smile"></i>
                             </button>
                         </div>
-                        <button class="btn btn-primary rounded-pill px-4 py-1" onclick="createPost()">Postar</button>
+                        <button class="btn btn-primary rounded-pill px-4 py-1" id="btnPostar" onclick="createPost()">Postar</button>
                     </div>
 
                     <input type="file" id="imageInput" accept="image/*" class="d-none">
@@ -175,9 +175,12 @@ function logout() {
 }
 
 async function deletePost(postId) {
-    if (!confirm("Deseja realmente apagar este post?")) {
-        return;
-    }
+    if (!await EchoUIInstance.confirm({
+        title: "Apagar publicação",
+        message: "Esta publicação, seus comentários e suas curtidas serão apagados. Não dá para desfazer.",
+        confirmText: "Apagar",
+        danger: true
+    })) return;
 
     const res = await fetch("api/posts/delete.php", {
         method: "POST",
@@ -191,7 +194,7 @@ async function deletePost(postId) {
     const data = await res.json();
 
     if (data.error) {
-        alert(data.error);
+        EchoUIInstance.toastError(data.error);
         return;
     }
 
@@ -211,7 +214,7 @@ async function toggleLike(postId) {
     const data = await res.json();
 
     if (data.error) {
-        alert(data.error);
+        EchoUIInstance.toastError(data.error);
         return;
     }
 
@@ -231,27 +234,55 @@ async function sharePost(postId) {
     const data = await res.json();
 
     if (data.error) {
-        alert(data.error);
+        EchoUIInstance.toastError(data.error);
         return;
     }
 
     loadPosts();
 }
 
-async function loadPosts() {
+// Cursor da paginacao: id do post mais antigo ja na tela.
+let proximoCursor = null;
+let carregandoMais = false;
+
+/**
+ * Carrega o feed. Sem argumento, comeca do topo; com `append`, anexa a
+ * proxima pagina ao que ja esta na tela.
+ */
+async function loadPosts({ append = false } = {}) {
     const feed = document.getElementById("feedContainer");
-    feed.innerHTML = EchoUIInstance.getFeedSkeletonHTML(3);
+
+    if (!append) {
+        feed.innerHTML = EchoUIInstance.getFeedSkeletonHTML(3);
+        proximoCursor = null;
+    }
+
+    if (carregandoMais) return;
+    carregandoMais = true;
 
     try {
-        const res = await fetch("api/posts/list.php", { credentials: "same-origin" });
+        const url = "api/posts/list.php?limit=10"
+                  + (append && proximoCursor ? "&before_id=" + proximoCursor : "");
+
+        const res = await fetch(url, { credentials: "same-origin" });
         const data = await res.json();
 
-        feed.innerHTML = "";
+        // O botao da pagina anterior sai antes de qualquer coisa nova entrar.
+        document.getElementById("btnCarregarMais")?.remove();
+
+        if (!append) feed.innerHTML = "";
 
         if (!data.ok || !data.posts) {
             feed.innerHTML = "<p class='text-center text-secondary p-4'>Nenhuma publicação encontrada.</p>";
             return;
         }
+
+        if (data.posts.length === 0 && !append) {
+            feed.innerHTML = "<p class='text-center text-secondary p-4'>O feed está silencioso. Seja o primeiro a publicar!</p>";
+            return;
+        }
+
+        proximoCursor = data.next_before_id;
 
         data.posts.forEach(p => {
             const handle = p.email ? p.email.split("@")[0] : "usuario";
@@ -262,18 +293,17 @@ async function loadPosts() {
             const likedByMe  = Number(p.liked_by_me ?? 0) > 0;
 
             feed.innerHTML += `
-                <div class="post">
-                    <div class="tweet-avatar">
-                        <i class="fa-solid fa-user"></i>
-                    </div>
+                <div class="post" id="post-${p.id}">
+                    ${EchoUIInstance.avatarHTML(p, "md", true)}
                     <div class="post-body">
                         <div class="post-header">
-                            <span class="post-name">${EchoUIInstance.escapeHTML(p.name)}</span>
+                            ${EchoUIInstance.authorLinkHTML(p, "post-name")}
                             <span class="post-handle">@${EchoUIInstance.escapeHTML(handle)}</span>
                             ${isYou ? `<span class="badge bg-secondary-subtle text-light">você</span>` : ""}
-                            <span class="post-time"> · ${p.created_at}</span>
+                            <span class="post-time" title="${p.created_at}"> · ${EchoUIInstance.formatTime(p.created_at)}</span>
+                            ${p.edited_at ? `<span class="post-edited" title="Editado em ${p.edited_at}">· editado</span>` : ""}
                         </div>
-                        <div class="post-content">
+                        <div class="post-content" id="post-content-${p.id}">
                             ${EchoUIInstance.escapeHTML(p.content ?? "")}
                         </div>
                         ${p.image ? `<img class="post-image" src="uploads/${p.image}" alt="">` : ""}
@@ -298,7 +328,12 @@ async function loadPosts() {
 
                             ${
                                 isYou
-                                    ? `<button class="icon-btn" type="button" onclick="deletePost(${p.id})">
+                                    ? `<button class="icon-btn" type="button" title="Editar"
+                                               onclick="EchoUIInstance.editPost(${p.id}, loadPosts)">
+                                           <i class="fa-solid fa-pen"></i>
+                                       </button>
+                                       <button class="icon-btn" type="button" title="Apagar"
+                                               onclick="deletePost(${p.id})">
                                            <i class="fa-solid fa-trash"></i>
                                        </button>`
                                     : ""
@@ -323,15 +358,38 @@ async function loadPosts() {
                 </div>
             `;
         });
+        // Botao de proxima pagina, so quando o servidor diz que ha mais.
+        if (data.has_more) {
+            const btn = document.createElement("button");
+            btn.className = "echo-load-more";
+            btn.id = "btnCarregarMais";
+            btn.type = "button";
+            btn.textContent = "Carregar mais publicações";
+            btn.onclick = () => {
+                btn.disabled = true;
+                btn.textContent = "Carregando...";
+                loadPosts({ append: true });
+            };
+            feed.appendChild(btn);
+        }
     } catch(e) {
-        feed.innerHTML = "<p class='text-center text-danger p-4'><i class='fa-solid fa-circle-exclamation me-2'></i>Erro ao carregar posts.</p>";
+        if (append) {
+            EchoUIInstance.toastError("Erro ao carregar mais publicações.");
+        } else {
+            feed.innerHTML = "<p class='text-center text-danger p-4'><i class='fa-solid fa-circle-exclamation me-2'></i>Erro ao carregar posts.</p>";
+        }
+    } finally {
+        carregandoMais = false;
     }
 }
 
 async function createPost() {
-    const txt = document.getElementById("postText").value.trim();
+    const campo = document.getElementById("postText");
+    const txt = campo.value.trim();
 
     if (!txt && !selectedImageFile) {
+        EchoUIInstance.toast("Escreva algo ou anexe uma imagem para publicar.", "info");
+        campo.focus();
         return;
     }
 
@@ -341,25 +399,42 @@ async function createPost() {
         fd.append("image", selectedImageFile);
     }
 
-    const res = await fetch("api/posts/create.php", {
-        method: "POST",
-        credentials: "same-origin",
-        body: fd
-    });
+    // Trava o botao enquanto envia: sem isso, clique duplo publicava o
+    // mesmo post duas vezes.
+    const btn = document.getElementById("btnPostar");
+    const rotulo = btn ? btn.innerHTML : "";
 
-    const data = await res.json();
-
-    if (data.error) {
-        alert(data.error);
-        return;
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner-echo me-2" style="width:14px;height:14px;border-width:2px;"></span>Publicando...`;
     }
 
-    document.getElementById("postText").value = "";
-    imageInput.value = "";
-    selectedImageFile = null;
-    imagePreview.innerHTML = "";
+    try {
+        const res = await fetch("api/posts/create.php", {
+            method: "POST",
+            credentials: "same-origin",
+            body: fd
+        });
 
-    loadPosts();
+        const data = await res.json();
+
+        if (EchoUIInstance.showApiError(data)) return;
+
+        campo.value = "";
+        imageInput.value = "";
+        selectedImageFile = null;
+        imagePreview.innerHTML = "";
+
+        EchoUIInstance.toastSuccess("Publicado!");
+        loadPosts();
+    } catch (e) {
+        EchoUIInstance.toastError("Erro de conexão ao publicar.");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = rotulo;
+        }
+    }
 }
 
 async function toggleComments(postId) {
@@ -372,6 +447,37 @@ async function toggleComments(postId) {
         await loadComments(postId);
     } else {
         box.style.display = "none";
+    }
+}
+
+/**
+ * Apaga um comentario. O servidor decide quem pode: o autor ou o dono do
+ * post. O front so mostra o botao quando `can_delete` vier true.
+ */
+async function deleteComment(commentId, postId) {
+    if (!await EchoUIInstance.confirm({
+        title: "Apagar comentário",
+        message: "O comentário some para todo mundo. Não dá para desfazer.",
+        confirmText: "Apagar",
+        danger: true
+    })) return;
+
+    try {
+        const res = await fetch("api/comments/delete.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ comment_id: commentId })
+        });
+        const data = await res.json();
+
+        if (EchoUIInstance.showApiError(data)) return;
+
+        EchoUIInstance.toastSuccess("Comentário apagado.");
+        loadComments(postId);
+        loadPosts();
+    } catch (e) {
+        EchoUIInstance.toastError("Erro ao apagar comentário.");
     }
 }
 
@@ -403,13 +509,25 @@ async function loadComments(postId) {
         comments.forEach(c => {
             const handle = c.email ? c.email.split('@')[0] : (c.name || 'usuario');
             const d = document.createElement("div");
-            d.className = "mb-2";
+            d.className = "d-flex gap-2 mb-2";
+            // `can_delete` vem do servidor: autor do comentario ou dono
+            // do post. Nao e conta que o front deva refazer.
             d.innerHTML = `
-                <div class="d-flex align-items-center gap-1">
-                    <strong class="small">${EchoUIInstance.escapeHTML(c.name || handle)}</strong>
-                    <span class="text-secondary small">@${EchoUIInstance.escapeHTML(handle)}</span>
+                ${EchoUIInstance.avatarHTML(c, "sm", true)}
+                <div class="flex-grow-1 min-width-0">
+                    <div class="d-flex align-items-center gap-1">
+                        ${EchoUIInstance.authorLinkHTML(c, "small fw-bold")}
+                        <span class="text-secondary small">@${EchoUIInstance.escapeHTML(handle)}</span>
+                        <span class="text-secondary small">· ${EchoUIInstance.formatTime(c.created_at)}</span>
+                        ${c.can_delete ? `
+                        <button class="btn btn-link btn-sm p-0 ms-auto text-secondary"
+                                type="button" title="Apagar comentário"
+                                onclick="deleteComment(${c.id}, ${postId})">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>` : ""}
+                    </div>
+                    <div class="small text-light">${EchoUIInstance.escapeHTML(c.body)}</div>
                 </div>
-                <div class="small text-light">${EchoUIInstance.escapeHTML(c.body)}</div>
             `;
             listEl.appendChild(d);
         });
@@ -424,7 +542,7 @@ async function sendComment(postId) {
 
     const body = input.value.trim();
     if (!body) {
-        alert("Digite um comentário.");
+        EchoUIInstance.toastError("Digite um comentário.");
         return;
     }
 
@@ -441,7 +559,7 @@ async function sendComment(postId) {
     const data = await res.json();
 
     if (data.error) {
-        alert(data.error);
+        EchoUIInstance.toastError(data.error);
         return;
     }
 

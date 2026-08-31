@@ -13,8 +13,9 @@ Documentos relacionados:
 
 ## Situação geral
 
-**O upgrade está completo.** Back-end e front-end migrados, com o fluxo
-inteiro testado ponta a ponta por `curl` e no navegador.
+**O upgrade está completo**, e sobre ele veio uma rodada de melhorias de
+produto (31/08/2026). Tudo testado ponta a ponta por `curl` e no
+navegador.
 
 | Área | Estado |
 |---|---|
@@ -24,6 +25,65 @@ inteiro testado ponta a ponta por `curl` e no navegador.
 | Notificações (geração + endpoints + sino) | Completo |
 | Recuperação de senha por e-mail | Completo |
 | Front-end migrado para o novo contrato | Completo |
+| Rodada de melhorias (ver abaixo) | Completo |
+
+---
+
+## Rodada de melhorias — 31/08/2026
+
+### Back-end
+
+- **Paginação do feed.** `posts/list.php` devolvia a tabela inteira, sem
+  limite. Agora é paginado por cursor (`limit` + `before_id`, resposta
+  com `has_more`/`next_before_id`). Cursor e não OFFSET porque post novo
+  no topo desloca as páginas e faz o item da borda repetir ou sumir.
+  Também aceita `user_id` para filtrar por autor.
+- **Freio de força bruta no login.** Nova tabela `login_attempts`;
+  5 erros por e-mail ou 20 por IP em 15 minutos travam o login por 15
+  minutos, e durante o bloqueio até a senha certa é recusada. Acerto
+  limpa o histórico.
+- **Índices** nas consultas quentes (feed, contadores por post, conversa
+  nas duas direções, amizade, chat de círculo).
+- **Endpoints novos:** `posts/edit.php`, `comments/delete.php`,
+  `circles/delete.php`, `messages/conversations.php`,
+  `messages/mark_read.php`.
+- **Mensagens lidas.** Coluna `messages.read_at`; abrir a conversa marca
+  como lida, e `conversations.php` devolve a lista lateral inteira
+  (última mensagem + não lidas por amigo) em uma consulta.
+- **Avatar** passou a vir em posts e comentários — antes a foto existia
+  no banco e aparecia em uma única tela.
+- **`can_delete`** nos comentários: o servidor resolve quem pode apagar
+  (autor do comentário ou dono do post), o front só desenha.
+
+### Front-end
+
+- **Toasts e diálogo de confirmação** no tema do app, substituindo os 55
+  `alert()`/`confirm()` nativos, que travavam a aba e ignoravam o CSS.
+- **Avatares de verdade** em feed, comentários, chat, amigos e círculos:
+  foto quando existe, senão a inicial sobre uma cor derivada do id — a
+  mesma pessoa tem sempre a mesma cor, sem guardar nada no banco.
+- **Perfil público** (`perfil.html?user_id=N`): nomes e avatares viraram
+  links. O servidor decide de quem é o perfil (`is_me`), não a URL.
+- **Edição de post inline**, com Esc para cancelar e Ctrl+Enter para
+  salvar, e selo "editado" no feed.
+- **Chat com prévia da última mensagem, badge de não lidas** e contador
+  no título da aba.
+- **Notificação leva ao lugar certo:** post curtido/comentado abre o
+  feed já rolado e destacado nele; mensagem abre a conversa daquela
+  pessoa.
+- **"Carregar mais"** no feed, e o botão de publicar trava durante o
+  envio (clique duplo publicava duas vezes).
+
+### Bugs encontrados e corrigidos no caminho
+
+- `rate_limit.php` calculava o fim do bloqueio em PHP com `strtotime()`
+  contra `time()`. Nesta instalação o relógio do PHP está 5h à frente do
+  MySQL, então o bloqueio nascia expirado e nunca pegava. A conta passou
+  a ser feita dentro do SQL, com `TIMESTAMPDIFF` contra `NOW()`.
+- `perfil.html` tinha o selo "você" fixo no HTML — ele aparecia nos
+  posts de outras pessoas assim que a tela virou perfil público.
+- A conversão automática dos `confirm()` transformou uma template string
+  em string comum, quebrando a interpolação do nome do círculo.
 
 ---
 
@@ -92,6 +152,10 @@ chave única, e **abre a sessão** — quem se cadastra já entra logado.
 | `messages/` | 2 | + `helpers.php`; correção de segurança |
 | `profile/` | 2 | + `helpers.php`; correção de segurança |
 | `notifications/` | 2 | módulo novo + `helpers.php` |
+
+Endpoints acrescentados depois: `posts/edit.php`,
+`comments/delete.php`, `circles/delete.php`,
+`messages/conversations.php`, `messages/mark_read.php`.
 
 **`friends/`** — chave canônica é `user_id`. `search.php` tem o campo
 `status` (`none` / `pending_sent` / `pending_received` / `friends`) para
@@ -189,11 +253,11 @@ e pegar o link em `logs/mail.log`.
 
 Nada disso bloqueia o uso do sistema.
 
-- **Apagar círculo** — não existe endpoint. `circles.id` já é referenciado
-  com `ON DELETE CASCADE`, então dá para acrescentar `delete.php` sem
-  migração de banco.
-- **Marcar mensagem como lida** — `messages.receiver_id` está na resposta
-  justamente para isso, mas não há coluna `read_at` nem endpoint.
+- **Busca de posts** — o campo "Buscar no ECHO" do cabeçalho é
+  decorativo; não há endpoint de busca em `posts`.
+- **Editar e apagar comentário** — dá para apagar, mas não editar.
+- **Notificação de menção** (`@fulano`) — o `type` no banco é um ENUM,
+  então um tipo novo pede `ALTER TABLE`.
 - **Invalidar sessões em outros navegadores ao trocar a senha** —
   `reset_password.php` derruba só a sessão atual. Fazer isso direito pede
   uma coluna `session_version` em `users`, conferida no `require_login()`.

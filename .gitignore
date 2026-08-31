@@ -8,3 +8,6 @@ logs/
 # Avatares e imagens enviados pelos usuários.
 uploads/*
 !uploads/.gitkeep
+
+# Scripts temporarios de migracao gerados durante o trabalho.
+.tmp_*.py

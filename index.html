@@ -271,7 +271,7 @@
             let senha = document.getElementById("senha").value;
 
             if (!email || !senha) {
-                alert("Por favor, preencha o e-mail e a senha.");
+                EchoUIInstance.toastError("Por favor, preencha o e-mail e a senha.");
                 return;
             }
 
@@ -285,7 +285,7 @@
             let data = await res.json();
 
             if (data.error) {
-                alert(data.error);
+                EchoUIInstance.toastError(data.error);
                 return;
             }
 
@@ -294,7 +294,7 @@
                 // participa mais da autenticacao.
                 window.location = "inicio.html";
             } else {
-                alert("Erro ao realizar login.");
+                EchoUIInstance.toastError("Erro ao realizar login.");
             }
         }
 
@@ -304,13 +304,13 @@
             let senha = document.getElementById("r-senha").value;
 
             if (!nome || !email || !senha) {
-                alert("Preencha todos os campos.");
+                EchoUIInstance.toastError("Preencha todos os campos.");
                 return;
             }
 
             // Mesmo minimo que api/auth/register.php exige.
             if (senha.length < 8) {
-                alert("A senha precisa ter pelo menos 8 caracteres.");
+                EchoUIInstance.toastError("A senha precisa ter pelo menos 8 caracteres.");
                 return;
             }
 
@@ -324,7 +324,7 @@
             let data = await res.json();
 
             if (data.error) {
-                alert(data.error);
+                EchoUIInstance.toastError(data.error);
                 return;
             }
 

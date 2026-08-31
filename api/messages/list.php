@@ -31,7 +31,7 @@ if ($friend === null) {
 
 try {
     $stmt = $pdo->prepare(
-        "SELECT m.id, m.sender_id, m.receiver_id, m.body, m.created_at,
+        "SELECT m.id, m.sender_id, m.receiver_id, m.body, m.created_at, m.read_at,
                 u.name, u.email
          FROM messages m
          JOIN users u ON u.id = m.sender_id
@@ -51,6 +51,15 @@ try {
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $messages[] = messages_message_row($row);
     }
+
+    // Abrir a conversa é o que marca como lida. Fica aqui, e não num
+    // endpoint separado obrigatório, para o front não precisar de duas
+    // chamadas no caminho comum — `mark_read.php` existe para marcar
+    // sem abrir (ex.: limpar o badge da lista).
+    $pdo->prepare(
+        "UPDATE messages SET read_at = NOW()
+         WHERE sender_id = ? AND receiver_id = ? AND read_at IS NULL"
+    )->execute([$targetId, $userId]);
 
     echo json_encode([
         "ok"       => true,

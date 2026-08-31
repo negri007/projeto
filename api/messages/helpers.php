@@ -106,6 +106,7 @@ function messages_message_row(array $row): array
         "receiver_id" => (int)$row["receiver_id"],
         "body"        => $row["body"],
         "created_at"  => $row["created_at"],
+        "read_at"     => $row["read_at"] ?? null,
         "name"        => $row["name"],
         "email"       => $row["email"],
     ];

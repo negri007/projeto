@@ -195,6 +195,9 @@ let intervalMessages = null;
 // Ultimo ID renderizado: evita repintar a conversa inteira a cada ciclo
 // do poller, o que fazia a tela piscar e perder a posicao do scroll.
 let lastMessageId = 0;
+// Recarrega a lista lateral de tempos em tempos para o badge de nao
+// lidas acompanhar mensagem que chega enquanto a tela esta aberta.
+let intervalConversas = null;
 
 document.addEventListener("DOMContentLoaded", async function () {
     // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
@@ -205,45 +208,88 @@ document.addEventListener("DOMContentLoaded", async function () {
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
     EchoUIInstance.initHeader('chat');
 
-    loadFriends();
+    await loadFriends();
+
+    // Atalho vindo do perfil de alguem: perfil.html -> chat.html?friend=ID
+    const friendParam = Number(new URLSearchParams(window.location.search).get("friend"));
+
+    if (friendParam) {
+        const item = document.getElementById("friend-item-" + friendParam);
+        openChat(friendParam, item?.dataset.nome || "Conversa");
+    }
+
+    intervalConversas = setInterval(loadFriends, 15000);
 });
 
 function logout() {
     EchoUIInstance.logout();
 }
 
+/**
+ * Lista lateral de conversas: um item por amigo, com a ultima mensagem e
+ * quantas ainda nao foram lidas. Vem tudo de `conversations.php` numa
+ * chamada so — antes eram os amigos crus, sem previa nem nao lidas.
+ */
 async function loadFriends() {
     const box = document.getElementById("friendsList");
-    box.innerHTML = EchoUIInstance.getListSkeletonHTML(3);
+    const primeiraCarga = box.children.length === 0;
+
+    if (primeiraCarga) box.innerHTML = EchoUIInstance.getListSkeletonHTML(3);
 
     try {
-        const res = await fetch("api/friends/list.php", { credentials: "same-origin" });
+        const res = await fetch("api/messages/conversations.php", { credentials: "same-origin" });
         const data = await res.json();
 
+        if (data.error) {
+            box.innerHTML = `<p class='text-danger p-3 text-center small'>${EchoUIInstance.escapeHTML(data.error)}</p>`;
+            return;
+        }
+
+        const conversas = data.conversations || [];
         box.innerHTML = "";
 
-        if (!data.ok || !data.friends || data.friends.length === 0) {
+        if (conversas.length === 0) {
             box.innerHTML = "<p class='text-secondary p-3 text-center small'>Você ainda não possui amigos. Adicione conexões para conversar.</p>";
             return;
         }
 
-        data.friends.forEach(f => {
+        conversas.forEach(c => {
             const item = document.createElement("div");
-            item.className = "friend-item";
-            item.id = "friend-item-" + f.user_id;
-            item.onclick = () => openChat(f.user_id, f.name);
+            const temNaoLida = c.unread_count > 0 && c.user_id !== currentFriendId;
+
+            item.className = "friend-item" + (temNaoLida ? " tem-nao-lida" : "")
+                           + (c.user_id === currentFriendId ? " active" : "");
+            item.id = "friend-item-" + c.user_id;
+            item.dataset.nome = c.name;
+            item.onclick = () => openChat(c.user_id, c.name);
+
+            // Previa: "Você: ..." quando a ultima mensagem foi minha.
+            const previa = c.last_body
+                ? (c.last_is_mine ? "Você: " : "") + c.last_body
+                : "Nenhuma mensagem ainda";
+
             item.innerHTML = `
-                <div class="friend-avatar"><i class="fa-solid fa-user"></i></div>
-                <div>
-                    <div class="friend-name">${EchoUIInstance.escapeHTML(f.name)}</div>
-                    <small class="text-secondary">@${EchoUIInstance.escapeHTML(f.email.split("@")[0])}</small>
+                ${EchoUIInstance.avatarHTML(c, "sm")}
+                <div class="flex-grow-1 min-width-0">
+                    <div class="friend-name">${EchoUIInstance.escapeHTML(c.name)}</div>
+                    <div class="friend-preview">${EchoUIInstance.escapeHTML(previa)}</div>
                 </div>
+                ${temNaoLida ? `<span class="echo-unread-badge">${c.unread_count}</span>` : ""}
             `;
             box.appendChild(item);
         });
+
+        atualizarTituloNaoLidas(data.unread_total);
     } catch(e) {
-        box.innerHTML = "<p class='text-danger p-3 text-center small'>Erro ao carregar lista de conversas.</p>";
+        if (primeiraCarga) {
+            box.innerHTML = "<p class='text-danger p-3 text-center small'>Erro ao carregar lista de conversas.</p>";
+        }
     }
+}
+
+/** Mostra as nao lidas no titulo da aba, para quem esta em outra janela. */
+function atualizarTituloNaoLidas(total) {
+    document.title = total > 0 ? `(${total}) ECHO - Mensagens` : "ECHO - Mensagens";
 }
 
 function openChat(friendId, name) {
@@ -251,6 +297,12 @@ function openChat(friendId, name) {
     lastMessageId = 0;
     document.getElementById("chatTitle").textContent = name || "Conversa";
     document.getElementById("messagesBox").innerHTML = "";
+
+    // O badge da conversa aberta sai na hora; `list.php` marca como
+    // lidas no servidor logo em seguida.
+    const item = document.getElementById("friend-item-" + currentFriendId);
+    item?.classList.remove("tem-nao-lida");
+    item?.querySelector(".echo-unread-badge")?.remove();
 
     document.getElementById("msgInput").disabled = false;
     document.getElementById("btnSend").disabled = false;
@@ -314,6 +366,10 @@ async function loadMessages() {
         });
 
         if (grudadoNoFim) box.scrollTop = box.scrollHeight;
+
+        // Mensagem nova de outra conversa tambem precisa aparecer na
+        // lista lateral, nao so na conversa aberta.
+        loadFriends();
     } catch(e) {
         console.error("Erro ao carregar mensagens:", e);
     }
@@ -337,14 +393,14 @@ async function sendMessage() {
         const data = await res.json();
 
         if (data.error) {
-            alert(data.error);
+            EchoUIInstance.toastError(data.error);
             return;
         }
 
         input.value = "";
         loadMessages();
     } catch (e) {
-        alert("Erro ao enviar mensagem. Tente novamente.");
+        EchoUIInstance.toastError("Erro ao enviar mensagem. Tente novamente.");
     } finally {
         btn.disabled = false;
         input.focus();

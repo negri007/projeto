@@ -64,8 +64,8 @@ function posts_store_image(array $file): string
 function posts_load(PDO $pdo, int $postId, int $userId): ?array
 {
     $stmt = $pdo->prepare(
-        "SELECT p.id, p.user_id, p.content, p.image, p.created_at,
-                u.name, u.email,
+        "SELECT p.id, p.user_id, p.content, p.image, p.created_at, p.edited_at,
+                u.name, u.email, u.avatar,
                 (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
                 (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS like_count,
                 (SELECT COUNT(*) FROM post_shares ps WHERE ps.post_id = p.id) AS share_count,
@@ -90,8 +90,10 @@ function posts_post_row(array $row): array
         "content"       => $row["content"],
         "image"         => $row["image"] !== null && $row["image"] !== "" ? $row["image"] : null,
         "created_at"    => $row["created_at"],
+        "edited_at"     => $row["edited_at"] ?? null,
         "name"          => $row["name"],
         "email"         => $row["email"],
+        "avatar"        => !empty($row["avatar"]) ? $row["avatar"] : null,
         "comment_count" => (int)$row["comment_count"],
         "like_count"    => (int)$row["like_count"],
         "share_count"   => (int)$row["share_count"],

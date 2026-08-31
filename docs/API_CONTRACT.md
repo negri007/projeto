@@ -37,6 +37,19 @@ Response 401 (não logado): `{ "authenticated": false }`
 Nem `login.php` nem `register.php` aplicam `trim()` na senha: espaço no
 começo ou no fim faz parte dela. O front também não deve aparar.
 
+**Freio de força bruta no login.** `login.php` conta as tentativas
+erradas em `login_attempts`, por e-mail **e** por IP:
+
+- 5 erros no mesmo e-mail, ou 20 no mesmo IP, dentro de 15 minutos,
+  bloqueiam novas tentativas por 15 minutos a partir do último erro;
+- durante o bloqueio, **até a senha certa é recusada** — senão o freio
+  não freia nada;
+- um login bem-sucedido apaga o histórico de erros daquele e-mail.
+
+Response 429: `{ "error": "Muitas tentativas de login. Tente de novo em 15 minutos." }`
+O front deve mostrar essa mensagem como qualquer outro erro; o status
+429 distingue "travado" de "senha errada", se quiser tratar diferente.
+
 ## Endpoints existentes que mudam de assinatura
 Todos deixam de receber `email`/`user_id`. Erro por falta de sessão em
 qualquer um: HTTP 401, `{ "error": "Não autenticado." }`.
@@ -69,6 +82,17 @@ qualquer um: HTTP 401, `{ "error": "Não autenticado." }`.
 | GET /api/circle_messages/list.php | `circle_id` (query) | `circle_id` (query) |
 | POST /api/circle_messages/send.php | `email`, `circle_id`, `message` | `circle_id`, `message` |
 | GET /api/profile/get.php | `email` (query) | nenhum, ou `user_id` (query) |
+
+Endpoints criados em 31/08/2026 (não existiam antes, então não têm
+coluna "Antes"):
+
+| Endpoint | Parâmetros |
+|---|---|
+| POST /api/posts/edit.php | `post_id`, `content` |
+| POST /api/comments/delete.php | `comment_id` |
+| POST /api/circles/delete.php | `circle_id` |
+| GET /api/messages/conversations.php | nenhum |
+| POST /api/messages/mark_read.php | `user_id` ou `friend_email` |
 | POST /api/profile/update.php | `email`, `name`, `bio` | `name`, `bio`, `avatar` |
 
 **Todos os módulos estão migrados.** Nenhum endpoint do sistema aceita
@@ -93,7 +117,10 @@ inclusive os que ainda não foram migrados:
 
 ## Formato de resposta — posts (implementado e testado)
 
-**GET /api/posts/list.php** — feed completo, ordenado por `id` DESC.
+**GET /api/posts/list.php** — feed ordenado por `id` DESC.
+
+Query, todos opcionais: `limit` (1 a 50, padrão 20), `before_id`
+(cursor) e `user_id` (só os posts daquele autor — é o que o perfil usa).
 ```json
 {
   "ok": true,
@@ -104,20 +131,39 @@ inclusive os que ainda não foram migrados:
       "content": "texto do post",
       "image": "img_68f0c1a2b3.png",
       "created_at": "2026-08-28 14:09:18",
+      "edited_at": null,
       "name": "Alice Teste",
       "email": "alice.teste@echo.local",
+      "avatar": null,
       "comment_count": 3,
       "like_count": 1,
       "share_count": 1,
       "liked_by_me": 0
     }
-  ]
+  ],
+  "has_more": true,
+  "next_before_id": 5
 }
 ```
 - `user_id` — dono do post. Mostrar o botão de apagar somente quando
   `post.user_id === me.user.id`.
 - `image` — nome do arquivo em `uploads/`, ou `null`.
+- `avatar` — foto do autor em `uploads/`, ou `null`.
+- `edited_at` — `null` se nunca editado; o front mostra "editado".
 - `liked_by_me` — `1` ou `0`, referente ao usuário da sessão.
+
+**Paginação por cursor, não por OFFSET.** `next_before_id` é o id do
+último post da página; a próxima chamada manda esse valor em
+`before_id`. `has_more` diz se ainda existe página; quando é `false`,
+`next_before_id` vem `null`.
+
+O motivo de ser cursor: com OFFSET, um post novo no topo desloca todas
+as páginas seguintes, e o item da borda aparece repetido ou some. Com
+`before_id`, cada página é um recorte estável.
+
+Mudança (31/08/2026): antes `list.php` devolvia **a tabela inteira** de
+posts, sem limite. Chamadas antigas sem `limit` continuam funcionando,
+mas passam a receber 20 posts em vez de todos.
 
 **POST /api/posts/create.php** (multipart/form-data: `content`, `image`)
 
@@ -137,6 +183,19 @@ O tipo da imagem é decidido pelo **MIME real** do arquivo (`finfo`), não
 pela extensão que o cliente informa — extensão é texto escolhido por
 quem envia, e um `.png` pode conter qualquer coisa.
 
+**POST /api/posts/edit.php** — `{ "post_id": int, "content": string }`
+Só o autor edita. Sucesso devolve o post atualizado, no formato de
+`list.php`, já com `edited_at` preenchido.
+```json
+{ "ok": true, "post": { "id": 21, "edited_at": "2026-08-31 15:16:02", "...": "demais campos iguais a list.php" } }
+```
+Erros: `{ "error": "Dados inválidos." }`,
+`{ "error": "Post não encontrado ou não é seu." }` (post inexistente e
+post de outra pessoa devolvem o mesmo, de propósito),
+`{ "error": "O post não pode ficar vazio." }` (texto vazio num post sem
+imagem), `{ "error": "Post é longo demais (máx. 5000 caracteres)." }`,
+`{ "error": "Método inválido." }`.
+
 **POST /api/posts/delete.php** — `{ "post_id": int }`
 Sucesso: `{ "ok": true }`
 Erros: `{ "error": "Dados inválidos." }`,
@@ -152,6 +211,25 @@ Erros: `{ "error": "Post inválido." }`, `{ "error": "Post não encontrado." }`
 O compartilhamento passou a gravar o autor (`post_shares.user_id`).
 
 ## Formato de resposta — comentários (implementado e testado)
+
+Atualizado em 31/08/2026: cada comentário passou a trazer `avatar` e
+`can_delete`, e ganhou `comments/delete.php`.
+
+**`can_delete`** vem resolvido pelo servidor — é `true` para o autor do
+comentário **e** para o dono do post (moderar a própria publicação é
+esperado). O front só mostra o botão quando vier `true`; quem decide de
+verdade é o back.
+
+**POST /api/comments/delete.php** — `{ "comment_id": int }`
+Sucesso: `{ "ok": true }`
+Erros: `{ "error": "Dados inválidos." }`,
+`{ "error": "Comentário não encontrado." }` (também quando existe mas
+não é seu nem do seu post), `{ "error": "Método inválido." }`.
+Efeito colateral: se aquele autor não tiver mais nenhum comentário no
+post, a notificação de `comment` correspondente é removida.
+
+`comments/create.php` passou a limitar o corpo em 2000 caracteres:
+`{ "error": "Comentário é longo demais (máx. 2000 caracteres)." }`.
 
 **GET /api/comments/list.php?post_id=int**
 
@@ -505,6 +583,15 @@ Erros: `{ "error": "Círculo não encontrado." }`,
 `{ "error": "Membro não encontrado no círculo." }`,
 `{ "error": "Método inválido." }`, `{ "error": "Erro ao remover membro." }`.
 
+**POST /api/circles/delete.php** — `{ "circle_id": int }`
+**Só o dono apaga.** Membros e conversa vão junto (`ON DELETE CASCADE`
+em `circle_members` e `circle_messages`) — é apagar mesmo, não arquivar.
+Sucesso: `{ "ok": true }`
+Erros: `{ "error": "Círculo não encontrado." }` (inclui círculo de
+terceiros), `{ "error": "Apenas o dono do círculo pode apagá-lo." }`
+(membro comum — que pode sair via `remove_member.php`, mas não apagar),
+`{ "error": "Método inválido." }`, `{ "error": "Erro ao apagar círculo." }`.
+
 ### Regras do modelo de círculo
 
 - O dono **não** tem linha em `circle_members`; a posse vive só em
@@ -664,6 +751,50 @@ Erros: `{ "error": "Usuário não encontrado." }`,
 `{ "error": "Método inválido." }` (só POST),
 `{ "error": "Erro ao enviar mensagem." }`.
 
+**GET /api/messages/conversations.php** — a lista lateral do chat
+inteira em uma chamada: um item por amigo, com a última mensagem e
+quantas ainda não foram lidas. Parte dos **amigos**, não das mensagens,
+então amigo sem conversa também aparece, pronto para receber a primeira.
+
+Ordem: conversa com mensagem mais recente primeiro; amigos sem conversa
+no fim, por nome.
+```json
+{
+  "ok": true,
+  "unread_total": 2,
+  "conversations": [
+    {
+      "user_id": 2,
+      "name": "Bruno Teste",
+      "email": "bruno.teste@echo.local",
+      "avatar": null,
+      "last_body": "Alice, viu o novo chat?",
+      "last_at": "2026-08-31 15:10:22",
+      "last_sender_id": 2,
+      "last_is_mine": false,
+      "unread_count": 1
+    }
+  ]
+}
+```
+- `unread_total` é a soma de todas as conversas — serve para o contador
+  no título da aba.
+- `last_is_mine` diz se a última mensagem foi minha, para o front
+  prefixar "Você: " na prévia.
+- Amigo sem conversa vem com `last_body`, `last_at` e `last_sender_id`
+  em `null` e `unread_count` 0.
+
+**POST /api/messages/mark_read.php** — `{ "user_id": int }` ou
+`{ "friend_email": string }`. Marca como lidas as mensagens que **aquela
+pessoa me mandou**; nunca toca em conversa de terceiros.
+Sucesso: `{ "ok": true, "marked": int, "unread_total": int }`
+Erros: `{ "error": "Usuário não encontrado." }`, `{ "error": "Método inválido." }`.
+
+`GET /api/messages/list.php` **já marca a conversa como lida** ao ser
+chamado — abrir a conversa é o gesto de ler. `mark_read.php` existe para
+marcar sem abrir (limpar o badge direto da lista). Cada mensagem passou
+a trazer `read_at` (`null` = não lida).
+
 ### Falha corrigida (31/08/2026)
 
 Antes desta migração os dois endpoints não tinham sessão nenhuma.
@@ -726,6 +857,11 @@ sessão).
 
 Erros: `{ "error": "Usuário não encontrado." }`,
 `{ "error": "Erro ao buscar perfil." }`.
+
+Para listar os posts de um perfil, use
+`GET /api/posts/list.php?user_id=N` — não existe endpoint separado. Foi
+assim que a tela de perfil deixou de baixar o feed inteiro para
+descartar no cliente o que não era do dono do perfil.
 
 **POST /api/profile/update.php** (multipart/form-data: `name`, `bio`,
 `avatar`) — edita **sempre** o usuário da sessão. Sucesso devolve o
