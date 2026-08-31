@@ -3,6 +3,7 @@ header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/../notifications/helpers.php";
 
 $userId = require_login();
 
@@ -15,7 +16,7 @@ try {
         exit;
     }
 
-    $stmt = $pdo->prepare("SELECT id FROM posts WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, user_id FROM posts WHERE id = ?");
     $stmt->execute([$postId]);
     $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -27,6 +28,8 @@ try {
     // Registra quem compartilhou (antes o INSERT gravava só o post_id).
     $stmt = $pdo->prepare("INSERT INTO post_shares (post_id, user_id) VALUES (?, ?)");
     $stmt->execute([$postId, $userId]);
+
+    notify($pdo, (int)$post["user_id"], $userId, "share", $postId);
 
     echo json_encode(["ok" => true]);
 

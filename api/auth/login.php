@@ -6,8 +6,10 @@ require __DIR__ . "/db.php";
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-$email    = trim($data["email"] ?? "");
-$password = trim($data["password"] ?? "");
+$email = trim($data["email"] ?? "");
+// A senha não passa por trim: espaço no começo ou no fim é parte dela,
+// e precisa bater com o que register.php gravou.
+$password = (string)($data["password"] ?? "");
 
 if (!$email || !$password) {
     echo json_encode(["error" => "Informe email e senha."]);

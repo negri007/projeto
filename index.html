@@ -267,7 +267,8 @@
 
         async function login() {
             let email = document.getElementById("email").value.trim();
-            let senha = document.getElementById("senha").value.trim();
+            // Sem trim na senha: espaco nas pontas faz parte dela.
+            let senha = document.getElementById("senha").value;
 
             if (!email || !senha) {
                 alert("Por favor, preencha o e-mail e a senha.");
@@ -289,7 +290,8 @@
             }
 
             if (data.success || data.ok || (data.user && data.user.id)) {
-                localStorage.setItem("userEmail", email);
+                // A identidade vive na sessao PHP; o localStorage nao
+                // participa mais da autenticacao.
                 window.location = "inicio.html";
             } else {
                 alert("Erro ao realizar login.");
@@ -299,11 +301,23 @@
         async function registerUser() {
             let nome = document.getElementById("r-nome").value.trim();
             let email = document.getElementById("r-email").value.trim();
-            let senha = document.getElementById("r-senha").value.trim();
+            let senha = document.getElementById("r-senha").value;
+
+            if (!nome || !email || !senha) {
+                alert("Preencha todos os campos.");
+                return;
+            }
+
+            // Mesmo minimo que api/auth/register.php exige.
+            if (senha.length < 8) {
+                alert("A senha precisa ter pelo menos 8 caracteres.");
+                return;
+            }
 
             let res = await fetch("api/auth/register.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
                 body: JSON.stringify({ name: nome, email: email, password: senha })
             });
 
@@ -314,8 +328,8 @@
                 return;
             }
 
-            alert("Conta criada com sucesso!");
-            renderLogin();
+            // O cadastro ja abre sessao: entra direto no feed.
+            window.location = "inicio.html";
         }
 
         async function requestForgotPassword() {
@@ -333,14 +347,6 @@
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-echo me-2" style="width:16px;height:16px;border-width:2px;"></span>Enviando...`;
 
-            /*
-            // =========================================================================
-            // TODO: INTEGRAÇÃO COM A API DO BACK-END (POST /api/auth/forgot_password.php)
-            // =========================================================================
-            // Conforme docs/API_CONTRACT.md:
-            // Request: { "email": string }
-            // Response 200 (sempre): { "ok": true, "message": "Se o e-mail existir, um link foi enviado." }
-
             try {
                 let res = await fetch("api/auth/forgot_password.php", {
                     method: "POST",
@@ -350,6 +356,8 @@
                 });
                 let data = await res.json();
 
+                // O back responde a mesma coisa exista ou nao o e-mail,
+                // de proposito: nao vazar quais enderecos sao cadastrados.
                 alertBox.className = "alert-custom alert-custom-success";
                 alertBox.innerHTML = `<i class="fa-solid fa-circle-check"></i><div>${data.message || "Se o e-mail existir, um link foi enviado."}</div>`;
                 alertBox.style.display = "flex";
@@ -362,17 +370,6 @@
                 btn.disabled = false;
                 btn.innerHTML = "Enviar link de recuperação";
             }
-            */
-
-            // Simulação de resposta visual conforme o contrato de API:
-            setTimeout(() => {
-                alertBox.className = "alert-custom alert-custom-success";
-                alertBox.innerHTML = '<i class="fa-solid fa-circle-check"></i><div>Se o e-mail existir, um link foi enviado para sua caixa de entrada.</div>';
-                alertBox.style.display = "flex";
-                document.getElementById("forgotFormArea").style.display = "none";
-                btn.disabled = false;
-                btn.innerHTML = "Enviar link de recuperação";
-            }, 800);
         }
 
         document.addEventListener("DOMContentLoaded", async function () {

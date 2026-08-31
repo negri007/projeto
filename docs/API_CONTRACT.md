@@ -15,6 +15,17 @@ Request: `{ "email": string, "password": string }`
 Response 200: `{ "success": true, "user": { "id": int, "name": string, "email": string } }`
 Response 200 (erro): `{ "error": string }`
 
+**POST /api/auth/register.php**
+Request: `{ "name": string, "email": string, "password": string }`
+Response 200: `{ "success": true, "user": { "id": int, "name": string, "email": string } }`
+Response 200 (erro): `{ "error": string }`
+Efeito colateral: **abre a sessão** — quem se cadastra já entra logado, o
+front manda direto para `inicio.html` em vez de voltar ao login.
+Validações: nome até 100 caracteres, e-mail válido até 150, senha entre
+8 e 72 caracteres. E-mail duplicado devolve
+`{ "error": "Este e-mail já está cadastrado." }` (a corrida entre a
+checagem e o INSERT também cai nessa mensagem, pela chave única).
+
 **POST /api/auth/logout.php**
 Request: `{}`
 Response 200: `{ "ok": true }`
@@ -22,6 +33,9 @@ Response 200: `{ "ok": true }`
 **GET /api/auth/me.php**
 Response 200 (logado): `{ "authenticated": true, "user": { "id": int, "name": string, "email": string } }`
 Response 401 (não logado): `{ "authenticated": false }`
+
+Nem `login.php` nem `register.php` aplicam `trim()` na senha: espaço no
+começo ou no fim faz parte dela. O front também não deve aparar.
 
 ## Endpoints existentes que mudam de assinatura
 Todos deixam de receber `email`/`user_id`. Erro por falta de sessão em
@@ -46,7 +60,7 @@ qualquer um: HTTP 401, `{ "error": "Não autenticado." }`.
 | GET /api/friends/suggestions.php | `email` (query) | nenhum |
 | GET /api/friends/search.php | `email`, `q` (query) | `q` (query) |
 | GET /api/messages/list.php | `me`, `friend` | `friend` |
-| POST /api/messages/send.php | `email`, `friend_email`, `body` | `friend_email`, `body` |
+| POST /api/messages/send.php | `email`, `friend_email`, `body` | `body` + `user_id` ou `friend_email` |
 | POST /api/circles/create.php | `email`, `name`, `description` | `name`, `description` |
 | GET /api/circles/list.php | `email` (query) | nenhum |
 | GET /api/circles/list_members.php | `circle_id` (query) | `circle_id` (query) |
@@ -54,10 +68,11 @@ qualquer um: HTTP 401, `{ "error": "Não autenticado." }`.
 | POST /api/circles/remove_member.php | `email`, `circle_id` | `circle_id` + `user_id` ou `friend_email` |
 | GET /api/circle_messages/list.php | `circle_id` (query) | `circle_id` (query) |
 | POST /api/circle_messages/send.php | `email`, `circle_id`, `message` | `circle_id`, `message` |
-| GET /api/profile/get.php | `email` (query) | nenhum |
+| GET /api/profile/get.php | `email` (query) | nenhum, ou `user_id` (query) |
+| POST /api/profile/update.php | `email`, `name`, `bio` | `name`, `bio`, `avatar` |
 
-(Os módulos `friends/`, `circles/` e `circle_messages/` estão listados
-por completo acima. Falta migrar `messages/` e `profile/`.)
+**Todos os módulos estão migrados.** Nenhum endpoint do sistema aceita
+mais `email` ou `user_id` do cliente como identidade.
 
 ## Convenção de resposta (vale para todos os módulos)
 
@@ -105,10 +120,22 @@ inclusive os que ainda não foram migrados:
 - `liked_by_me` — `1` ou `0`, referente ao usuário da sessão.
 
 **POST /api/posts/create.php** (multipart/form-data: `content`, `image`)
-Sucesso: `{ "ok": true }`
+
+Mudança de formato (31/08/2026): antes devolvia só `{ "ok": true }`.
+Agora devolve o post criado, no mesmo formato de `list.php`, para o front
+inserir no topo do feed sem recarregar a lista.
+```json
+{ "ok": true, "post": { "id": 7, "user_id": 1, "content": "texto", "image": null, "created_at": "2026-08-31 14:26:45", "name": "Alice Teste", "email": "alice.teste@echo.local", "comment_count": 0, "like_count": 0, "share_count": 0, "liked_by_me": 0 } }
+```
 Erros: `{ "error": "Envie texto ou uma imagem." }`,
+`{ "error": "Post é longo demais (máx. 5000 caracteres)." }`,
 `{ "error": "Formato de imagem inválido." }` (aceita jpg, jpeg, png, gif, webp),
+`{ "error": "Imagem é grande demais (máx. 5 MB)." }`,
 `{ "error": "Erro ao salvar a imagem." }`
+
+O tipo da imagem é decidido pelo **MIME real** do arquivo (`finfo`), não
+pela extensão que o cliente informa — extensão é texto escolhido por
+quem envia, e um `.png` pode conter qualquer coisa.
 
 **POST /api/posts/delete.php** — `{ "post_id": int }`
 Sucesso: `{ "ok": true }`
@@ -559,14 +586,221 @@ Perder o acesso é imediato: quem sai do círculo, ou é removido por
 `circles/remove_member.php`, deixa de ler e de escrever na chamada
 seguinte.
 
+## Formato de resposta — mensagens privadas (implementado e testado)
+
+Módulo migrado em 31/08/2026, fechando a última rota que aceitava
+identidade vinda do cliente — ver "Falha corrigida" no fim desta seção.
+
+Regra de acesso dos dois endpoints: **só é possível ler e escrever com um
+amigo** (amizade `accepted` em qualquer direção, a mesma que
+`GET /api/friends/list.php` devolve). Sem amizade aceita, os dois
+respondem `{ "error": "Só é possível conversar com amigos." }` — e o
+mesmo vale para amizade só `pending`.
+
+O remetente vem sempre da sessão. Da requisição vem apenas o outro lado
+da conversa.
+
+**GET /api/messages/list.php?friend=int** — `friend` é o **id** do outro
+usuário (`user_id` é aceito como sinônimo). O parâmetro `me` sumiu.
+Ordem: `id` ASC.
+```json
+{
+  "ok": true,
+  "friend": {
+    "user_id": 2,
+    "name": "Bruno Teste",
+    "email": "bruno.teste@echo.local",
+    "avatar": null
+  },
+  "messages": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "receiver_id": 2,
+      "body": "oi bruno",
+      "created_at": "2026-08-31 14:08:40",
+      "name": "Alice Teste",
+      "email": "alice.teste@echo.local"
+    }
+  ]
+}
+```
+- `user_id` é o **autor** da mensagem; `name` e `email` são os dele. O
+  front decide o balão "é meu" com `m.user_id === me.user.id` —
+  **nunca por `email`**, conforme a regra 1 da convenção.
+- `receiver_id` é o destinatário, útil para marcar lida no futuro.
+- `friend` é o interlocutor já pronto para o cabeçalho da conversa
+  (nome e avatar), para o front não precisar de uma segunda chamada.
+- `avatar` vem `null` quando não há foto, nunca `""`.
+
+Mudança de formato: antes a resposta era um **array na raiz**, com um
+campo `sender` que trazia o e-mail. Agora é objeto com `ok`/`friend`/
+`messages`, e cada item traz `id`, `user_id` e `receiver_id`. O campo
+`sender` não existe mais.
+
+Conversa sem mensagens devolve `{ "ok": true, "friend": {...}, "messages": [] }`.
+
+Erros: `{ "error": "Usuário não encontrado." }` (inclui `friend` ausente,
+zero ou id inexistente), `{ "error": "Não é possível conversar consigo mesmo." }`,
+`{ "error": "Só é possível conversar com amigos." }`,
+`{ "error": "Erro ao listar mensagens." }`.
+
+**POST /api/messages/send.php** —
+`{ "user_id": int, "body": string }` ou
+`{ "friend_email": string, "body": string }`. Envie um dos dois
+identificadores do destinatário; `user_id` tem precedência se vierem
+juntos. O remetente é o usuário da sessão.
+
+Sucesso: devolve a mensagem já montada, para o front pintar na hora sem
+esperar o próximo ciclo do poller.
+```json
+{ "ok": true, "message": { "id": 2, "user_id": 2, "receiver_id": 1, "body": "oi alice", "created_at": "2026-08-31 14:08:40", "name": "Bruno Teste", "email": "bruno.teste@echo.local" } }
+```
+Erros: `{ "error": "Usuário não encontrado." }`,
+`{ "error": "Não é possível conversar consigo mesmo." }`,
+`{ "error": "Só é possível conversar com amigos." }`,
+`{ "error": "Mensagem é obrigatória." }` (vazia ou só espaços),
+`{ "error": "Mensagem é longa demais (máx. 5000 caracteres)." }`,
+`{ "error": "Método inválido." }` (só POST),
+`{ "error": "Erro ao enviar mensagem." }`.
+
+### Falha corrigida (31/08/2026)
+
+Antes desta migração os dois endpoints não tinham sessão nenhuma.
+`list.php?me=X&friend=Y` devolvia a conversa privada de **qualquer par de
+usuários**, sem estar logado, bastando saber os dois e-mails — que a
+própria busca de amigos expõe. `send.php` recebia `sender` e `receiver`
+no corpo, então dava para mandar mensagem se passando por qualquer
+pessoa. É a mesma classe de falha que já havia sido corrigida em
+`circle_messages/`.
+
+Corrigido com `require_login()` mais a exigência de amizade aceita.
+Perder o acesso é imediato: desfeita a amizade por
+`friends/remove.php`, a conversa deixa de ser legível na chamada
+seguinte.
+
+## Formato de resposta — perfil (implementado e testado)
+
+Módulo migrado em 31/08/2026. Antes, `get.php` recebia `email` na query e
+`update.php` recebia `email` no `$_POST`: dava para **ler e editar o
+perfil de qualquer usuário** trocando o e-mail na requisição. Agora a
+identidade vem da sessão.
+
+**GET /api/profile/get.php** — sem parâmetro, devolve o perfil do usuário
+logado. Com `?user_id=int`, devolve o perfil daquela pessoa (perfil é
+informação pública dentro do sistema; quem pergunta continua vindo da
+sessão).
+```json
+{
+  "ok": true,
+  "user": {
+    "user_id": 1,
+    "name": "Alice Teste",
+    "email": "alice.teste@echo.local",
+    "bio": "Backend do Echo",
+    "avatar": null,
+    "created_at": "2026-08-28 16:55:06",
+    "is_me": true
+  },
+  "stats": {
+    "posts": 0,
+    "likes_received": 0,
+    "friends": 1,
+    "circles": 1
+  }
+}
+```
+- O campo da descrição chama **`bio`**, não `about`. (O front lia
+  `user.about`, que nunca existiu na resposta — a bio aparecia sempre
+  vazia. Corrigido.)
+- `avatar` — nome do arquivo em `uploads/`, ou `null`.
+- `is_me` — booleano; o front usa para decidir se mostra "Editar perfil".
+- `stats.likes_received` conta curtidas **recebidas nos posts da
+  pessoa**, não curtidas que ela deu.
+- `stats.friends` conta amizades aceitas nas duas direções.
+  `stats.circles` soma círculos que ela criou mais aqueles de que
+  participa.
+- Não existem `followers`/`following`: o modelo de amizade é mútuo, não
+  tem lado seguidor. A tela de perfil passou a mostrar "amigos" e
+  "círculos".
+
+Erros: `{ "error": "Usuário não encontrado." }`,
+`{ "error": "Erro ao buscar perfil." }`.
+
+**POST /api/profile/update.php** (multipart/form-data: `name`, `bio`,
+`avatar`) — edita **sempre** o usuário da sessão. Sucesso devolve o
+perfil atualizado, no mesmo formato de `get.php`.
+
+Erros: `{ "error": "Nome é obrigatório." }`,
+`{ "error": "Nome é longo demais (máx. 100 caracteres)." }`,
+`{ "error": "Bio é longa demais (máx. 500 caracteres)." }`,
+`{ "error": "Formato de imagem inválido. Use jpg, png, gif ou webp." }`,
+`{ "error": "Imagem é grande demais (máx. 2 MB)." }`,
+`{ "error": "Falha ao enviar a imagem." }`,
+`{ "error": "Método inválido." }`, `{ "error": "Erro ao atualizar perfil." }`.
+
+O avatar é validado por MIME real, e o arquivo antigo só é apagado
+depois que o UPDATE no banco dá certo.
+
 ## Notificações
 
-**GET /api/notifications/list.php**
-Response 200: `{ "ok": true, "notifications": [ { "id": int, "type": "like"|"comment"|"share"|"friend_request"|"friend_accept"|"message", "actor_name": string, "reference_id": int|null, "is_read": bool, "created_at": string } ] }`
+Implementado e testado em 31/08/2026.
+
+**GET /api/notifications/list.php** — ordem `id` DESC.
+Query opcional: `only_unread=1` (só as não lidas) e `limit` (1 a 100,
+padrão 50).
+```json
+{
+  "ok": true,
+  "unread_count": 3,
+  "notifications": [
+    {
+      "id": 4,
+      "type": "share",
+      "actor_id": 1,
+      "actor_name": "Alice Teste",
+      "actor_avatar": null,
+      "reference_id": 2,
+      "is_read": false,
+      "created_at": "2026-08-31 14:26:48"
+    }
+  ]
+}
+```
+- `unread_count` é o total de não lidas **no servidor** — conta todas,
+  não apenas as que couberam no `limit`. É o número do badge do sino.
+- `reference_id` é o **post** em `like`, `comment` e `share`; é o **outro
+  usuário** em `message`; é `null` em `friend_request` e `friend_accept`.
+- `actor_avatar` é o arquivo em `uploads/`, ou `null`.
 
 **POST /api/notifications/mark_read.php**
 Request: `{ "notification_id": int }` ou `{ "mark_all": true }`
-Response 200: `{ "ok": true }`
+Response 200: `{ "ok": true, "unread_count": int }`
+Erros: `{ "error": "Notificação não encontrada." }` (id inexistente **e**
+id de outra pessoa devolvem a mesma coisa), `{ "error": "Método inválido." }`.
+
+### Quando cada notificação é gerada
+
+| Evento | Tipo | Quem recebe | `reference_id` |
+|---|---|---|---|
+| Curtir um post | `like` | autor do post | id do post |
+| Comentar | `comment` | autor do post | id do post |
+| Compartilhar | `share` | autor do post | id do post |
+| Enviar pedido de amizade | `friend_request` | destinatário | `null` |
+| Aceitar amizade | `friend_accept` | quem pediu | `null` |
+| Enviar mensagem privada | `message` | destinatário | id do remetente |
+
+Regras:
+
+- **Ninguém é notificado da própria ação.** Curtir o próprio post não
+  gera nada.
+- Falha ao gravar a notificação **nunca** derruba a ação principal —
+  curtir funciona mesmo que a notificação não entre. O erro vai para o
+  log do PHP.
+- Ações desfeitas apagam o aviso correspondente (`notify_undo`):
+  descurtir remove o `like`; recusar, cancelar ou aceitar um pedido
+  remove o `friend_request` pendente. O sino não acumula aviso de algo
+  que não vale mais.
 
 ## Recuperação de senha por e-mail
 
@@ -580,6 +814,31 @@ Response 200: `{ "ok": true }`
 Response 400: `{ "error": string }`
 
 E-mail linka para `reset.html?token=...`.
+
+Implementado e testado em 31/08/2026.
+
+Regras do token: gerado com `random_bytes(32)`; o banco guarda **só o
+hash SHA-256** — vazamento do banco não devolve um link utilizável.
+Validade de 1 hora, uso único, e um pedido novo invalida os anteriores da
+mesma conta. Token inválido, expirado, já usado e ausente devolvem todos
+a mesma mensagem, para não virar um oráculo. A senha nova precisa ter
+entre 8 e 72 caracteres.
+
+**Envio de e-mail.** `api/auth/mailer.php` tem dois drivers:
+
+- `log` (padrão) — grava a mensagem em `logs/mail.log` e não envia nada.
+  É o que roda quando `api/auth/mail_config.php` não existe. O fluxo
+  inteiro é testável sem credencial de SMTP: o link com o token aparece
+  no arquivo.
+- `smtp` — envia de verdade via PHPMailer 6.9.1 (`lib/PHPMailer/`,
+  incluído no repositório; o projeto não usa Composer).
+
+Para ativar o envio real, copie `api/auth/mail_config.example.php` para
+`api/auth/mail_config.php` e preencha host, usuário e senha do SMTP
+(Mailtrap serve para demonstração). **`mail_config.php` está no
+`.gitignore`: credencial de SMTP não entra no repositório.** Sem host ou
+usuário configurado, o mailer cai para o driver `log` em vez de estourar
+erro no meio do fluxo do usuário.
 
 ### Rota desativada
 

@@ -1,0 +1,10 @@
+# Credenciais de SMTP — nunca versionar.
+# O modelo versionado é api/auth/mail_config.example.php.
+api/auth/mail_config.php
+
+# Log de e-mail do driver de desenvolvimento.
+logs/
+
+# Avatares e imagens enviados pelos usuários.
+uploads/*
+!uploads/.gitkeep

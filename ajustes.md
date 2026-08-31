@@ -1,17 +1,29 @@
 # Ajustes do Upgrade — Sistema Echo
 
-Estado do upgrade em **28/08/2026**. Serve para retomar o trabalho sem
+Estado do upgrade em **31/08/2026**. Serve para retomar o trabalho sem
 precisar reler todo o histórico.
 
 Documentos relacionados:
 
 - `docs/API_CONTRACT.md` — fonte única da verdade sobre os endpoints.
   Todo formato de resposta citado aqui está detalhado lá.
-- `docs/PLANO_UPGRADE_ECHO.md` — plano geral do upgrade, dividido por
-  dono ([BACKEND — Claude Code] / [FRONTEND — Antigravity]).
+- `docs/PLANO_UPGRADE_ECHO.md` — plano geral do upgrade.
 
-Divisão de trabalho: o back-end (`api/`, `banco.sql`) é do Claude Code; o
-front-end (`.html`, `css/`, `js/`) é do Antigravity.
+---
+
+## Situação geral
+
+**O upgrade está completo.** Back-end e front-end migrados, com o fluxo
+inteiro testado ponta a ponta por `curl` e no navegador.
+
+| Área | Estado |
+|---|---|
+| Banco de dados (`banco.sql`) | Completo |
+| Sessão PHP e autenticação | Completo |
+| Migração de todos os endpoints para sessão | Completo |
+| Notificações (geração + endpoints + sino) | Completo |
+| Recuperação de senha por e-mail | Completo |
+| Front-end migrado para o novo contrato | Completo |
 
 ---
 
@@ -28,149 +40,127 @@ front-end (`.html`, `css/`, `js/`) é do Antigravity.
 4. Todo item de lista traz o `user_id` do dono. O front compara com o
    `user.id` de `GET /api/auth/me.php` — nunca por `email` ou `name`.
 5. Ids e contadores são inteiros JSON; datas são strings
-   `"YYYY-MM-DD HH:MM:SS"`; campos opcionais vêm `null`, nunca `""`.
-6. PDO com prepared statements em toda query. A mensagem real da exceção
-   nunca vai para a resposta, só para log.
-7. Toda chamada `fetch` do front inclui `credentials: "same-origin"`.
+   `"YYYY-MM-DD HH:MM:SS"`; campos opcionais vêm `null`, não `""`.
+6. `$e->getMessage()` nunca vai para a resposta do cliente — só para
+   `error_log()`.
+7. Upload de arquivo é validado pelo **MIME real** (`finfo`), nunca pela
+   extensão informada pelo cliente, e sempre com limite de tamanho.
 
 ---
 
-## O que já foi feito
+## Falhas de segurança corrigidas
 
-### Sessão e autenticação — concluído
+Todas eram exploráveis sem estar logado, só trocando um parâmetro.
 
-- `api/auth/session.php` (novo) — `current_user_id()`,
-  `current_user_name()`, `require_login()`, `start_user_session()`,
-  `destroy_user_session()`. Cookie `httponly` + `samesite=Lax`, e
-  `session_regenerate_id()` no login contra fixação de sessão.
-- `api/auth/login.php` — passou a abrir sessão de verdade.
-- `api/auth/logout.php` e `api/auth/me.php` (novos).
+| Rota | O que dava para fazer | Correção |
+|---|---|---|
+| `api/auth/reset.php` | Trocar a senha de qualquer conta com só o e-mail, sem token | Rota desativada (HTTP 410); substituída por `forgot_password.php` + `reset_password.php` |
+| `api/circle_messages/list.php` | Ler a conversa de qualquer círculo variando `circle_id` | `require_login()` + checagem de dono-ou-membro |
+| `api/circle_messages/send.php` | Escrever em qualquer círculo se passando por qualquer usuário | idem |
+| `api/messages/list.php` | Ler a conversa privada de qualquer par de usuários (`?me=X&friend=Y`) | `require_login()` + exigência de amizade aceita |
+| `api/messages/send.php` | Enviar mensagem se passando por outra pessoa (`sender` no corpo) | idem |
+| `api/profile/get.php` | Ler o perfil de qualquer usuário pelo e-mail | Identidade da sessão; `user_id` opcional e explícito |
+| `api/profile/update.php` | **Editar o perfil de qualquer usuário** | Edita sempre o usuário da sessão |
+| Todos os módulos | Agir como qualquer usuário mandando o e-mail dele | Sessão PHP em todos |
 
-### Correção de segurança: `api/auth/reset.php` — concluído
+---
 
-A rota trocava a senha de qualquer conta recebendo só `email` +
-`new_pass`, sem token e sem sessão: sequestro de conta para quem soubesse
-um e-mail cadastrado. Agora responde HTTP 410 com
-`{ "error": "Rota desativada. ..." }`. Nenhuma tela do front a chamava. O
-fluxo correto (`forgot_password.php` + `reset_password.php`) ainda está
-pendente.
+## Back-end
 
-### Banco de dados — concluído
+### Sessão e autenticação
 
-`banco.sql` corrigido: coluna `status` em `friends`, e as tabelas
-`circle_members`, `circle_messages`, `notifications` e
-`password_resets`.
+`api/auth/session.php` com `require_login()`, `current_user_id()`,
+`current_user_name()`, `start_user_session()` (com `session_regenerate_id`
+contra fixação de sessão) e `destroy_user_session()`. Cookie `httponly`
+e `samesite=Lax`. `login.php`, `logout.php`, `me.php` e `register.php`
+seguem o contrato.
+
+`register.php` foi reescrito: valida formato de e-mail, tamanho de nome,
+senha de 8 a 72 caracteres, trata a corrida de e-mail duplicado pela
+chave única, e **abre a sessão** — quem se cadastra já entra logado.
+`login.php` e `register.php` deixaram de aplicar `trim()` na senha.
 
 ### Módulos migrados (todos testados ponta a ponta)
 
 | Módulo | Endpoints | Observação |
 |---|---|---|
-| `posts/` | 5 | `create`, `delete`, `like`, `share`, `list` |
+| `posts/` | 5 | + `helpers.php`; `create` devolve o post criado |
 | `comments/` | 2 | `list` deixou de devolver array na raiz |
 | `friends/` | 10 | 9 migrados + `remove.php` novo |
 | `circles/` | 5 | + `helpers.php` |
-| `circle_messages/` | 2 | correção de segurança, ver abaixo |
+| `circle_messages/` | 2 | correção de segurança |
+| `messages/` | 2 | + `helpers.php`; correção de segurança |
+| `profile/` | 2 | + `helpers.php`; correção de segurança |
+| `notifications/` | 2 | módulo novo + `helpers.php` |
 
-**`friends/`** — chave canônica do módulo é `user_id` (o outro usuário).
-Renomes na resposta: `sender_id`, `receiver_id` e `id` viraram todos
-`user_id`. `search.php` ganhou o campo `status`
-(`none` / `pending_sent` / `pending_received` / `friends`) para o front
-escolher o botão. `remove.php` foi criado porque o front já chamava a
-rota e o arquivo não existia. Corrigido também um `OR ... AND` sem
-parênteses em `reject.php` que apagava amizade **aceita** na direção
-inversa, e a busca passou a excluir o próprio usuário e a escapar os
-curingas `%` e `_`.
+**`friends/`** — chave canônica é `user_id`. `search.php` tem o campo
+`status` (`none` / `pending_sent` / `pending_received` / `friends`) para
+o front escolher o botão.
 
-**`circles/`** — o dono do círculo vem como `user_id` (coluna `owner_id`
-no banco), com `is_owner` e `member_count` prontos. `list.php` antes só
-devolvia `WHERE owner_id = eu`, então quem era só membro via a lista
-vazia; agora traz os dois casos. `list_members.php` passou a devolver
-`circle` + `owner` + `members`, e o dono não aparece em `members`.
-Os três endpoints de membro não tinham **nenhuma** checagem: qualquer um
-podia adicionar/remover gente em círculo alheio e listar membros só
-chutando `circle_id`. Agora acesso = dono ou membro, gestão = só dono, e
-membro comum só remove a si mesmo. Regra nova: só amigos do dono podem
-ser adicionados.
+**`circles/`** — no objeto de círculo, `user_id` é o **dono** (coluna
+`owner_id` no banco); não existe campo `owner_id` na resposta. O dono não
+tem linha em `circle_members`, então `member_count` e `members` não o
+incluem — ele vem na chave `owner`. `add_member.php` e
+`remove_member.php` aceitam `user_id` **ou** `friend_email`, com
+precedência para `user_id`.
 
-**`circle_messages/`** — tratado como prioridade por ser falha ativa.
-`list.php?circle_id=N` devolvia a conversa inteira de qualquer círculo
-**sem estar logado**, bastando variar o `N`; `send.php` aceitava `email`
-no corpo, permitindo escrever se passando por qualquer usuário. Agora os
-dois usam `require_login()` mais a mesma regra de acesso de `circles/`.
-Quem perde o acesso para de ler e escrever na chamada seguinte.
+**`messages/`** — `list.php` recebe só `friend` (id); `send.php` recebe
+`user_id` ou `friend_email` mais `body`. Os dois exigem amizade aceita.
+A resposta deixou de ser array na raiz e o campo `sender` (e-mail) sumiu.
 
-### Front-end já migrado pelo Antigravity
+**`profile/`** — o campo da descrição chama `bio`, não `about`. Não
+existem `followers`/`following`: o modelo de amizade é mútuo. As
+estatísticas são `posts`, `likes_received`, `friends` e `circles`.
 
-`amigos.html`, `chat.html` e `circulos.html` para o módulo `friends/`.
+### Notificações
+
+`api/notifications/helpers.php` com `notify()` e `notify_undo()`.
+Gravação nos seis eventos do contrato. Ninguém é notificado da própria
+ação, e falha ao gravar nunca derruba a ação principal. Ações desfeitas
+(descurtir, recusar/cancelar/aceitar pedido) apagam o aviso
+correspondente.
+
+### Recuperação de senha
+
+`forgot_password.php` e `reset_password.php`. Token de 32 bytes, gravado
+só como hash SHA-256, validade de 1 hora, uso único, e um pedido novo
+invalida os anteriores. A resposta de `forgot_password.php` é sempre a
+mesma, exista o e-mail ou não.
+
+`api/auth/mailer.php` tem driver `log` (padrão — grava em
+`logs/mail.log`, permite testar sem SMTP) e driver `smtp` (PHPMailer
+6.9.1 em `lib/PHPMailer/`, sem Composer). Para envio real, copiar
+`api/auth/mail_config.example.php` para `api/auth/mail_config.php` — que
+está no `.gitignore`.
 
 ---
 
-## O que falta fazer
+## Front-end
 
-### 1. `messages/` — chat privado (BACKEND, prioridade máxima)
-
-Mesma classe de falha do `circle_messages/`, ainda aberta:
-`list.php?me=X&friend=Y` lê a conversa privada de qualquer par de
-usuários, sem sessão, só passando os dois e-mails na URL. `send.php`
-recebe `sender` e `receiver` no corpo, permitindo enviar mensagem se
-passando por outra pessoa.
-
-A fazer: `require_login()` nos dois; `list.php` passa a receber só
-`friend` (id do outro usuário), com o remetente vindo da sessão;
-`send.php` recebe `friend_email` ou `user_id` mais `body`. Avaliar exigir
-amizade aceita para poder conversar. Formato de resposta seguindo a
-convenção, com `user_id` em cada mensagem para o front decidir o balão
-"é meu".
-
-### 2. `profile/` (BACKEND)
-
-`get.php` recebe `email` na query e `update.php` recebe `email` no
-`$_POST` — ou seja, hoje dá para editar o perfil de qualquer usuário.
-Migrar os dois para sessão.
-
-### 3. Notificações (BACKEND)
-
-Nada foi implementado ainda. A tabela `notifications` existe em
-`banco.sql`, mas **nenhum** módulo grava nela — nem `posts/`, nem
-`comments/`, nem `friends/`. Ficou de propósito para um passe único em
-todos os módulos, para o contrato não ficar inconsistente.
-
-A fazer:
-
-- Helper de criação de notificação (nunca notificar o próprio autor).
-- Gravar em: curtida, comentário, compartilhamento, pedido de amizade,
-  amizade aceita, mensagem recebida.
-- `api/notifications/list.php` e `api/notifications/mark_read.php`
-  (a pasta `api/notifications/` ainda não existe). Formato já descrito em
-  `docs/API_CONTRACT.md`.
-
-### 4. Recuperação de senha por e-mail (BACKEND)
-
-- `api/auth/forgot_password.php` — gera token, grava só o **hash** em
-  `password_resets`, envia o link por e-mail.
-- `api/auth/reset_password.php` — valida token e troca a senha.
-- PHPMailer + SMTP.
-- A resposta de `forgot_password.php` é sempre a mesma, exista o e-mail
-  ou não, para não vazar quais endereços estão cadastrados.
-- `reset.html` já existe no front e espera `reset.html?token=...`.
-- Depois que o fluxo estiver em produção, `api/auth/reset.php` pode ser
-  apagado.
-
-### 5. `api/auth/register.php` (BACKEND)
-
-Ainda não foi revisado. Confirmar validação de e-mail duplicado, hash de
-senha e formato de resposta segundo a convenção.
-
-### 6. Front-end pendente (Antigravity)
-
-- `circulos.html` — migrar para o novo formato de `circles/`.
-- `circle_chat.html` — migrar para o novo formato de `circle_messages/`.
-  Hoje `loadMessages()` só olha `data.messages`; com acesso negado vem
-  `{"error": ...}` e a tela mostra "Nenhuma mensagem no círculo ainda",
-  que é a mensagem errada. Precisa tratar `data.error`.
-- `chat.html` e `perfil.html` — depois que `messages/` e `profile/`
-  estiverem migrados.
-- Interface do sino de notificações, depois dos endpoints.
+- **`chat.html`** — conversa identificada por **id**, não por e-mail.
+  Balão "é meu" decidido por `user_id`. Trata `data.error` (antes um
+  acesso negado virava "nenhuma mensagem"). O poller só acrescenta as
+  mensagens novas, preservando a posição do scroll.
+- **`circulos.html`** — novo formato de `circles/`. Badge de Dono/Membro,
+  contagem de membros, dono listado à parte e não removível. "Gerenciar"
+  só aparece para o dono; membro comum vê "Sair". Membros identificados
+  por `user_id`.
+- **`circle_chat.html`** — círculo vem da URL (`?circle_id=`), o que faz
+  link direto funcionar e permite duas abas sem embaralhar estado. Trata
+  `data.error` e desabilita o campo quando o acesso é negado.
+- **`perfil.html`** — usa `bio` (a bio aparecia sempre vazia porque o
+  front lia `about`). Estatísticas passaram a ser amigos e círculos.
+  Ganhou upload de avatar.
+- **`index.html`** — "esqueci minha senha" e cadastro ligados na API real
+  (estavam simulados com `setTimeout`). Cadastro valida os 8 caracteres
+  antes de enviar e já entra logado. Parou de gravar `userEmail` no
+  `localStorage`.
+- **`reset.html`** — ligado na API real; mínimo de senha alinhado em 8.
+- **`js/echo-ui.js`** — sino ligado na API real, sem os dados de exemplo.
+  Badge usa o `unread_count` do servidor. Polling a cada 20s que pausa
+  com a aba escondida e para em caso de 401. Clicar numa notificação
+  marca como lida e leva para a tela correspondente ao tipo. Horários
+  viraram tempo relativo ("há 5 min").
 
 ---
 
@@ -180,11 +170,36 @@ XAMPP em `C:\xampp`. O MySQL costuma estar parado; subir com
 `C:\xampp\mysql\bin\mysqld.exe --defaults-file=C:\xampp\mysql\bin\my.ini`.
 Banco `banco`, usuário `root` sem senha.
 
-Os testes ponta a ponta foram feitos com o servidor embutido do PHP
-(`php -S 127.0.0.1:8123` na raiz do projeto) e `curl` com cookie jar por
-usuário, com quatro contas de teste (`alice`, `bruno`, `carla` e `diego`
-em `@echo.local`, senha `senha123`).
+Servidor de aplicação para teste: `php -S 127.0.0.1:8123` na raiz do
+projeto (o PHP do XAMPP fica em `C:\xampp\php\php.exe`).
 
-Roteiro mínimo de teste para cada módulo migrado: 401 em todos os
-endpoints sem sessão; caminho feliz; tentativa de agir sobre dado de
-outro usuário; método HTTP errado; e os limites de validação.
+Quatro contas de teste: `alice`, `bruno`, `carla` e `diego`, todas
+`@echo.local` com senha `senha123`. Alice e Bruno são amigos.
+
+Roteiro mínimo para cada módulo: 401 em todos os endpoints sem sessão;
+caminho feliz; tentativa de agir sobre dado de outro usuário; método HTTP
+errado; e os limites de validação.
+
+Para testar recuperação de senha sem SMTP: chamar `forgot_password.php`
+e pegar o link em `logs/mail.log`.
+
+---
+
+## O que ficou de fora (candidatos a próximo passo)
+
+Nada disso bloqueia o uso do sistema.
+
+- **Apagar círculo** — não existe endpoint. `circles.id` já é referenciado
+  com `ON DELETE CASCADE`, então dá para acrescentar `delete.php` sem
+  migração de banco.
+- **Marcar mensagem como lida** — `messages.receiver_id` está na resposta
+  justamente para isso, mas não há coluna `read_at` nem endpoint.
+- **Invalidar sessões em outros navegadores ao trocar a senha** —
+  `reset_password.php` derruba só a sessão atual. Fazer isso direito pede
+  uma coluna `session_version` em `users`, conferida no `require_login()`.
+- **Apagar `api/auth/reset.php`** — está desativada com HTTP 410 desde
+  28/08; pode sair quando ninguém mais chamar a rota antiga.
+- **Splash do `index.html` em aba de segundo plano** — a animação GSAP usa
+  `requestAnimationFrame`, que o navegador congela em aba escondida; o
+  texto fica embaralhado até a aba ganhar foco. Se incomodar, dá para
+  pular a animação quando `document.hidden` for verdadeiro.

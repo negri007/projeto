@@ -3,6 +3,7 @@ header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . '/../auth/session.php';
 require_once __DIR__ . '/../auth/db.php';
+require_once __DIR__ . '/../notifications/helpers.php';
 
 $userId = require_login();
 
@@ -22,10 +23,11 @@ if (!$post_id || $body === '') {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT id FROM posts WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, user_id FROM posts WHERE id = ?");
     $stmt->execute([$post_id]);
+    $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+    if (!$post) {
         echo json_encode(['error' => 'Post não encontrado.']);
         exit;
     }
@@ -47,6 +49,10 @@ try {
     );
     $stmt->execute([$commentId]);
     $comment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // `reference_id` é o post, não o comentário: o front navega
+    // para o post ao clicar na notificação.
+    notify($pdo, (int)$post['user_id'], $userId, 'comment', $post_id);
 
     echo json_encode(['ok' => true, 'comment' => $comment]);
 

@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require_once __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
+require_once __DIR__ . "/../notifications/helpers.php";
 
 $userId = require_login();
 
@@ -53,6 +54,11 @@ try {
         $stmt = $pdo->prepare("UPDATE friends SET status = 'accepted' WHERE id = ?");
         $stmt->execute([(int)$relacao["id"]]);
 
+        // O pedido do outro virou amizade: ele recebe o aviso de
+        // aceite, e o pedido pendente dele sai do sino.
+        notify_undo($pdo, $userId, $targetId, "friend_request", null);
+        notify($pdo, $targetId, $userId, "friend_accept", null);
+
         echo json_encode([
             "ok"            => true,
             "status"        => "accepted",
@@ -65,6 +71,8 @@ try {
         "INSERT INTO friends (user_id, friend_id, status) VALUES (?, ?, 'pending')"
     );
     $stmt->execute([$userId, $targetId]);
+
+    notify($pdo, $targetId, $userId, "friend_request", null);
 
     echo json_encode([
         "ok"            => true,

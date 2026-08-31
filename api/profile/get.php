@@ -1,48 +1,40 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
 
-require_once __DIR__ . '/../auth/db.php';
+require_once __DIR__ . "/../auth/session.php";
+require_once __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/helpers.php";
 
-$email = $_GET['email'] ?? '';
+$userId = require_login();
 
-if (!$email) {
-    echo json_encode(['ok' => false, 'error' => 'Email não fornecido.']);
-    exit;
+// Sem `user_id`, devolve o perfil do próprio usuário da sessão. O
+// `user_id` opcional serve para ver o perfil de outra pessoa — perfil é
+// informação pública dentro do sistema, mas a identidade de quem
+// pergunta continua vindo só da sessão.
+$targetId = (int)($_GET["user_id"] ?? 0);
+
+if ($targetId <= 0) {
+    $targetId = $userId;
 }
 
 try {
-    // pega usuário + campos de perfil
-    $stmt = $pdo->prepare("SELECT id, name, email, bio, avatar FROM users WHERE email = ?");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare(
+        "SELECT id, name, email, bio, avatar, created_at FROM users WHERE id = ?"
+    );
+    $stmt->execute([$targetId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$user) {
-        echo json_encode(['ok' => false, 'error' => 'Usuário não encontrado.']);
+    if (!$row) {
+        echo json_encode(["error" => "Usuário não encontrado."]);
         exit;
     }
 
-    // estatísticas básicas
-    $statsQuery = "
-        SELECT
-            (SELECT COUNT(*) FROM posts      WHERE user_id   = ?) AS posts,
-            (SELECT COUNT(*) FROM post_likes WHERE user_id   = ?) AS likes,
-            (SELECT COUNT(*) FROM friends    WHERE friend_id = ?) AS followers,
-            (SELECT COUNT(*) FROM friends    WHERE user_id   = ?) AS following
-    ";
-    $statsStmt = $pdo->prepare($statsQuery);
-    $statsStmt->execute([$user['id'], $user['id'], $user['id'], $user['id']]);
-    $stats = $statsStmt->fetch(PDO::FETCH_ASSOC) ?: [
-        'posts'     => 0,
-        'likes'     => 0,
-        'followers' => 0,
-        'following' => 0,
-    ];
-
     echo json_encode([
-        'ok'   => true,
-        'user' => array_merge($user, $stats),
+        "ok"    => true,
+        "user"  => profile_user_row($row, $userId),
+        "stats" => profile_stats($pdo, $targetId),
     ]);
 
-} catch (PDOException $e) {
-    echo json_encode(['ok' => false, 'error' => 'Erro ao buscar dados: ' . $e->getMessage()]);
+} catch (Exception $e) {
+    echo json_encode(["error" => "Erro ao buscar perfil."]);
 }

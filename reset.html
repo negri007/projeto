@@ -103,8 +103,9 @@
         }
 
         async function handleResetPassword() {
-            const newPassword = document.getElementById("newPassword").value.trim();
-            const confirmPassword = document.getElementById("confirmPassword").value.trim();
+            // Sem trim: espaco nas pontas faz parte da senha.
+            const newPassword = document.getElementById("newPassword").value;
+            const confirmPassword = document.getElementById("confirmPassword").value;
             const btn = document.getElementById("btnSubmitReset");
 
             if (!newPassword || !confirmPassword) {
@@ -112,8 +113,9 @@
                 return;
             }
 
-            if (newPassword.length < 6) {
-                showBanner("danger", "A nova senha deve ter pelo menos 6 caracteres.");
+            // Mesmo minimo que api/auth/reset_password.php exige.
+            if (newPassword.length < 8) {
+                showBanner("danger", "A nova senha deve ter pelo menos 8 caracteres.");
                 return;
             }
 
@@ -125,15 +127,6 @@
             // Ativa spinner no botão
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-echo me-2" style="width:16px;height:16px;border-width:2px;"></span>Redefinindo...`;
-
-            /*
-            // =========================================================================
-            // TODO: INTEGRAÇÃO COM A API DO BACK-END (POST /api/auth/reset_password.php)
-            // =========================================================================
-            // Conforme o docs/API_CONTRACT.md:
-            // Request: { "token": resetToken, "new_password": newPassword }
-            // Response 200: { "ok": true }
-            // Response 400: { "error": string }
 
             try {
                 const res = await fetch("api/auth/reset_password.php", {
@@ -156,21 +149,13 @@
                 }
 
                 showBanner("success", "Sua senha foi alterada com sucesso! Redirecionando para o login...");
+                document.getElementById("resetFormArea").style.display = "none";
                 setTimeout(() => { window.location = "index.html"; }, 2000);
             } catch (e) {
                 showBanner("danger", "Erro de conexão ao redefinir a senha.");
                 btn.disabled = false;
                 btn.innerHTML = "Redefinir Senha";
             }
-            */
-
-            // Simulação visual de sucesso antes da ativação do backend:
-            setTimeout(() => {
-                showBanner("success", "Sua senha foi alterada com sucesso! Você já pode entrar com a nova senha.");
-                document.getElementById("resetFormArea").style.display = "none";
-                btn.disabled = false;
-                btn.innerHTML = "Redefinir Senha";
-            }, 800);
         }
     </script>
 </body>

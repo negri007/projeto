@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require_once __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
+require_once __DIR__ . "/../notifications/helpers.php";
 
 $userId = require_login();
 
@@ -33,6 +34,9 @@ try {
         echo json_encode(["error" => "Solicitação não encontrada."]);
         exit;
     }
+
+    // Recusado: o pedido some do meu sino.
+    notify_undo($pdo, $userId, $targetId, "friend_request", null);
 
     echo json_encode(["ok" => true]);
 

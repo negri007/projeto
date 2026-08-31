@@ -1,63 +1,82 @@
 <?php
 header("Content-Type: application/json; charset=utf-8");
 
-require_once __DIR__ . '/../auth/db.php';
+require_once __DIR__ . "/../auth/session.php";
+require_once __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/helpers.php";
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['error' => 'Método inválido.']);
+$userId = require_login();
+
+if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+    echo json_encode(["error" => "Método inválido."]);
     exit;
 }
 
-$email = $_POST['email'] ?? '';
-$name  = trim($_POST['name'] ?? '');
-$bio   = trim($_POST['bio'] ?? '');
+// Multipart, por causa do upload de avatar. O usuário editado é sempre o
+// da sessão: não existe mais `email` no corpo.
+$name = trim((string)($_POST["name"] ?? ""));
+$bio  = trim((string)($_POST["bio"] ?? ""));
 
-if (!$email || !$name) {
-    echo json_encode(['error' => 'Email e nome são obrigatórios.']);
+if ($name === "") {
+    echo json_encode(["error" => "Nome é obrigatório."]);
     exit;
 }
 
-// busca usuário
-$stmt = $pdo->prepare("SELECT id, avatar FROM users WHERE email = ?");
-$stmt->execute([$email]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-if (!$user) {
-    echo json_encode(['error' => 'Usuário não encontrado.']);
+if (mb_strlen($name) > 100) {
+    echo json_encode(["error" => "Nome é longo demais (máx. 100 caracteres)."]);
     exit;
 }
 
-$userId         = (int)$user['id'];
-$currentAvatar  = $user['avatar'] ?? null;
-$newAvatarName  = $currentAvatar;
+if (mb_strlen($bio) > 500) {
+    echo json_encode(["error" => "Bio é longa demais (máx. 500 caracteres)."]);
+    exit;
+}
 
-// upload de avatar (se enviado)
-if (!empty($_FILES['avatar']['name']) && $_FILES['avatar']['error'] === UPLOAD_ERR_OK) {
-    $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    $ext     = strtolower(pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION));
+try {
+    $stmt = $pdo->prepare("SELECT id, name, email, bio, avatar, created_at FROM users WHERE id = ?");
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!in_array($ext, $allowed)) {
-        echo json_encode(['error' => 'Formato de imagem inválido. Use jpg, png, gif ou webp.']);
+    if (!$user) {
+        echo json_encode(["error" => "Usuário não encontrado."]);
         exit;
     }
 
-    // garante pasta uploads/
-    $uploadDir = __DIR__ . '/../../uploads';
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0777, true);
+    $oldAvatar = $user["avatar"];
+    $avatar    = $oldAvatar;
+
+    if (!empty($_FILES["avatar"]["name"])) {
+        try {
+            $avatar = profile_store_avatar($_FILES["avatar"], $userId);
+        } catch (RuntimeException $e) {
+            // Mesma regra de posts/create.php: a RuntimeException de
+            // profile_store_avatar() carrega uma mensagem escrita para
+            // o usuario final, nao um erro interno.
+            echo json_encode(["error" => $e->getMessage()]);
+            exit;
+        }
     }
 
-    $newAvatarName = "avatar_" . $userId . "_" . time() . "." . $ext;
-    $destPath      = $uploadDir . "/" . $newAvatarName;
+    $stmt = $pdo->prepare("UPDATE users SET name = ?, bio = ?, avatar = ? WHERE id = ?");
+    $stmt->execute([$name, $bio !== "" ? $bio : null, $avatar, $userId]);
 
-    if (!move_uploaded_file($_FILES['avatar']['tmp_name'], $destPath)) {
-        echo json_encode(['error' => 'Falha ao enviar a imagem.']);
-        exit;
+    // Só depois do UPDATE dar certo o arquivo antigo é descartado.
+    if ($avatar !== $oldAvatar) {
+        profile_delete_avatar($oldAvatar);
     }
+
+    $_SESSION["user_name"] = $name;
+
+    $user["name"]   = $name;
+    $user["bio"]    = $bio;
+    $user["avatar"] = $avatar;
+
+    echo json_encode([
+        "ok"    => true,
+        "user"  => profile_user_row($user, $userId),
+        "stats" => profile_stats($pdo, $userId),
+    ]);
+
+} catch (Exception $e) {
+    echo json_encode(["error" => "Erro ao atualizar perfil."]);
 }
-
-// atualiza usuário
-$upd = $pdo->prepare("UPDATE users SET name = ?, bio = ?, avatar = ? WHERE id = ?");
-$upd->execute([$name, $bio, $newAvatarName, $userId]);
-
-echo json_encode(['ok' => true, 'message' => 'Perfil atualizado com sucesso.']);

@@ -167,14 +167,11 @@
 
 <script>
 let currentUser = null;
-let userEmail = "";
 
 document.addEventListener("DOMContentLoaded", async function () {
     // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
     currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
     if (!currentUser) return;
-
-    userEmail = currentUser.email;
 
     // Inicializa Header (Sino + Mobile Sidebar)
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
@@ -192,7 +189,7 @@ async function loadCircles() {
     list.innerHTML = EchoUIInstance.getListSkeletonHTML(3);
 
     try {
-        const res  = await fetch("api/circles/list.php?email=" + encodeURIComponent(userEmail));
+        const res  = await fetch("api/circles/list.php", { credentials: "same-origin" });
         const data = await res.json();
 
         list.innerHTML = "";
@@ -210,20 +207,46 @@ async function loadCircles() {
         data.circles.forEach(c => {
             const el = document.createElement("div");
             el.className = "circle-list-item";
+
+            const membros = c.member_count === 1 ? "1 membro" : `${c.member_count} membros`;
+            const dono    = c.is_owner
+                ? '<span class="badge bg-info text-dark ms-2">Dono</span>'
+                : '<span class="badge bg-secondary ms-2">Membro</span>';
+
             el.innerHTML = `
                 <div class="circle-info">
-                    <strong class="text-light">${EchoUIInstance.escapeHTML(c.name)}</strong>
-                    <small>${EchoUIInstance.escapeHTML(c.description || "Círculo sem descrição")} · Criado em ${c.created_at}</small>
+                    <strong class="text-light">${EchoUIInstance.escapeHTML(c.name)}</strong>${dono}
+                    <small>${EchoUIInstance.escapeHTML(c.description || "Círculo sem descrição")} · ${membros} · Criado em ${c.created_at}</small>
                 </div>
-                <div>
-                    <button class="btn btn-sm btn-info rounded-pill me-1 px-3" onclick="enterCircle(${c.id}, '${EchoUIInstance.escapeHTML(c.name)}')">
-                        Entrar
-                    </button>
-                    <button class="btn btn-sm btn-outline-light rounded-pill px-3" onclick="openCircle(${c.id}, '${EchoUIInstance.escapeHTML(c.name)}')">
-                        Gerenciar
-                    </button>
-                </div>
+                <div class="circle-actions"></div>
             `;
+
+            // Botoes montados em JS: passar nome de circulo por string
+            // dentro de onclick quebra com aspas no nome.
+            const acoes = el.querySelector(".circle-actions");
+
+            const btnEntrar = document.createElement("button");
+            btnEntrar.className = "btn btn-sm btn-info rounded-pill me-1 px-3";
+            btnEntrar.textContent = "Entrar";
+            btnEntrar.onclick = () => enterCircle(c.id, c.name);
+            acoes.appendChild(btnEntrar);
+
+            // "Gerenciar" so existe para o dono - o back recusa membro
+            // comum tentando adicionar ou remover terceiros.
+            if (c.is_owner) {
+                const btnGerenciar = document.createElement("button");
+                btnGerenciar.className = "btn btn-sm btn-outline-light rounded-pill px-3";
+                btnGerenciar.textContent = "Gerenciar";
+                btnGerenciar.onclick = () => openCircle(c.id, c.name);
+                acoes.appendChild(btnGerenciar);
+            } else {
+                const btnSair = document.createElement("button");
+                btnSair.className = "btn btn-sm btn-outline-danger rounded-pill px-3";
+                btnSair.textContent = "Sair";
+                btnSair.onclick = () => leaveCircle(c.id, c.name);
+                acoes.appendChild(btnSair);
+            }
+
             list.appendChild(el);
         });
 
@@ -245,11 +268,8 @@ async function createCircle() {
         const res = await fetch("api/circles/create.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                email: userEmail,
-                name: nome,
-                description: desc
-            })
+            credentials: "same-origin",
+            body: JSON.stringify({ name: nome, description: desc })
         });
 
         const data = await res.json();
@@ -287,23 +307,60 @@ async function loadCircleMembers() {
     box.innerHTML = "<small class='text-secondary'><span class='spinner-echo me-1' style='width:12px;height:12px;'></span>Carregando membros...</small>";
 
     try {
-        const res = await fetch("api/circles/list_members.php?circle_id=" + currentCircleId);
+        const res = await fetch(
+            "api/circles/list_members.php?circle_id=" + currentCircleId,
+            { credentials: "same-origin" }
+        );
         const data = await res.json();
 
         box.innerHTML = "";
 
+        if (data.error) {
+            box.innerHTML = `<p class="text-danger small mb-0">${EchoUIInstance.escapeHTML(data.error)}</p>`;
+            return;
+        }
+
+        // O dono nao entra em `members`: vem em `owner`, e nao pode ser
+        // removido do proprio circulo.
+        if (data.owner) {
+            const dono = document.createElement("div");
+            dono.className = "d-flex justify-content-between align-items-center border-bottom border-secondary py-2";
+            dono.innerHTML = `
+                <div>
+                    <strong class="small">${EchoUIInstance.escapeHTML(data.owner.name)}</strong>
+                    <span class="text-secondary small">(${EchoUIInstance.escapeHTML(data.owner.email)})</span>
+                </div>
+                <span class="badge bg-info text-dark">Dono</span>
+            `;
+            box.appendChild(dono);
+        }
+
         if (!data.members || data.members.length === 0) {
-            box.innerHTML = "<p class='text-secondary small mb-0'>Nenhum outro membro no círculo.</p>";
+            const vazio = document.createElement("p");
+            vazio.className = "text-secondary small mb-0 mt-2";
+            vazio.textContent = "Nenhum outro membro no círculo.";
+            box.appendChild(vazio);
             return;
         }
 
         data.members.forEach(u => {
-            box.innerHTML += `
-                <div class="d-flex justify-content-between align-items-center border-bottom border-secondary py-2">
-                    <div><strong class="small">${EchoUIInstance.escapeHTML(u.name)}</strong> <span class="text-secondary small">(${EchoUIInstance.escapeHTML(u.email)})</span></div>
-                    <button class="btn btn-sm btn-outline-danger rounded-pill" onclick="removeFromCircle('${u.email}')">Remover</button>
+            const linha = document.createElement("div");
+            linha.className = "d-flex justify-content-between align-items-center border-bottom border-secondary py-2";
+            linha.innerHTML = `
+                <div>
+                    <strong class="small">${EchoUIInstance.escapeHTML(u.name)}</strong>
+                    <span class="text-secondary small">(${EchoUIInstance.escapeHTML(u.email)})</span>
                 </div>
             `;
+
+            const btn = document.createElement("button");
+            btn.className = "btn btn-sm btn-outline-danger rounded-pill";
+            btn.textContent = "Remover";
+            // Membro identificado por user_id, nunca por e-mail.
+            btn.onclick = () => removeFromCircle(u.user_id);
+            linha.appendChild(btn);
+
+            box.appendChild(linha);
         });
     } catch(e) {
         box.innerHTML = "<p class='text-danger small mb-0'>Erro ao carregar membros.</p>";
@@ -324,7 +381,10 @@ async function loadFriendSelect() {
         }
 
         data.friends.forEach(f => {
-            select.innerHTML += `<option value="${f.email}">${EchoUIInstance.escapeHTML(f.name)} (${EchoUIInstance.escapeHTML(f.email)})</option>`;
+            const opt = document.createElement("option");
+            opt.value = f.user_id;
+            opt.textContent = `${f.name} (${f.email})`;
+            select.appendChild(opt);
         });
     } catch(e) {
         console.error(e);
@@ -332,38 +392,86 @@ async function loadFriendSelect() {
 }
 
 async function addToCircle() {
-    const email = document.getElementById("friendSelect").value;
-    if (!email) return;
+    const userId = document.getElementById("friendSelect").value;
+    if (!userId) return;
 
-    await fetch("api/circles/add_member.php", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            circle_id: currentCircleId,
-            email
-        })
-    });
+    try {
+        const res = await fetch("api/circles/add_member.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ circle_id: currentCircleId, user_id: Number(userId) })
+        });
+        const data = await res.json();
 
-    loadCircleMembers();
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        loadCircleMembers();
+        loadCircles();
+    } catch (e) {
+        alert("Erro ao adicionar membro.");
+    }
 }
 
-async function removeFromCircle(email) {
-    await fetch("api/circles/remove_member.php", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            circle_id: currentCircleId,
-            email
-        })
-    });
+async function removeFromCircle(userId) {
+    if (!confirm("Remover este membro do círculo?")) return;
 
-    loadCircleMembers();
+    try {
+        const res = await fetch("api/circles/remove_member.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ circle_id: currentCircleId, user_id: Number(userId) })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        loadCircleMembers();
+        loadCircles();
+    } catch (e) {
+        alert("Erro ao remover membro.");
+    }
+}
+
+/**
+ * Sair de um circulo em que sou apenas membro. O back aceita um membro
+ * comum removendo a si mesmo - e so a si mesmo.
+ */
+async function leaveCircle(circleId, name) {
+    if (!confirm(`Sair do círculo "${name}"?`)) return;
+
+    try {
+        const res = await fetch("api/circles/remove_member.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ circle_id: circleId, user_id: currentUser.id })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        loadCircles();
+    } catch (e) {
+        alert("Erro ao sair do círculo.");
+    }
 }
 
 function enterCircle(id, name) {
-    localStorage.setItem("circle_id", id);
-    localStorage.setItem("circle_name", name);
-    window.location = "circle_chat.html";
+    // O circulo vai na URL: link direto funciona, e abrir dois circulos
+    // em abas diferentes deixa de embaralhar um o estado do outro.
+    window.location = "circle_chat.html?circle_id=" + encodeURIComponent(id)
+                    + "&name=" + encodeURIComponent(name);
 }
 </script>
 </body>

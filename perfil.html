@@ -148,8 +148,8 @@
                 <div class="profile-stats mt-3">
                     <span><strong id="countPosts">0</strong> posts</span>
                     <span><strong id="countLikes">0</strong> curtidas recebidas</span>
-                    <span><strong id="countFollowers">0</strong> seguidores</span>
-                    <span><strong id="countFollowing">0</strong> seguindo</span>
+                    <span><strong id="countFriends">0</strong> amigos</span>
+                    <span><strong id="countCircles">0</strong> círculos</span>
                 </div>
             </div>
 
@@ -203,7 +203,10 @@
 
         <div class="mb-3">
             <label class="form-label">Bio / Sobre você</label>
-            <textarea id="editAbout" class="form-control" rows="3" placeholder="Escreva algo sobre você..."></textarea>
+            <textarea id="editAbout" class="form-control" rows="3" maxlength="500" placeholder="Escreva algo sobre você..."></textarea>
+            <label class="form-label mt-3">Foto de perfil</label>
+            <input type="file" id="editAvatar" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp">
+            <small class="text-secondary">JPG, PNG, GIF ou WebP, até 2 MB.</small>
         </div>
       </div>
 
@@ -220,14 +223,11 @@
 
 <script>
 let currentUser = null;
-let userEmail = "";
 
 document.addEventListener("DOMContentLoaded", async function () {
     // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
     currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
     if (!currentUser) return;
-
-    userEmail = currentUser.email;
 
     // Inicializa Header (Sino + Mobile Sidebar)
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
@@ -243,7 +243,8 @@ function logout() {
 
 async function loadProfileData() {
     try {
-        const res = await fetch("api/profile/get.php?email=" + encodeURIComponent(userEmail));
+        // Sem parametro: o back devolve o perfil do usuario da sessao.
+        const res = await fetch("api/profile/get.php", { credentials: "same-origin" });
         const data = await res.json();
 
         if (data.error) {
@@ -251,23 +252,36 @@ async function loadProfileData() {
             return;
         }
 
-        const user = data.user;
-        const initial = (user.name || "U").charAt(0).toUpperCase();
+        const user  = data.user;
+        const stats = data.stats || {};
 
-        document.getElementById("profileAvatar").textContent = initial;
+        const avatarEl = document.getElementById("profileAvatar");
+
+        if (user.avatar) {
+            avatarEl.textContent = "";
+            avatarEl.style.backgroundImage = `url("uploads/${user.avatar}")`;
+            avatarEl.style.backgroundSize = "cover";
+            avatarEl.style.backgroundPosition = "center";
+        } else {
+            avatarEl.style.backgroundImage = "";
+            avatarEl.textContent = (user.name || "U").charAt(0).toUpperCase();
+        }
+
         document.getElementById("profileName").textContent   = user.name;
         document.getElementById("profileHandle").textContent = "@" + (user.email ? user.email.split("@")[0] : "usuario");
         document.getElementById("profileEmail").textContent  = user.email;
 
-        document.getElementById("profileAbout").textContent  = user.about || "Sem bio cadastrada.";
+        // O campo no banco chama `bio` (antes o front lia `about`, que
+        // nunca existiu na resposta - a bio aparecia sempre vazia).
+        document.getElementById("profileAbout").textContent  = user.bio || "Sem bio cadastrada.";
 
-        document.getElementById("countPosts").textContent     = data.stats.posts_count || 0;
-        document.getElementById("countLikes").textContent     = data.stats.likes_received || 0;
-        document.getElementById("countFollowers").textContent = data.stats.followers || 0;
-        document.getElementById("countFollowing").textContent = data.stats.following || 0;
+        document.getElementById("countPosts").textContent   = stats.posts || 0;
+        document.getElementById("countLikes").textContent   = stats.likes_received || 0;
+        document.getElementById("countFriends").textContent = stats.friends || 0;
+        document.getElementById("countCircles").textContent = stats.circles || 0;
 
         document.getElementById("editName").value  = user.name || "";
-        document.getElementById("editAbout").value = user.about || "";
+        document.getElementById("editAbout").value = user.bio || "";
     } catch (e) {
         console.error("Erro ao carregar dados do perfil:", e);
     }
@@ -282,15 +296,22 @@ async function saveProfile() {
         return;
     }
 
+    // multipart/form-data por causa do avatar: nao definir
+    // Content-Type na mao, o browser monta o boundary sozinho.
+    const form = new FormData();
+    form.append("name", newName);
+    form.append("bio", newAbout);
+
+    const avatarInput = document.getElementById("editAvatar");
+    if (avatarInput && avatarInput.files.length > 0) {
+        form.append("avatar", avatarInput.files[0]);
+    }
+
     try {
         const res = await fetch("api/profile/update.php", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                email: userEmail,
-                name: newName,
-                about: newAbout
-            })
+            credentials: "same-origin",
+            body: form
         });
 
         const data = await res.json();
@@ -302,7 +323,15 @@ async function saveProfile() {
 
         const modalEl = document.getElementById("editProfileModal");
         const modal = bootstrap.Modal.getInstance(modalEl);
-        modal.hide();
+        if (modal) modal.hide();
+
+        if (avatarInput) avatarInput.value = "";
+
+        // O nome pode ter mudado: atualiza a sidebar tambem.
+        if (data.user) {
+            currentUser.name = data.user.name;
+            EchoUIInstance.updateUserProfileUI(currentUser);
+        }
 
         loadProfileData();
     } catch (e) {

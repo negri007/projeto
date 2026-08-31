@@ -3,6 +3,7 @@ header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/helpers.php";
 
 $userId = require_login();
 
@@ -26,8 +27,13 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute(["uid" => $userId]);
 
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    echo json_encode(["ok" => true, "posts" => $rows]);
+    $posts = [];
+
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $posts[] = posts_post_row($row);
+    }
+
+    echo json_encode(["ok" => true, "posts" => $posts]);
 
 } catch (Exception $e) {
     echo json_encode(["error" => "Erro ao listar posts."]);

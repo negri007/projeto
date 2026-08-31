@@ -115,17 +115,27 @@
 
 <script>
 let currentUser = null;
-let email = "";
-let circleId = localStorage.getItem("circle_id") || localStorage.getItem("circle_chat_id");
-let circleName = localStorage.getItem("circle_name");
-let isFirstLoad = true;
+// O circulo vem da URL (?circle_id=...), com o localStorage como
+// compatibilidade para links antigos.
+const params     = new URLSearchParams(window.location.search);
+let circleId     = params.get("circle_id") || localStorage.getItem("circle_id");
+let circleName   = params.get("name") || localStorage.getItem("circle_name");
+let isFirstLoad  = true;
+let pollTimer    = null;
+// Ultimo ID pintado: o poller so acrescenta o que chegou depois.
+let lastMessageId = 0;
 
 document.addEventListener("DOMContentLoaded", async function () {
     // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
     currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
     if (!currentUser) return;
 
-    email = currentUser.email;
+    if (!circleId) {
+        document.getElementById("messages").innerHTML =
+            "<p class='text-danger text-center my-auto'>Nenhum círculo selecionado. Volte para a lista de círculos.</p>";
+        document.getElementById("msgInput").disabled = true;
+        return;
+    }
 
     if (circleName) {
         document.getElementById("circleTitle").textContent = "Círculo: " + circleName;
@@ -136,7 +146,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     EchoUIInstance.initHeader('circulos');
 
     loadMessages();
-    setInterval(loadMessages, 3000);
+    pollTimer = setInterval(loadMessages, 3000);
 });
 
 async function loadMessages() {
@@ -146,7 +156,10 @@ async function loadMessages() {
     }
 
     try {
-        const res = await fetch("api/circle_messages/list.php?circle_id=" + circleId);
+        const res = await fetch(
+            "api/circle_messages/list.php?circle_id=" + encodeURIComponent(circleId),
+            { credentials: "same-origin" }
+        );
         const data = await res.json();
 
         if (isFirstLoad) {
@@ -154,25 +167,45 @@ async function loadMessages() {
             isFirstLoad = false;
         }
 
-        if (!data.messages || data.messages.length === 0) {
-            if (box.children.length === 0) {
-                box.innerHTML = "<p class='text-secondary text-center my-auto'>Nenhuma mensagem no círculo ainda. Comece a conversa!</p>";
-            }
+        // Acesso negado (nao sou dono nem membro) vem como `error`.
+        // Antes isso caia no ramo de "nenhuma mensagem" e a tela mentia.
+        if (data.error) {
+            if (pollTimer) clearInterval(pollTimer);
+            box.innerHTML = `<p class="text-danger text-center my-auto">${EchoUIInstance.escapeHTML(data.error)}</p>`;
+            document.getElementById("msgInput").disabled = true;
             return;
         }
 
-        box.innerHTML = "";
-        data.messages.forEach(m => {
-            const isYou = m.email === email;
-            box.innerHTML += `
-                <div class="msg-box ${isYou ? 'msg-you' : ''}">
-                    <div class="msg-author">${EchoUIInstance.escapeHTML(m.name)}</div>
-                    <div>${EchoUIInstance.escapeHTML(m.message)}</div>
-                </div>
+        const messages = data.messages || [];
+
+        if (messages.length === 0) {
+            box.innerHTML = "<p class='text-secondary text-center my-auto'>Nenhuma mensagem no círculo ainda. Comece a conversa!</p>";
+            lastMessageId = 0;
+            return;
+        }
+
+        const novas = messages.filter(m => Number(m.id) > lastMessageId);
+        if (novas.length === 0) return;
+
+        if (lastMessageId === 0) box.innerHTML = "";
+
+        const grudadoNoFim = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+
+        novas.forEach(m => {
+            // "E minha?" por user_id, nunca por e-mail.
+            const isYou = Number(m.user_id) === Number(currentUser.id);
+            const div = document.createElement("div");
+            div.className = "msg-box " + (isYou ? "msg-you" : "");
+            div.innerHTML = `
+                <div class="msg-author">${EchoUIInstance.escapeHTML(m.name)}</div>
+                <div>${EchoUIInstance.escapeHTML(m.message)}</div>
             `;
+            div.title = m.created_at;
+            box.appendChild(div);
+            lastMessageId = Math.max(lastMessageId, Number(m.id));
         });
 
-        box.scrollTop = box.scrollHeight;
+        if (grudadoNoFim) box.scrollTop = box.scrollHeight;
     } catch(e) {
         if (isFirstLoad) {
             box.innerHTML = "<p class='text-danger text-center my-auto'>Erro ao carregar mensagens do círculo.</p>";
@@ -183,20 +216,32 @@ async function loadMessages() {
 async function sendMessage() {
     const msgInput = document.getElementById("msgInput");
     const msg = msgInput.value.trim();
-    if (!msg) return;
+    if (!msg || !circleId) return;
 
-    await fetch("api/circle_messages/send.php", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            email,
-            circle_id: circleId,
-            message: msg
-        })
-    });
+    msgInput.disabled = true;
 
-    msgInput.value = "";
-    loadMessages();
+    try {
+        const res = await fetch("api/circle_messages/send.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ circle_id: Number(circleId), message: msg })
+        });
+        const data = await res.json();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        msgInput.value = "";
+        loadMessages();
+    } catch (e) {
+        alert("Erro ao enviar mensagem.");
+    } finally {
+        msgInput.disabled = false;
+        msgInput.focus();
+    }
 }
 </script>
 </body>

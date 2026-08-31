@@ -1,5 +1,21 @@
 # Plano de Upgrade — Sistema Echo
 
+> **Status em 31/08/2026: todos os itens deste plano foram implementados**
+> — back-end e front-end. O estado atual do projeto, com o que mudou em
+> cada arquivo e o que ficou de fora, está em `ajustes.md`. Os formatos
+> de requisição e resposta valem os de `docs/API_CONTRACT.md`, que é a
+> versão implementada e testada; onde este plano divergir dele, o
+> contrato manda.
+>
+> Divergências conhecidas entre o plano original e o que foi entregue:
+> `GET /api/notifications/list.php` também devolve `unread_count`,
+> `actor_id` e `actor_avatar`; `GET /api/profile/get.php` aceita um
+> `user_id` opcional e devolve `bio` (não `about`), com estatísticas de
+> amigos e círculos no lugar de seguidores/seguindo; `POST
+> /api/posts/create.php` devolve o post criado; `POST
+> /api/auth/register.php` já abre a sessão.
+
+
 Documento de referência técnica para guiar a implementação. Fluxo de trabalho:
 
 - **Antigravity** cuida do front-end (HTML/CSS/JS das telas) e também gera os

@@ -2,46 +2,14 @@
    ECHO DESIGN SYSTEM - UI & NOTIFICATIONS MODULE (js/echo-ui.js)
    ========================================================================== */
 
-// Demo notification items for visual preview before backend integration
-const MOCK_NOTIFICATIONS = [
-    {
-        id: 101,
-        type: 'like',
-        actor_name: 'João Pedro',
-        reference_id: 12,
-        is_read: false,
-        created_at: 'há 5 min'
-    },
-    {
-        id: 102,
-        type: 'comment',
-        actor_name: 'Ana Clara',
-        reference_id: 15,
-        is_read: false,
-        created_at: 'há 20 min'
-    },
-    {
-        id: 103,
-        type: 'friend_request',
-        actor_name: 'Dev Nerd',
-        reference_id: null,
-        is_read: true,
-        created_at: 'há 2h'
-    },
-    {
-        id: 104,
-        type: 'message',
-        actor_name: 'Carlos Santos',
-        reference_id: 3,
-        is_read: true,
-        created_at: 'há 5h'
-    }
-];
-
 class EchoUI {
     constructor() {
-        this.notifications = [...MOCK_NOTIFICATIONS];
-        this.isBackendReady = false; // set to true when backend endpoint is ready
+        this.notifications = [];
+        this.unreadCount = 0;
+        this.currentUser = null;
+        this.notificationTimer = null;
+        // Intervalo do polling do sino, em ms.
+        this.POLL_INTERVAL = 20000;
     }
 
     /**
@@ -52,6 +20,28 @@ class EchoUI {
         this.injectMobileOffcanvas(currentPage);
         this.setupNotificationDropdown();
         this.renderNotifications();
+        this.startNotificationPolling();
+    }
+
+    /**
+     * Busca as notificacoes agora e passa a repetir a cada
+     * POLL_INTERVAL. Chamar duas vezes nao cria dois timers.
+     */
+    startNotificationPolling() {
+        this.fetchNotificationsAPI();
+
+        if (this.notificationTimer) return;
+
+        this.notificationTimer = setInterval(() => {
+            // Aba escondida nao precisa de polling: economiza requisicao
+            // e bateria, e o retorno a aba dispara um fetch imediato.
+            if (document.hidden) return;
+            this.fetchNotificationsAPI();
+        }, this.POLL_INTERVAL);
+
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) this.fetchNotificationsAPI();
+        });
     }
 
     /**
@@ -136,13 +126,13 @@ class EchoUI {
             }
 
             return `
-                <div class="notification-item ${!n.is_read ? 'unread' : ''}" onclick="EchoUIInstance.markAsRead(${n.id})">
+                <div class="notification-item ${!n.is_read ? 'unread' : ''}" onclick="EchoUIInstance.openNotification(${n.id})">
                     <div class="notification-icon-wrap ${iconClass}">
                         <i class="fa-solid ${icon}"></i>
                     </div>
                     <div class="notification-content">
                         <strong>${this.escapeHTML(n.actor_name)}</strong> ${actionText}
-                        <span class="notification-time">${n.created_at}</span>
+                        <span class="notification-time">${this.formatTime(n.created_at)}</span>
                     </div>
                 </div>
             `;
@@ -153,11 +143,61 @@ class EchoUI {
     }
 
     /**
+     * Marca como lida e leva para a tela correspondente ao tipo.
+     * `reference_id` e o post (like/comment/share) ou o outro usuario
+     * (message), conforme docs/API_CONTRACT.md.
+     */
+    async openNotification(id) {
+        const item = this.notifications.find(n => n.id === id);
+        await this.markAsRead(id);
+
+        if (!item) return;
+
+        switch (item.type) {
+            case 'like':
+            case 'comment':
+            case 'share':
+                window.location = "inicio.html";
+                break;
+            case 'friend_request':
+            case 'friend_accept':
+                window.location = "amigos.html";
+                break;
+            case 'message':
+                window.location = "chat.html";
+                break;
+        }
+    }
+
+    /**
+     * "YYYY-MM-DD HH:MM:SS" -> tempo relativo curto ("há 5 min").
+     * Datas invalidas voltam como vieram, sem quebrar a lista.
+     */
+    formatTime(value) {
+        if (!value) return "";
+
+        // Safari nao aceita o espaco entre data e hora do MySQL.
+        const date = new Date(String(value).replace(" ", "T"));
+        if (isNaN(date.getTime())) return this.escapeHTML(String(value));
+
+        const segundos = Math.floor((Date.now() - date.getTime()) / 1000);
+
+        if (segundos < 60)    return "agora";
+        if (segundos < 3600)  return `há ${Math.floor(segundos / 60)} min`;
+        if (segundos < 86400) return `há ${Math.floor(segundos / 3600)}h`;
+        if (segundos < 604800) return `há ${Math.floor(segundos / 86400)}d`;
+
+        return date.toLocaleDateString("pt-BR");
+    }
+
+    /**
      * Updates badge count
      */
     updateBadge() {
         const badge = document.getElementById('notificationBadge');
-        const unreadCount = this.notifications.filter(n => !n.is_read).length;
+        // O contador vem do servidor: ele conta TODAS as nao lidas, nao
+        // apenas as que couberam no limite da listagem.
+        const unreadCount = this.unreadCount;
         
         const btn = document.getElementById('notificationDropdownBtn');
         if (!btn) return;
@@ -183,24 +223,30 @@ class EchoUI {
      */
     async markAsRead(id) {
         const item = this.notifications.find(n => n.id === id);
-        if (item) {
+
+        // Pinta como lida na hora; o servidor confirma logo em seguida.
+        if (item && !item.is_read) {
             item.is_read = true;
+            this.unreadCount = Math.max(0, this.unreadCount - 1);
             this.renderNotifications();
         }
 
-        /* 
-        // TODO: INTEGRAÇÃO BACK-END (quando GET /api/notifications/list.php estiver ativo)
         try {
-            await fetch("api/notifications/mark_read.php", {
+            const res = await fetch("api/notifications/mark_read.php", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "same-origin",
                 body: JSON.stringify({ notification_id: id })
             });
+            const data = await res.json();
+
+            if (typeof data.unread_count === "number") {
+                this.unreadCount = data.unread_count;
+                this.updateBadge();
+            }
         } catch (e) {
             console.error("Erro ao marcar notificação como lida:", e);
         }
-        */
     }
 
     /**
@@ -208,10 +254,9 @@ class EchoUI {
      */
     async markAllAsRead() {
         this.notifications.forEach(n => n.is_read = true);
+        this.unreadCount = 0;
         this.renderNotifications();
 
-        /*
-        // TODO: INTEGRAÇÃO BACK-END (quando POST /api/notifications/mark_read.php estiver ativo)
         try {
             await fetch("api/notifications/mark_read.php", {
                 method: "POST",
@@ -222,26 +267,37 @@ class EchoUI {
         } catch (e) {
             console.error("Erro ao marcar todas notificações como lidas:", e);
         }
-        */
     }
 
     /**
      * Fetch real notifications from API (TODO: Activate upon backend readiness)
      */
     async fetchNotificationsAPI() {
-        /*
-        // TODO: INTEGRAÇÃO BACK-END (GET /api/notifications/list.php)
         try {
-            const res = await fetch("api/notifications/list.php", { credentials: "same-origin" });
+            const res = await fetch("api/notifications/list.php", {
+                credentials: "same-origin"
+            });
+
+            // Sessao caiu no meio da navegacao: para o polling em vez de
+            // ficar batendo em 401 para sempre.
+            if (res.status === 401) {
+                if (this.notificationTimer) {
+                    clearInterval(this.notificationTimer);
+                    this.notificationTimer = null;
+                }
+                return;
+            }
+
             const data = await res.json();
+
             if (data.ok && Array.isArray(data.notifications)) {
                 this.notifications = data.notifications;
+                this.unreadCount = data.unread_count || 0;
                 this.renderNotifications();
             }
         } catch (e) {
             console.error("Erro ao carregar notificações:", e);
         }
-        */
     }
 
     /**
@@ -331,6 +387,7 @@ class EchoUI {
 
             if (data.authenticated && data.user) {
                 this.currentUser = data.user;
+                this.unreadCount = 0;
                 this.updateUserProfileUI(data.user);
                 return data.user;
             }
@@ -348,6 +405,11 @@ class EchoUI {
      * Performs logout via POST /api/auth/logout.php
      */
     async logout() {
+        if (this.notificationTimer) {
+            clearInterval(this.notificationTimer);
+            this.notificationTimer = null;
+        }
+
         try {
             await fetch("api/auth/logout.php", {
                 method: "POST",
