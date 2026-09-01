@@ -985,3 +985,185 @@ sem token e sem sessão — permitia sequestro de conta. Agora responde
 sempre HTTP 410 com `{ "error": "Rota desativada. Use /api/auth/forgot_password.php e /api/auth/reset_password.php." }`.
 O front não deve chamá-la (hoje nenhuma tela chama). O fluxo válido de
 recuperação de senha é `forgot_password.php` + `reset_password.php`.
+
+## Busca, etiquetas, salvos e menções (01/09/2026)
+
+Rodada de funcionalidades novas. Nenhuma assinatura antiga mudou; o que
+mudou de **formato** está marcado abaixo.
+
+### Mudanças de formato em respostas já existentes
+
+| Onde | Campo novo | Significado |
+|---|---|---|
+| todo objeto de post (`posts/list.php`, `create`, `edit`, `search/all.php`) | `saved_by_me` | `1`/`0` — o post está nos salvos de quem pediu |
+| todo objeto de comentário (`comments/list.php`, `create`, `edit`) | `edited_at` | `null` se nunca editado |
+| todo objeto de comentário | `can_edit` | `true` só para o **autor** (mais estreito que `can_delete`, que inclui o dono do post) |
+| `notifications.type` | valor novo `mention` | alguém citou você com `@handle` |
+
+### Etiquetas (`#tag`)
+
+Publicar ou editar um post indexa as etiquetas do texto em `hashtags` +
+`post_hashtags`. A etiqueta aceita letras (com acento), números, `_` e
+`-`, tem até 64 caracteres, é guardada em minúsculas e **nunca é só
+número** (`#1` não vira etiqueta). Um post indexa no máximo 10.
+
+Editar o post re-sincroniza: etiqueta que saiu do texto é desligada.
+
+**GET /api/posts/list.php** ganhou quatro filtros, além de `limit`,
+`before_id` e `user_id`:
+
+| Parâmetro | Efeito |
+|---|---|
+| `tag` | só posts com aquela etiqueta (aceita `php` ou `#php`) |
+| `saved=1` | só os posts salvos por **quem está na sessão** |
+| `scope=friends` | só os meus posts e os de amigos (amizade `accepted`) — é o feed do Início |
+| `sort=top` | ordena por engajamento na janela de `days` (1 a 90, padrão 7) em vez de por data — é o feed do Explorar |
+
+`sort=top` pontua cada post como `curtidas + 2×comentários +
+2×compartilhamentos`; comentário e compartilhamento pesam mais porque
+custam mais que um clique. Empate desempata pelo post mais novo.
+
+**`sort=top` devolve uma página única:** `before_id` é ignorado e
+`has_more` vem sempre `false`. O cursor é o id do último post, o que só
+diz alguma coisa quando a ordem é por id — com ordem por engajamento, ele
+não descreve posição nenhuma na lista.
+
+`saved=1` nunca aceita dono vindo do cliente: a lista é sempre a de quem
+pediu. A ordem continua sendo `id` DESC (data do post), não a data em que
+foi salvo.
+
+**GET /api/hashtags/trending.php** — as etiquetas mais usadas na janela
+recente. Query opcional: `days` (1 a 90, padrão 7) e `limit` (1 a 20,
+padrão 5).
+```json
+{
+  "ok": true,
+  "days": 7,
+  "hashtags": [
+    { "tag": "php", "post_count": 2, "people_count": 1, "last_post_at": "2026-09-01 13:47:00" }
+  ]
+}
+```
+`post_count` conta posts distintos; `people_count`, autores distintos.
+Ordem: mais posts primeiro; empate desempata pelo post mais recente.
+Erro: `{ "error": "Erro ao carregar tendências." }`.
+
+### Salvos
+
+**POST /api/posts/save.php** — `{ "post_id": int }`. Alterna, como
+`like.php`.
+```json
+{ "ok": true, "saved": true, "saved_total": 3 }
+```
+`saved_total` é quantos posts a pessoa tem salvos. Salvar é **privado**:
+o autor não é notificado e não existe contador público de salvos — por
+isso `saved_by_me` existe no objeto de post, mas `save_count` não.
+Erros: `{ "error": "Dados inválidos." }`,
+`{ "error": "Post não encontrado." }`, `{ "error": "Método inválido." }`,
+`{ "error": "Erro ao salvar post." }`.
+
+Para listar: `GET /api/posts/list.php?saved=1`.
+
+### Busca global
+
+**GET /api/search/all.php?q=texto** — uma chamada, quatro tipos de
+resultado. Query opcional: `limit` (1 a 30, padrão 8) por tipo.
+```json
+{
+  "ok": true,
+  "query": "bruno",
+  "users":    [ { "user_id": 2, "name": "...", "email": "...", "avatar": null, "status": "friends" } ],
+  "posts":    [ { "id": 31, "user_id": 1, "content": "...": "demais campos iguais a posts/list.php" } ],
+  "hashtags": [ { "tag": "php", "post_count": 2 } ],
+  "circles":  [ { "id": 1, "user_id": 1, "name": "...", "description": null, "created_at": "...", "member_count": 2, "is_owner": true } ],
+  "total": 4
+}
+```
+- `users` traz o mesmo `status` de `friends/search.php` (`none`,
+  `pending_sent`, `pending_received`, `friends`), então o front reaproveita
+  os mesmos botões.
+- `posts` vem no formato de `posts/list.php` — dá para desenhar com o
+  mesmo renderizador do feed.
+- `hashtags` casa com o texto da etiqueta; `#php` e `php` procuram a
+  mesma coisa.
+- **`circles` só devolve círculos de que o usuário da sessão
+  participa.** Publicação e perfil são públicos dentro do sistema;
+  círculo não é, e a busca não pode virar um índice dos grupos alheios.
+- `q` vazio devolve as quatro listas vazias — não é erro.
+- `%` e `_` digitados são texto literal, não curinga.
+
+Erro: `{ "error": "Erro ao buscar." }`.
+
+### Menções (`@handle`)
+
+O **handle** é a parte do e-mail antes do `@` — o mesmo que o front já
+mostra ao lado do nome (`alice.teste@echo.local` → `@alice.teste`).
+
+Publicar, editar um post, comentar ou editar um comentário gera
+notificação `mention` para quem foi citado:
+
+| Evento | Tipo | Quem recebe | `reference_id` |
+|---|---|---|---|
+| `@handle` num post ou comentário | `mention` | quem foi citado | id do **post** |
+
+Regras:
+
+- `reference_id` é sempre o **post**, mesmo quando a menção veio num
+  comentário: é para lá que o clique na notificação leva.
+- No máximo 10 menções por texto.
+- Citar a mesma pessoa duas vezes no mesmo post gera **um** aviso; a
+  segunda menção (inclusive numa edição posterior) não repete.
+- **Handle ambíguo não notifica ninguém.** Se duas contas tiverem o mesmo
+  nome antes do `@` (domínios diferentes), a menção é ignorada — é melhor
+  perder o aviso do que avisar a pessoa errada.
+- Ninguém é notificado da própria menção, e falha ao gravar nunca derruba
+  a publicação (mesma regra de `notify()`).
+
+### Comentários
+
+**POST /api/comments/edit.php** — `{ "comment_id": int, "body": string }`
+**Só o autor edita.** O dono do post pode apagar um comentário do seu
+post (`comments/delete.php`), mas não reescrevê-lo: editar a fala de
+outra pessoa mantendo o nome dela embaixo seria pôr palavras na boca de
+alguém.
+Sucesso: `{ "ok": true, "comment": { ... "edited_at": "2026-09-01 13:47:33" } }`
+Erros: `{ "error": "Dados inválidos." }`,
+`{ "error": "O comentário não pode ficar vazio." }`,
+`{ "error": "Comentário é longo demais (máx. 2000 caracteres)." }`,
+`{ "error": "Comentário não encontrado ou não é seu." }` (inclui
+comentário de outra pessoa, mesmo no seu post),
+`{ "error": "Método inválido." }`, `{ "error": "Erro ao editar comentário." }`.
+
+### Sessão versionada e troca de senha
+
+`users.session_version` passa a versionar as sessões. Toda sessão guarda
+a versão que valia no login; `api/auth/db.php` confere a cada requisição
+(`session_validate_version()`), e sessão desatualizada é destruída antes
+de o endpoint agir — daí a resposta ser o 401 padrão, sem rota nova.
+
+Trocar a senha incrementa a coluna, o que **derruba as sessões abertas em
+outros navegadores**. Vale para `reset_password.php` (recuperação por
+e-mail) e para a rota nova abaixo.
+
+**POST /api/auth/change_password.php** —
+`{ "current_password": string, "new_password": string }`
+
+A senha atual é exigida mesmo com a sessão aberta: sessão roubada não
+deve virar conta roubada. Nenhuma das duas passa por `trim()`.
+
+Sucesso — a sessão de quem trocou é reemitida já na versão nova, então
+**quem trocou continua logado ali, e só ali**:
+```json
+{ "ok": true, "message": "Senha alterada. As sessões abertas em outros navegadores foram encerradas." }
+```
+Erros: `{ "error": "Informe a senha atual e a nova senha." }`,
+`{ "error": "Senha atual incorreta." }`,
+`{ "error": "A senha precisa ter pelo menos 8 caracteres." }`,
+`{ "error": "A senha é longa demais (máx. 72 caracteres)." }`,
+`{ "error": "A nova senha precisa ser diferente da atual." }`,
+`{ "error": "Método inválido." }`, `{ "error": "Erro ao alterar a senha." }`.
+
+Nota de implementação: `GET /api/auth/me.php` reconfere a sessão **depois**
+de incluir `db.php`. Sem isso ele responderia 200 com a sessão que a
+própria requisição acabou de invalidar, porque lê o id antes de abrir a
+conexão.

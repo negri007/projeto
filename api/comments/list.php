@@ -33,6 +33,7 @@ try {
                 c.user_id,
                 c.body,
                 c.created_at,
+                c.edited_at,
                 u.name,
                 u.email,
                 u.avatar

@@ -139,15 +139,56 @@ CREATE TABLE IF NOT EXISTS circle_messages (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Hashtags
+-- `hashtags` guarda a etiqueta normalizada (minúscula, sem o `#`) e
+-- `post_hashtags` liga posts a etiquetas. A ligação vive numa tabela
+-- própria, e não num LIKE '%#tag%' sobre `posts.content`, porque o LIKE
+-- com curinga à esquerda não usa índice e casa "#php" dentro de
+-- "#phpstorm".
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS hashtags (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tag VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_tag (tag)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS post_hashtags (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    post_id INT NOT NULL,
+    hashtag_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_post_tag (post_id, hashtag_id),
+    KEY idx_tag_post (hashtag_id, post_id),
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (hashtag_id) REFERENCES hashtags(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- Posts salvos (o marcador de página do feed)
+-- Só o dono lê a própria lista: não existe contador público de salvos.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS post_saves (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    post_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_save (user_id, post_id),
+    KEY idx_saves_user (user_id, id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Notificações
 -- Alimentada pelos endpoints de curtida, comentário, compartilhamento,
--- amizade e mensagem; lida por api/notifications/list.php.
+-- amizade, mensagem e menção; lida por api/notifications/list.php.
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     actor_id INT NOT NULL,
-    type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message') NOT NULL,
+    type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention') NOT NULL,
     reference_id INT DEFAULT NULL,
     is_read TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -285,6 +326,20 @@ CALL echo_add_column_if_missing('messages', 'read_at', 'TIMESTAMP NULL DEFAULT N
 -- mostra o selo "editado" quando vier preenchido.
 CALL echo_add_column_if_missing('posts', 'edited_at', 'TIMESTAMP NULL DEFAULT NULL AFTER created_at');
 
+-- Edição de comentário (api/comments/edit.php). Mesma semântica do
+-- `edited_at` do post.
+CALL echo_add_column_if_missing('comments', 'edited_at', 'TIMESTAMP NULL DEFAULT NULL AFTER created_at');
+
+-- Versão da sessão (api/auth/session.php). Toda sessão carrega a versão
+-- que valia no login; trocar a senha incrementa a coluna e derruba as
+-- sessões antigas, inclusive as abertas em outros navegadores.
+CALL echo_add_column_if_missing('users', 'session_version', 'INT NOT NULL DEFAULT 1 AFTER avatar');
+
+-- Notificação de menção (@fulano). O tipo é um ENUM, então o valor novo
+-- entra por MODIFY — reexecutar é inofensivo, a definição é a mesma.
+ALTER TABLE notifications
+    MODIFY COLUMN type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention') NOT NULL;
+
 -- =====================================================================
 -- Índices das consultas mais quentes. Sem eles, o feed e o chat fazem
 -- varredura de tabela assim que o volume cresce.
@@ -308,6 +363,10 @@ CALL echo_add_index_if_missing('friends', 'idx_friends_friend', 'friend_id, stat
 
 -- Chat de círculo em ordem cronológica.
 CALL echo_add_index_if_missing('circle_messages', 'idx_circle_msg', 'circle_id, id');
+
+-- Tendências: as etiquetas dos últimos dias, contadas por post.
+CALL echo_add_index_if_missing('post_hashtags', 'idx_tag_post', 'hashtag_id, post_id');
+CALL echo_add_index_if_missing('post_saves', 'idx_saves_user', 'user_id, id');
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;

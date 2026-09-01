@@ -48,7 +48,7 @@ try {
     // Devolve o comentário já montado para o front renderizar sem
     // precisar recarregar a lista inteira.
     $stmt = $pdo->prepare(
-        "SELECT c.id, c.post_id, c.user_id, c.body, c.created_at,
+        "SELECT c.id, c.post_id, c.user_id, c.body, c.created_at, c.edited_at,
                 u.name, u.email, u.avatar
          FROM comments c
          JOIN users u ON u.id = c.user_id
@@ -64,6 +64,11 @@ try {
     // `reference_id` é o post, não o comentário: o front navega
     // para o post ao clicar na notificação.
     notify($pdo, (int)$post['user_id'], $userId, 'comment', $post_id);
+
+    // Menção no comentário avisa quem foi citado, mesmo que a pessoa não
+    // tenha relação nenhuma com o post. `reference_id` continua sendo o
+    // post: é para lá que o clique na notificação leva.
+    notify_mentions($pdo, $body, $userId, $post_id);
 
     echo json_encode(['ok' => true, 'comment' => $comment]);
 

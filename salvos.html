@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECHO - Salvos</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/echo.css" rel="stylesheet">
+</head>
+<body>
+<div class="container-fluid layout">
+    <div class="row">
+        <!-- SIDEBAR -->
+        <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
+            <div class="logo d-flex align-items-center gap-2">
+                <div class="logo-mark">
+                    <i class="fa-solid fa-hashtag"></i>
+                </div>
+                <span class="logo-text">ECHO</span>
+            </div>
+
+            <nav class="nav flex-column mb-3">
+                <a class="nav-link" href="explorar.html">
+                    <i class="fa-solid fa-magnifying-glass"></i><span>Explorar</span>
+                </a>
+                <a class="nav-link" href="inicio.html">
+                    <i class="fa-solid fa-house"></i><span>Início</span>
+                </a>
+                <a class="nav-link" href="perfil.html">
+                    <i class="fa-solid fa-user"></i><span>Perfil</span>
+                </a>
+                <a class="nav-link active" href="salvos.html">
+                    <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
+                </a>
+                <a class="nav-link" href="circulos.html">
+                    <i class="fa-regular fa-circle"></i><span>Círculos</span>
+                </a>
+                <a class="nav-link" href="amigos.html">
+                    <i class="fa-solid fa-user-group"></i><span>Amigos</span>
+                </a>
+                <a class="nav-link" href="chat.html">
+                    <i class="fa-solid fa-comments"></i><span>Mensagens</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-profile d-flex align-items-center gap-2">
+                <div class="prof-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="prof-info flex-grow-1">
+                    <div class="prof-name" id="sidebarName">Usuário</div>
+                    <div class="prof-handle" id="sidebarHandle">@usuario</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()" title="Sair">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- LISTA DE SALVOS -->
+        <main class="col-lg-7 col-md-9 main-col">
+            <div class="main-header">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <span class="main-header-title">Salvos</span>
+                    <span class="badge bg-secondary-subtle text-light border border-secondary badge-pill">só você vê</span>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <div class="search-box d-none d-sm-block">
+                        <input type="text" class="form-control form-control-sm" placeholder="Buscar no ECHO">
+                    </div>
+                    <div id="notificationBellContainer"></div>
+                </div>
+            </div>
+
+            <div id="feedContainer"></div>
+        </main>
+
+        <!-- COLUNA DIREITA -->
+        <aside class="col-lg-3 d-none d-lg-block right-col">
+            <div class="right-card">
+                <h5>Sobre os salvos</h5>
+                <small class="text-secondary">
+                    Salvar é um gesto privado: o autor não é avisado e não existe
+                    contador público de salvos. Toque no marcador
+                    <i class="fa-solid fa-bookmark text-warning"></i> de novo para tirar da lista.
+                </small>
+            </div>
+
+            <div class="right-card">
+                <h5>Assuntos em alta</h5>
+                <div id="trendingCard">
+                    <p class="text-secondary mb-0 small">Carregando tendências...</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/echo-ui.js"></script>
+<script src="js/echo-feed.js"></script>
+
+<script>
+let currentUser = null;
+let feed = null;
+
+document.addEventListener("DOMContentLoaded", async function () {
+    currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
+    if (!currentUser) return;
+
+    document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
+    EchoUIInstance.initHeader('salvos');
+    EchoUIInstance.renderTrending();
+
+    // `saved=1` é o único filtro da lista: o servidor devolve sempre os
+    // salvos de quem está na sessão, nunca de um dono vindo da URL.
+    feed = EchoFeed.create({
+        container: "feedContainer",
+        params: { limit: 10, saved: 1 },
+        emptyText: "Você ainda não salvou nenhuma publicação. Toque no marcador de uma publicação para guardá-la aqui.",
+        onChange: () => {
+            // Esvaziou a lista tirando o último salvo: mostra o texto de
+            // lista vazia em vez de uma tela em branco.
+            if (!document.querySelector("#feedContainer .post")) feed.load();
+        }
+    });
+    feed.load();
+});
+
+function logout() {
+    EchoUIInstance.logout();
+}
+</script>
+</body>
+</html>

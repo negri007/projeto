@@ -13,6 +13,15 @@ if ($userId === null) {
 
 require __DIR__ . "/db.php";
 
+// db.php confere a versão da sessão e pode tê-la derrubado no caminho
+// (senha trocada em outro lugar). Reler aqui é o que faz esta rota
+// responder 401 em vez de confirmar uma sessão que já não vale.
+if (current_user_id() === null) {
+    http_response_code(401);
+    echo json_encode(["authenticated" => false]);
+    exit;
+}
+
 try {
     $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE id = ?");
     $stmt->execute([$userId]);

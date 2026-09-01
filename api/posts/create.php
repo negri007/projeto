@@ -3,6 +3,7 @@ header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/../notifications/helpers.php";
 require_once __DIR__ . "/helpers.php";
 
 $userId = require_login();
@@ -45,11 +46,18 @@ try {
     );
     $stmt->execute([$userId, $content, $imageName]);
 
+    $postId = (int)$pdo->lastInsertId();
+
+    // Etiquetas e menções são efeitos do texto, não parte da gravação do
+    // post: falha em qualquer uma delas não desfaz a publicação.
+    posts_sync_hashtags($pdo, $postId, $content);
+    notify_mentions($pdo, $content, $userId, $postId);
+
     // Devolve o post pronto para o front inserir no topo do feed sem
     // recarregar a lista inteira.
     echo json_encode([
         "ok"   => true,
-        "post" => posts_load($pdo, (int)$pdo->lastInsertId(), $userId),
+        "post" => posts_load($pdo, $postId, $userId),
     ]);
 
 } catch (Exception $e) {

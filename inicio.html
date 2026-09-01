@@ -31,6 +31,9 @@
                 <a class="nav-link" href="perfil.html">
                     <i class="fa-solid fa-user"></i><span>Perfil</span>
                 </a>
+                <a class="nav-link" href="salvos.html">
+                    <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
+                </a>
                 <a class="nav-link" href="circulos.html">
                     <i class="fa-regular fa-circle"></i><span>Círculos</span>
                 </a>
@@ -65,7 +68,7 @@
                         <i class="fa-solid fa-bars"></i>
                     </button>
                     <span class="main-header-title">Início</span>
-                    <span class="badge bg-secondary-subtle text-light border border-secondary badge-pill">Geral</span>
+                    <span class="badge bg-secondary-subtle text-light border border-secondary badge-pill" id="badgeEscopo">Amigos</span>
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
@@ -83,7 +86,7 @@
                     <i class="fa-solid fa-user"></i>
                 </div>
                 <div class="flex-grow-1">
-                    <textarea id="postText" placeholder="O que está acontecendo?"></textarea>
+                    <textarea id="postText" placeholder="O que está acontecendo? Use #etiqueta e @pessoa"></textarea>
 
                     <div class="image-preview" id="imagePreview"></div>
 
@@ -92,8 +95,8 @@
                             <button class="icon-btn" type="button" onclick="document.getElementById('imageInput').click()" title="Adicionar Imagem">
                                 <i class="fa-regular fa-image"></i>
                             </button>
-                            <button class="icon-btn" type="button" title="Emoji">
-                                <i class="fa-regular fa-face-smile"></i>
+                            <button class="icon-btn" type="button" title="Citar alguém" onclick="inserirArroba()">
+                                <i class="fa-solid fa-at"></i>
                             </button>
                         </div>
                         <button class="btn btn-primary rounded-pill px-4 py-1" id="btnPostar" onclick="createPost()">Postar</button>
@@ -103,6 +106,18 @@
                 </div>
             </div>
 
+            <!-- Alternador do feed: a sua roda por padrão, a rede inteira
+                 a um toque. O Explorar não repete nenhum dos dois: lá a
+                 ordem é por engajamento, não por data. -->
+            <div class="echo-switch">
+                <button type="button" id="btnEscopoAmigos" class="active" onclick="trocarEscopo('friends')">
+                    <i class="fa-solid fa-user-group me-1"></i>Amigos
+                </button>
+                <button type="button" id="btnEscopoTodos" onclick="trocarEscopo('all')">
+                    <i class="fa-solid fa-globe me-1"></i>Todos
+                </button>
+            </div>
+
             <!-- Feed Container -->
             <div id="feedContainer"></div>
         </main>
@@ -110,24 +125,18 @@
         <!-- COLUNA DIREITA -->
         <aside class="col-lg-3 d-none d-lg-block right-col">
             <div class="right-card">
-                <h5>Tendências para você</h5>
-                <p class="mb-1 text-secondary">Assunto do momento • Programação</p>
-                <p class="mb-2">#PHP</p>
-
-                <p class="mb-1 text-secondary">Assunto do momento • Mundo</p>
-                <p class="mb-2">#Linux</p>
-
-                <p class="mb-1 text-secondary">Assunto do momento • Tecnologia</p>
-                <p class="mb-0">#IA</p>
+                <h5>Assuntos em alta</h5>
+                <!-- Preenchido por EchoUIInstance.renderTrending() com as
+                     etiquetas reais dos últimos 7 dias. -->
+                <div id="trendingCard">
+                    <p class="text-secondary mb-0 small">Carregando tendências...</p>
+                </div>
             </div>
 
             <div class="right-card">
-                <h5>Talvez você curta</h5>
-                <small class="text-secondary">Sugestões de perfis</small>
-                <div class="mt-2">
-                    <p class="mb-1">Ana Clara • <span class="text-info">@ana</span></p>
-                    <p class="mb-1">João Pedro • <span class="text-info">@jp</span></p>
-                    <p class="mb-0">Dev Nerd • <span class="text-info">@dev</span></p>
+                <h5>Seus círculos</h5>
+                <div id="circlesCard">
+                    <p class="text-secondary mb-0 small">Carregando círculos...</p>
                 </div>
             </div>
         </aside>
@@ -136,11 +145,12 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/echo-ui.js"></script>
+<script src="js/echo-feed.js"></script>
 
 <script>
 let currentUser = null;
-let userEmail = "";
 let selectedImageFile = null;
+let feed = null;
 
 const imageInput   = document.getElementById("imageInput");
 const imagePreview = document.getElementById("imagePreview");
@@ -150,13 +160,22 @@ document.addEventListener("DOMContentLoaded", async function () {
     currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
     if (!currentUser) return;
 
-    userEmail = currentUser.email;
-
-    // Inicializa Header (Sino de Notificações + Mobile Offcanvas Sidebar)
+    // Inicializa Header (Sino + Mobile Offcanvas + Busca global)
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
     EchoUIInstance.initHeader('inicio');
 
-    loadPosts();
+    // O feed inteiro (lista, ações, comentários) vem de js/echo-feed.js:
+    // é o mesmo componente de explorar, perfil e salvos.
+    feed = EchoFeed.create({
+        container: "feedContainer",
+        params: { limit: 10, scope: "friends" },
+        emptyText: textoVazio("friends")
+    });
+    feed.load();
+
+    EchoUIInstance.attachMentionAutocomplete(document.getElementById("postText"));
+    EchoUIInstance.renderTrending();
+    EchoUIInstance.renderMyCircles();
 });
 
 imageInput.addEventListener("change", function () {
@@ -175,232 +194,42 @@ function logout() {
     EchoUIInstance.logout();
 }
 
-async function deletePost(postId) {
-    if (!await EchoUIInstance.confirm({
-        title: "Apagar publicação",
-        message: "Esta publicação, seus comentários e suas curtidas serão apagados. Não dá para desfazer.",
-        confirmText: "Apagar",
-        danger: true
-    })) return;
-
-    const res = await fetch("api/posts/delete.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId
-        })
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
-        return;
-    }
-
-    loadPosts();
-}
-
-async function toggleLike(postId) {
-    const res = await fetch("api/posts/like.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId
-        })
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
-        return;
-    }
-
-    loadPosts();
-}
-
-async function sharePost(postId) {
-    const res = await fetch("api/posts/share.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId
-        })
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
-        return;
-    }
-
-    loadPosts();
-}
-
-// Carregar posts com Skeleton loader
 /**
- * Veio de uma notificacao (`?post=ID`): rola ate o post e pisca nele.
- * Roda so uma vez — o parametro sai da URL depois, para F5 nao repetir.
+ * Alterna entre a sua roda (você + amigos) e a rede inteira.
+ *
+ * O padrão é "Amigos" porque é isso que separa o Início do Explorar: um
+ * é o que a sua roda escreveu, em ordem de tempo; o outro é o que a rede
+ * achou interessante, em ordem de engajamento.
  */
-function destacarPostDaURL() {
-    const alvo = Number(new URLSearchParams(window.location.search).get("post"));
-    if (!alvo) return;
+let escopoAtual = "friends";
 
-    const el = document.getElementById("post-" + alvo);
-    if (!el) return;
+function trocarEscopo(escopo) {
+    if (escopo === escopoAtual) return;
 
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.classList.add("destacado");
-    history.replaceState(null, "", "inicio.html");
+    escopoAtual = escopo;
+
+    document.getElementById("btnEscopoAmigos").classList.toggle("active", escopo === "friends");
+    document.getElementById("btnEscopoTodos").classList.toggle("active", escopo === "all");
+    document.getElementById("badgeEscopo").textContent = escopo === "friends" ? "Amigos" : "Todos";
+
+    feed.emptyText = textoVazio(escopo);
+    // `scope` só vai na requisição no modo amigos; sem ele, o servidor
+    // devolve o feed inteiro.
+    feed.setParams(escopo === "friends" ? { limit: 10, scope: "friends" } : { limit: 10 });
 }
 
-// Cursor da paginacao: id do post mais antigo ja na tela.
-let proximoCursor = null;
-let carregandoMais = false;
+function textoVazio(escopo) {
+    return escopo === "friends"
+        ? "Sua roda está quieta. Publique algo, ou use o Explorar para achar gente nova."
+        : "Ninguém publicou nada ainda. Seja o primeiro!";
+}
 
-/**
- * Carrega o feed. Sem argumento, comeca do topo; com `append`, anexa a
- * proxima pagina ao que ja esta na tela.
- */
-async function loadPosts({ append = false } = {}) {
-    const feed = document.getElementById("feedContainer");
-
-    if (!append) {
-        feed.innerHTML = EchoUIInstance.getFeedSkeletonHTML(3);
-        proximoCursor = null;
-    }
-
-    if (carregandoMais) return;
-    carregandoMais = true;
-
-    try {
-        const url = "api/posts/list.php?limit=10"
-                  + (append && proximoCursor ? "&before_id=" + proximoCursor : "");
-
-        const res = await fetch(url, { credentials: "same-origin" });
-        const data = await res.json();
-
-        // O botao da pagina anterior sai antes de qualquer coisa nova entrar.
-        document.getElementById("btnCarregarMais")?.remove();
-
-        if (!append) feed.innerHTML = "";
-
-        if (!data.ok || !data.posts) {
-            feed.innerHTML = "<p class='text-center text-secondary p-4'>Nenhuma publicação encontrada.</p>";
-            return;
-        }
-
-        if (data.posts.length === 0 && !append) {
-            feed.innerHTML = "<p class='text-center text-secondary p-4'>O feed está silencioso. Seja o primeiro a publicar!</p>";
-            return;
-        }
-
-        proximoCursor = data.next_before_id;
-
-        data.posts.forEach(p => {
-            const handle = p.email ? p.email.split("@")[0] : "usuario";
-            const isYou = Boolean(p.is_my_post || (currentUser && Number(p.user_id) === Number(currentUser.id)));
-
-            const likeCount  = Number(p.like_count ?? 0);
-            const shareCount = Number(p.share_count ?? 0);
-            const likedByMe  = Number(p.liked_by_me ?? 0) > 0;
-
-            feed.innerHTML += `
-                <div class="post" id="post-${p.id}">
-                    ${EchoUIInstance.avatarHTML(p, "md", true)}
-                    <div class="post-body">
-                        <div class="post-header">
-                            ${EchoUIInstance.authorLinkHTML(p, "post-name")}
-                            <span class="post-handle">@${EchoUIInstance.escapeHTML(handle)}</span>
-                            ${isYou ? `<span class="badge bg-secondary-subtle text-light">você</span>` : ""}
-                            <span class="post-time" title="${p.created_at}"> · ${EchoUIInstance.formatTime(p.created_at)}</span>
-                            ${p.edited_at ? `<span class="post-edited" title="Editado em ${p.edited_at}">· editado</span>` : ""}
-                        </div>
-                        <div class="post-content" id="post-content-${p.id}">
-                            ${EchoUIInstance.escapeHTML(p.content ?? "")}
-                        </div>
-                        ${p.image ? `<img class="post-image" src="uploads/${p.image}" alt="">` : ""}
-
-                        <div class="post-actions">
-                            <button class="icon-btn" type="button" onclick="toggleComments(${p.id})">
-                                <i class="fa-regular fa-comment"></i><span>${p.comment_count || 0}</span>
-                            </button>
-
-                            <button class="icon-btn" type="button" onclick="sharePost(${p.id})">
-                                <i class="fa-solid fa-retweet"></i><span>${shareCount}</span>
-                            </button>
-
-                            <button class="icon-btn ${likedByMe ? 'liked' : ''}" type="button" onclick="toggleLike(${p.id})">
-                                <i class="${likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-                                <span>${likeCount}</span>
-                            </button>
-
-                            <button class="icon-btn" type="button">
-                                <i class="fa-regular fa-bookmark"></i>
-                            </button>
-
-                            ${
-                                isYou
-                                    ? `<button class="icon-btn" type="button" title="Editar"
-                                               onclick="EchoUIInstance.editPost(${p.id}, loadPosts)">
-                                           <i class="fa-solid fa-pen"></i>
-                                       </button>
-                                       <button class="icon-btn" type="button" title="Apagar"
-                                               onclick="deletePost(${p.id})">
-                                           <i class="fa-solid fa-trash"></i>
-                                       </button>`
-                                    : ""
-                            }
-                        </div>
-
-                        <div class="mt-2" id="comments-box-${p.id}" style="display:none;">
-                            <div id="comment-list-${p.id}" class="mb-2 border-start border-secondary ps-2"></div>
-                            <div class="d-flex gap-2">
-                                <input 
-                                    type="text" 
-                                    class="form-control form-control-sm" 
-                                    id="comment-input-${p.id}" 
-                                    placeholder="Escreva um comentário..."
-                                >
-                                <button class="btn btn-sm btn-primary rounded-pill px-3" type="button" onclick="sendComment(${p.id})">
-                                    Comentar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        destacarPostDaURL();
-
-        // Botao de proxima pagina, so quando o servidor diz que ha mais.
-        if (data.has_more) {
-            const btn = document.createElement("button");
-            btn.className = "echo-load-more";
-            btn.id = "btnCarregarMais";
-            btn.type = "button";
-            btn.textContent = "Carregar mais publicações";
-            btn.onclick = () => {
-                btn.disabled = true;
-                btn.textContent = "Carregando...";
-                loadPosts({ append: true });
-            };
-            feed.appendChild(btn);
-        }
-    } catch(e) {
-        if (append) {
-            EchoUIInstance.toastError("Erro ao carregar mais publicações.");
-        } else {
-            feed.innerHTML = "<p class='text-center text-danger p-4'><i class='fa-solid fa-circle-exclamation me-2'></i>Erro ao carregar os posts.</p>";
-        }
-    } finally {
-        carregandoMais = false;
-    }
+/** Atalho do botão "@": abre o autocomplete sem precisar digitar. */
+function inserirArroba() {
+    const campo = document.getElementById("postText");
+    campo.focus();
+    campo.setRangeText("@", campo.selectionStart, campo.selectionEnd, "end");
+    campo.dispatchEvent(new Event("input"));
 }
 
 async function createPost() {
@@ -446,7 +275,9 @@ async function createPost() {
         imagePreview.innerHTML = "";
 
         EchoUIInstance.toastSuccess("Publicado!");
-        loadPosts();
+        feed.load();
+        // Etiqueta nova no post muda a tendência do momento.
+        EchoUIInstance.renderTrending();
     } catch (e) {
         EchoUIInstance.toastError("Erro de conexão ao publicar.");
     } finally {
@@ -454,158 +285,6 @@ async function createPost() {
             btn.disabled = false;
             btn.innerHTML = rotulo;
         }
-    }
-}
-
-async function toggleComments(postId) {
-    const box = document.getElementById("comments-box-" + postId);
-    if (!box) return;
-
-    const isHidden = box.style.display === "none" || box.style.display === "";
-    if (isHidden) {
-        box.style.display = "block";
-        await loadComments(postId);
-    } else {
-        box.style.display = "none";
-    }
-}
-
-/**
- * Apaga um comentario. O servidor decide quem pode: o autor ou o dono do
- * post. O front so mostra o botao quando `can_delete` vier true.
- */
-async function deleteComment(commentId, postId) {
-    if (!await EchoUIInstance.confirm({
-        title: "Apagar comentário",
-        message: "O comentário some para todo mundo. Não dá para desfazer.",
-        confirmText: "Apagar",
-        danger: true
-    })) return;
-
-    try {
-        const res = await fetch("api/comments/delete.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ comment_id: commentId })
-        });
-        const data = await res.json();
-
-        if (EchoUIInstance.showApiError(data)) return;
-
-        EchoUIInstance.toastSuccess("Comentário apagado.");
-        loadComments(postId);
-        loadPosts();
-    } catch (e) {
-        EchoUIInstance.toastError("Erro ao apagar comentário.");
-    }
-}
-
-async function loadComments(postId) {
-    const listEl = document.getElementById("comment-list-" + postId);
-    if (!listEl) return;
-
-    listEl.innerHTML = "<small class='text-secondary'><span class='spinner-echo me-1' style='width:12px;height:12px;border-width:2px;'></span>Carregando comentários...</small>";
-
-    try {
-        const res = await fetch("api/comments/list.php?post_id=" + postId, {
-            credentials: "same-origin"
-        });
-        const data = await res.json();
-
-        if (data.error) {
-            listEl.innerHTML = "<small style='color:#f66;'>" + EchoUIInstance.escapeHTML(data.error) + "</small>";
-            return;
-        }
-
-        const comments = data.comments || (Array.isArray(data) ? data : []);
-
-        if (!comments.length) {
-            listEl.innerHTML = "<small class='text-secondary'>Seja o primeiro a comentar.</small>";
-            return;
-        }
-
-        listEl.innerHTML = "";
-        comments.forEach(c => {
-            const handle = c.email ? c.email.split('@')[0] : (c.name || 'usuario');
-            const d = document.createElement("div");
-            d.className = "d-flex gap-2 mb-2";
-            // `can_delete` vem do servidor: autor do comentario ou dono
-            // do post. Nao e conta que o front deva refazer.
-            d.innerHTML = `
-                ${EchoUIInstance.avatarHTML(c, "sm", true)}
-                <div class="flex-grow-1 min-width-0">
-                    <div class="d-flex align-items-center gap-1">
-                        ${EchoUIInstance.authorLinkHTML(c, "small fw-bold")}
-                        <span class="text-secondary small">@${EchoUIInstance.escapeHTML(handle)}</span>
-                        <span class="text-secondary small">· ${EchoUIInstance.formatTime(c.created_at)}</span>
-                        ${c.can_delete ? `
-                        <button class="btn btn-link btn-sm p-0 ms-auto text-secondary"
-                                type="button" title="Apagar comentário"
-                                onclick="deleteComment(${c.id}, ${postId})">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>` : ""}
-                    </div>
-                    <div class="small text-light">${EchoUIInstance.escapeHTML(c.body)}</div>
-                </div>
-            `;
-            listEl.appendChild(d);
-        });
-    } catch (e) {
-        listEl.innerHTML = "<small style='color:#f66;'>Erro ao carregar comentários.</small>";
-    }
-}
-
-async function sendComment(postId) {
-    const input = document.getElementById("comment-input-" + postId);
-    if (!input) return;
-
-    const body = input.value.trim();
-    if (!body) {
-        EchoUIInstance.toastError("Digite um comentário.");
-        return;
-    }
-
-    const res = await fetch("api/comments/create.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId,
-            body: body
-        })
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
-        return;
-    }
-
-    input.value = "";
-
-    if (data.ok && data.comment) {
-        const listEl = document.getElementById("comment-list-" + postId);
-        if (listEl) {
-            if (listEl.querySelector(".text-secondary") || listEl.querySelector("[style*='color:#f66']")) {
-                listEl.innerHTML = "";
-            }
-            const c = data.comment;
-            const handle = c.email ? c.email.split('@')[0] : (c.name || 'usuario');
-            const d = document.createElement("div");
-            d.className = "mb-2";
-            d.innerHTML = `
-                <div class="d-flex align-items-center gap-1">
-                    <strong class="small">${EchoUIInstance.escapeHTML(c.name || handle)}</strong>
-                    <span class="text-secondary small">@${EchoUIInstance.escapeHTML(handle)}</span>
-                </div>
-                <div class="small text-light">${EchoUIInstance.escapeHTML(c.body)}</div>
-            `;
-            listEl.appendChild(d);
-        }
-    } else {
-        await loadComments(postId);
     }
 }
 </script>

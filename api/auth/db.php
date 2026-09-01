@@ -20,3 +20,11 @@ try {
     ]);
     exit;
 }
+
+// Sessão de senha antiga morre aqui, antes de qualquer endpoint agir.
+// Fica neste arquivo, e não em cada endpoint, porque todo endpoint que
+// toca o banco já inclui este — uma linha esquecida numa rota nova seria
+// uma rota que aceita sessão revogada.
+if (function_exists("session_validate_version")) {
+    session_validate_version($pdo);
+}

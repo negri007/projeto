@@ -61,12 +61,68 @@ function require_login(): int
 /**
  * Grava a identidade do usuário na sessão (usado pelo login).
  * Regenera o id de sessão para evitar fixação de sessão.
+ *
+ * `$sessionVersion` é a versão que valia no momento do login (coluna
+ * `users.session_version`). Ver session_validate_version().
  */
-function start_user_session(int $userId, string $userName): void
+function start_user_session(int $userId, string $userName, int $sessionVersion = 1): void
 {
     session_regenerate_id(true);
-    $_SESSION["user_id"]   = $userId;
-    $_SESSION["user_name"] = $userName;
+    $_SESSION["user_id"]         = $userId;
+    $_SESSION["user_name"]       = $userName;
+    $_SESSION["session_version"] = $sessionVersion;
+}
+
+/**
+ * Derruba a sessão quando ela ficou para trás da versão gravada no
+ * banco.
+ *
+ * Trocar a senha incrementa `users.session_version`; as sessões abertas
+ * em outros navegadores continuam existindo no disco, mas carregam a
+ * versão antiga e morrem na primeira requisição que fizerem. É o que
+ * torna "trocar a senha" um gesto que expulsa quem estava logado com a
+ * senha velha.
+ *
+ * É chamada por `api/auth/db.php`, logo depois de abrir a conexão, para
+ * valer em todo endpoint sem precisar de uma linha em cada um.
+ *
+ * Falha na consulta (banco fora do ar, coluna ainda não migrada) não
+ * derruba ninguém: a sessão segue como estava e o erro vai para o log.
+ */
+function session_validate_version(PDO $pdo): void
+{
+    $userId = current_user_id();
+
+    if ($userId === null) {
+        return;
+    }
+
+    try {
+        $stmt = $pdo->prepare("SELECT session_version FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {
+        error_log("session_validate_version(): " . $e->getMessage());
+        return;
+    }
+
+    // Usuário apagado: quem trata é o me.php, que sabe responder 401.
+    if (!$row) {
+        return;
+    }
+
+    $versaoAtual = (int)$row["session_version"];
+
+    // Sessão aberta antes desta coluna existir: adota a versão atual em
+    // vez de expulsar todo mundo que estava logado na hora do deploy.
+    if (!isset($_SESSION["session_version"])) {
+        $_SESSION["session_version"] = $versaoAtual;
+        return;
+    }
+
+    if ((int)$_SESSION["session_version"] !== $versaoAtual) {
+        destroy_user_session();
+    }
 }
 
 /**

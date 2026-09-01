@@ -3,6 +3,7 @@ header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/../notifications/helpers.php";
 require_once __DIR__ . "/helpers.php";
 
 $userId = require_login();
@@ -47,6 +48,14 @@ try {
 
     $stmt = $pdo->prepare("UPDATE posts SET content = ?, edited_at = NOW() WHERE id = ?");
     $stmt->execute([$content, $postId]);
+
+    // O texto novo manda nas etiquetas: as que saíram na edição são
+    // desligadas, as que entraram passam a valer para a tendência.
+    posts_sync_hashtags($pdo, $postId, $content);
+
+    // Quem foi citado só agora recebe o aviso; quem já tinha sido citado
+    // neste post não recebe de novo (notify_mentions não repete).
+    notify_mentions($pdo, $content, $userId, $postId);
 
     echo json_encode(["ok" => true, "post" => posts_load($pdo, $postId, $userId)]);
 

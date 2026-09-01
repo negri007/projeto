@@ -92,6 +92,9 @@
                 <a class="nav-link active" href="perfil.html">
                     <i class="fa-solid fa-user"></i><span>Perfil</span>
                 </a>
+                <a class="nav-link" href="salvos.html">
+                    <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
+                </a>
                 <a class="nav-link" href="circulos.html">
                     <i class="fa-regular fa-circle"></i><span>Círculos</span>
                 </a>
@@ -129,7 +132,13 @@
                     </div>
 
                     <div class="d-flex align-items-center gap-2">
+                        <div class="search-box d-none d-lg-block">
+                            <input type="text" class="form-control form-control-sm" placeholder="Buscar no ECHO">
+                        </div>
                         <div id="notificationBellContainer"></div>
+                        <button class="btn btn-outline-light btn-edit-profile" id="btnSecurity" data-bs-toggle="modal" data-bs-target="#changePasswordModal" title="Trocar senha">
+                            <i class="fa-solid fa-key"></i>
+                        </button>
                         <button class="btn btn-outline-light btn-edit-profile" id="btnEditProfile" data-bs-toggle="modal" data-bs-target="#editProfileModal">
                             <i class="fa-solid fa-pen me-1"></i> Editar
                         </button>
@@ -179,7 +188,9 @@
             <div class="right-card">
                 <h5>Dica</h5>
                 <small class="text-secondary">
-                    Use a aba <strong>Explorar</strong> para publicar, curtir e acompanhar o feed geral.
+                    Publique no <strong>Início</strong>. Use <strong>Explorar</strong> para procurar
+                    pessoas, publicações e <strong>#etiquetas</strong>, e o marcador
+                    <i class="fa-regular fa-bookmark"></i> para guardar um post em <strong>Salvos</strong>.
                 </small>
             </div>
         </aside>
@@ -218,8 +229,47 @@
   </div>
 </div>
 
+<!-- MODAL TROCAR SENHA -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background: var(--bg-card); border: 1px solid var(--border-soft);">
+      <div class="modal-header border-bottom border-secondary">
+        <h5 class="modal-title">Trocar senha</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+            <label class="form-label">Senha atual</label>
+            <input type="password" id="senhaAtual" class="form-control" autocomplete="current-password">
+        </div>
+        <div class="mb-2">
+            <label class="form-label">Nova senha</label>
+            <input type="password" id="senhaNova" class="form-control" autocomplete="new-password">
+            <small class="text-secondary">De 8 a 72 caracteres.</small>
+        </div>
+        <div class="mb-1">
+            <label class="form-label">Repita a nova senha</label>
+            <input type="password" id="senhaNova2" class="form-control" autocomplete="new-password">
+        </div>
+        <small class="text-secondary d-block mt-3">
+            <i class="fa-solid fa-circle-info me-1"></i>
+            Trocar a senha encerra as sessões abertas em outros navegadores.
+            Você continua conectado aqui.
+        </small>
+      </div>
+
+      <div class="modal-footer border-top border-secondary">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" id="btnTrocarSenha" onclick="trocarSenha()">Trocar senha</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/echo-ui.js"></script>
+<script src="js/echo-feed.js"></script>
 
 <script>
 let currentUser = null;
@@ -229,6 +279,7 @@ let currentUser = null;
 const perfilParams = new URLSearchParams(window.location.search);
 const perfilUserId = Number(perfilParams.get("user_id")) || null;
 let perfilEhMeu = true;
+let feedPerfil = null;
 
 document.addEventListener("DOMContentLoaded", async function () {
     // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
@@ -310,6 +361,11 @@ function aplicarModoDoPerfil(user) {
 
     const btnEditar = document.getElementById("btnEditProfile");
     if (btnEditar) btnEditar.style.display = perfilEhMeu ? "" : "none";
+
+    // Trocar senha é coisa da própria conta: no perfil dos outros o botão
+    // não existe (e o endpoint também só mexe no usuário da sessão).
+    const btnSenha = document.getElementById("btnSecurity");
+    if (btnSenha) btnSenha.style.display = perfilEhMeu ? "" : "none";
 
     const resumo = document.getElementById("perfilResumoTexto");
     if (resumo) {
@@ -395,156 +451,76 @@ async function saveProfile() {
     }
 }
 
-async function deletePost(postId) {
-    if (!await EchoUIInstance.confirm({
-        title: "Apagar publicação",
-        message: "Esta publicação, seus comentários e suas curtidas serão apagados. Não dá para desfazer.",
-        confirmText: "Apagar",
-        danger: true
-    })) return;
+/* O feed do perfil é o mesmo componente das outras telas
+   (js/echo-feed.js): curtir, salvar, comentar e apagar vêm de lá. Antes
+   esta tela tinha a própria cópia do post e a própria cópia das ações. */
+function loadMyPosts() {
+    const autorId = perfilUserId || (currentUser ? currentUser.id : 0);
 
-    const res = await fetch("api/posts/delete.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId
-        })
-    });
+    if (!feedPerfil) {
+        feedPerfil = EchoFeed.create({
+            container: "myPostsContainer",
+            params: { limit: 10, user_id: autorId },
+            emptyText: perfilEhMeu
+                ? "Você ainda não fez publicações."
+                : "Esta pessoa ainda não publicou nada.",
+            // Apagar um post muda as estatísticas do cabeçalho.
+            onChange: () => loadProfileData()
+        });
+    }
 
-    const data = await res.json();
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
+    feedPerfil.setParams({ limit: 10, user_id: autorId });
+}
+
+/* ======================================================================
+   TROCA DE SENHA
+   ====================================================================== */
+async function trocarSenha() {
+    const atual = document.getElementById("senhaAtual").value;
+    const nova  = document.getElementById("senhaNova").value;
+    const nova2 = document.getElementById("senhaNova2").value;
+
+    if (!atual || !nova) {
+        EchoUIInstance.toastError("Preencha a senha atual e a nova senha.");
         return;
     }
 
-    loadMyPosts();
-    loadProfileData();
-}
-
-async function toggleLike(postId) {
-    const res = await fetch("api/posts/like.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId
-        })
-    });
-
-    const data = await res.json();
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
+    // A conferência das duas caixas é do front: o servidor recebe uma
+    // senha só, e não teria como saber que a pessoa se enganou digitando.
+    if (nova !== nova2) {
+        EchoUIInstance.toastError("As duas senhas novas não são iguais.");
         return;
     }
 
-    loadMyPosts();
-    loadProfileData();
-}
-
-async function sharePost(postId) {
-    const res = await fetch("api/posts/share.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId
-        })
-    });
-
-    const data = await res.json();
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
+    if (nova.length < 8) {
+        EchoUIInstance.toastError("A senha precisa ter pelo menos 8 caracteres.");
         return;
     }
 
-    loadMyPosts();
-}
-
-async function loadMyPosts() {
-    const container = document.getElementById("myPostsContainer");
-    container.innerHTML = EchoUIInstance.getFeedSkeletonHTML(2);
+    const btn = document.getElementById("btnTrocarSenha");
+    btn.disabled = true;
 
     try {
-        // Filtro no servidor. Antes a tela baixava o feed inteiro e
-        // descartava no cliente o que nao era do dono do perfil.
-        const autorId = perfilUserId || (currentUser ? currentUser.id : 0);
-
-        const res = await fetch(
-            "api/posts/list.php?limit=20&user_id=" + encodeURIComponent(autorId),
-            { credentials: "same-origin" }
-        );
+        const res = await fetch("api/auth/change_password.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ current_password: atual, new_password: nova })
+        });
         const data = await res.json();
 
-        container.innerHTML = "";
+        if (EchoUIInstance.showApiError(data)) return;
 
-        if (!data.ok || !data.posts) {
-            container.innerHTML = "<p class='text-center text-secondary p-4'>Nenhum post encontrado.</p>";
-            return;
-        }
-
-        const myPosts = data.posts;
-
-        if (myPosts.length === 0) {
-            container.innerHTML = perfilEhMeu
-                ? "<p class='text-center text-secondary p-4'>Você ainda não fez publicações.</p>"
-                : "<p class='text-center text-secondary p-4'>Esta pessoa ainda não publicou nada.</p>";
-            return;
-        }
-
-        myPosts.forEach(p => {
-            const handle = p.email ? p.email.split("@")[0] : "usuario";
-            const likeCount  = Number(p.like_count ?? 0);
-            const shareCount = Number(p.share_count ?? 0);
-            const likedByMe  = Number(p.liked_by_me ?? 0) > 0;
-
-            container.innerHTML += `
-                <div class="post">
-                    ${EchoUIInstance.avatarHTML(p, "md", true)}
-                    <div class="post-body">
-                        <div class="post-header">
-                            ${EchoUIInstance.authorLinkHTML(p, "post-name")}
-                            <span class="post-handle">@${EchoUIInstance.escapeHTML(handle)}</span>
-                            ${perfilEhMeu ? `<span class="badge bg-secondary-subtle text-light">você</span>` : ""}
-                            <span class="post-time" title="${p.created_at}"> · ${EchoUIInstance.formatTime(p.created_at)}</span>
-                            ${p.edited_at ? `<span class="post-edited" title="Editado em ${p.edited_at}">· editado</span>` : ""}
-                        </div>
-                        <div class="post-content" id="post-content-${p.id}">
-                            ${EchoUIInstance.escapeHTML(p.content ?? "")}
-                        </div>
-                        ${p.image ? `<img class="post-image" src="uploads/${p.image}" alt="">` : ""}
-
-                        <div class="post-actions">
-                            <button class="icon-btn" type="button">
-                                <i class="fa-regular fa-comment"></i><span>${p.comment_count || 0}</span>
-                            </button>
-
-                            <button class="icon-btn" type="button" onclick="sharePost(${p.id})">
-                                <i class="fa-solid fa-retweet"></i><span>${shareCount}</span>
-                            </button>
-
-                            <button class="icon-btn ${likedByMe ? 'liked' : ''}" type="button" onclick="toggleLike(${p.id})">
-                                <i class="${likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-                                <span>${likeCount}</span>
-                            </button>
-
-                            ${perfilEhMeu ? `
-                            <button class="icon-btn" type="button" title="Editar"
-                                    onclick="EchoUIInstance.editPost(${p.id}, loadMyPosts)">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
-
-                            <button class="icon-btn" type="button" title="Apagar"
-                                    onclick="deletePost(${p.id})">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>` : ""}
-                        </div>
-                    </div>
-                </div>
-            `;
+        ["senhaAtual", "senhaNova", "senhaNova2"].forEach(id => {
+            document.getElementById(id).value = "";
         });
+
+        bootstrap.Modal.getInstance(document.getElementById("changePasswordModal"))?.hide();
+        EchoUIInstance.toastSuccess(data.message || "Senha alterada.");
     } catch (e) {
-        container.innerHTML = "<p class='text-center text-danger p-4'>Erro ao carregar posts do perfil.</p>";
+        EchoUIInstance.toastError("Erro de conexão ao trocar a senha.");
+    } finally {
+        btn.disabled = false;
     }
 }
 </script>

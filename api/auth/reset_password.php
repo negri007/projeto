@@ -54,8 +54,14 @@ try {
 
     $pdo->beginTransaction();
 
-    $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?")
-        ->execute([password_hash($password, PASSWORD_DEFAULT), (int)$reset["user_id"]]);
+    // `session_version + 1` derruba toda sessão aberta com a senha
+    // antiga, inclusive em outros navegadores: elas carregam a versão
+    // velha e morrem na requisição seguinte (session_validate_version).
+    $pdo->prepare(
+        "UPDATE users
+         SET password_hash = ?, session_version = session_version + 1
+         WHERE id = ?"
+    )->execute([password_hash($password, PASSWORD_DEFAULT), (int)$reset["user_id"]]);
 
     // Queima o token usado e todos os outros pendentes da mesma conta.
     $pdo->prepare("UPDATE password_resets SET used = 1 WHERE user_id = ?")
@@ -64,12 +70,8 @@ try {
     $pdo->commit();
 
     // Encerra a sessão de quem está redefinindo, para o próximo passo
-    // ser um login com a senha nova.
-    //
-    // Limitação conhecida: isto derruba só esta sessão. Sessões abertas
-    // em outros navegadores continuam válidas até expirarem — invalidar
-    // todas exigiria versionar a sessão por usuário (ex.: uma coluna
-    // `session_version` em `users`, conferida no require_login()).
+    // ser um login com a senha nova. As sessões dos outros navegadores
+    // caem sozinhas pelo `session_version` incrementado acima.
     destroy_user_session();
 
     echo json_encode(["ok" => true]);

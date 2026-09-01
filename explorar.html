@@ -31,6 +31,9 @@
                 <a class="nav-link" href="perfil.html">
                     <i class="fa-solid fa-user"></i><span>Perfil</span>
                 </a>
+                <a class="nav-link" href="salvos.html">
+                    <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
+                </a>
                 <a class="nav-link" href="circulos.html">
                     <i class="fa-regular fa-circle"></i><span>Círculos</span>
                 </a>
@@ -56,78 +59,72 @@
             </div>
         </aside>
 
-        <!-- FEED EXPLORAR -->
+        <!-- EXPLORAR / BUSCA -->
         <main class="col-lg-7 col-md-9 main-col">
             <div class="main-header">
                 <div class="d-flex align-items-center gap-2">
                     <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
                         <i class="fa-solid fa-bars"></i>
                     </button>
-                    <span class="main-header-title">Explorar</span>
-                    <span class="badge bg-secondary-subtle text-light border border-secondary badge-pill">Geral</span>
+                    <span class="main-header-title" id="tituloExplorar">Explorar</span>
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
                     <div class="search-box d-none d-sm-block">
                         <input type="text" class="form-control form-control-sm" placeholder="Buscar no ECHO">
                     </div>
-                    <!-- SINO DE NOTIFICAÇÕES -->
                     <div id="notificationBellContainer"></div>
                 </div>
             </div>
 
-            <!-- Caixa de post -->
-            <div class="tweet-box">
-                <div class="tweet-avatar">
-                    <i class="fa-solid fa-user"></i>
-                </div>
-                <div class="flex-grow-1">
-                    <textarea id="postText" placeholder="O que está acontecendo?"></textarea>
-
-                    <div class="image-preview" id="imagePreview"></div>
-
-                    <div class="tweet-toolbar">
-                        <div>
-                            <button class="icon-btn" type="button" onclick="document.getElementById('imageInput').click()" title="Adicionar Imagem">
-                                <i class="fa-regular fa-image"></i>
-                            </button>
-                            <button class="icon-btn" type="button" title="Emoji">
-                                <i class="fa-regular fa-face-smile"></i>
-                            </button>
-                        </div>
-                        <button class="btn btn-primary rounded-pill px-4 py-1" id="btnPostar" onclick="createPost()">Postar</button>
-                    </div>
-
-                    <input type="file" id="imageInput" accept="image/*" class="d-none">
+            <!-- Campo de busca da própria tela -->
+            <div class="p-3 border-bottom border-secondary">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-secondary text-secondary">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </span>
+                    <input type="text" class="form-control" id="campoBusca"
+                           placeholder="Pessoas, publicações, #etiquetas ou círculos">
+                    <button class="btn btn-primary px-4" type="button" onclick="buscar()">Buscar</button>
                 </div>
             </div>
 
-            <!-- Feed -->
+            <!-- Etiquetas em alta: entrar num assunto é um toque, não uma
+                 busca digitada. Só aparece no modo descobrir. -->
+            <div class="echo-chips" id="tagChips"></div>
+
+            <!-- Barra do filtro por etiqueta (só aparece com ?tag=) -->
+            <div id="barraFiltro"></div>
+
+            <!-- Título e alternador da lista (modo descobrir) -->
+            <div id="cabecalhoDescobrir"></div>
+
+            <!-- Abas dos resultados (só aparecem com ?q=) -->
+            <div id="abasBusca"></div>
+
+            <!-- Resultados de pessoas / etiquetas / círculos -->
+            <div id="resultadosLista"></div>
+
+            <!-- Publicações: feed de verdade, com as mesmas ações do início -->
             <div id="feedContainer"></div>
         </main>
 
         <!-- COLUNA DIREITA -->
         <aside class="col-lg-3 d-none d-lg-block right-col">
             <div class="right-card">
-                <h5>Tendências para você</h5>
-                <p class="mb-1 text-secondary">Assunto do momento • Programação</p>
-                <p class="mb-2">#PHP</p>
-
-                <p class="mb-1 text-secondary">Assunto do momento • Mundo</p>
-                <p class="mb-2">#Linux</p>
-
-                <p class="mb-1 text-secondary">Assunto do momento • Tecnologia</p>
-                <p class="mb-0">#IA</p>
+                <h5>Pessoas para conhecer</h5>
+                <div id="suggestionsCard">
+                    <p class="text-secondary mb-0 small">Carregando sugestões...</p>
+                </div>
             </div>
 
             <div class="right-card">
-                <h5>Talvez você curta</h5>
-                <small class="text-secondary">Sugestões de perfis</small>
-                <div class="mt-2">
-                    <p class="mb-1">Ana Clara • <span class="text-info">@ana</span></p>
-                    <p class="mb-1">João Pedro • <span class="text-info">@jp</span></p>
-                    <p class="mb-0">Dev Nerd • <span class="text-info">@dev</span></p>
-                </div>
+                <h5>Início x Explorar</h5>
+                <small class="text-secondary">
+                    O <strong>Início</strong> mostra o que a sua roda escreveu, em ordem de tempo.
+                    O <strong>Explorar</strong> mostra o que a rede achou interessante, em ordem de
+                    engajamento — e é onde você acha gente e assuntos novos.
+                </small>
             </div>
         </aside>
     </div>
@@ -135,458 +132,309 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/echo-ui.js"></script>
+<script src="js/echo-feed.js"></script>
 
 <script>
+/**
+ * Explorar deixou de ser uma cópia do início (mesma caixa de publicar,
+ * mesmo feed) e virou a tela de descoberta: busca, etiquetas e gente.
+ * Publicar continua no início — uma coisa em cada lugar.
+ *
+ * Três estados, decididos pela URL:
+ *   ?q=texto  -> resultados da busca, em abas
+ *   ?tag=php  -> feed filtrado por etiqueta
+ *   (nada)    -> descobrir: etiquetas em alta + publicações ranqueadas
+ *                por engajamento (o Início é que é cronológico)
+ */
 let currentUser = null;
-let userEmail = "";
-let selectedImageFile = null;
+let feed = null;
+let resultadoAtual = null;
+let abaAtiva = "posts";
 
-const imageInput   = document.getElementById("imageInput");
-const imagePreview = document.getElementById("imagePreview");
+const params  = new URLSearchParams(window.location.search);
+const consulta = (params.get("q") || "").trim();
+const etiqueta = (params.get("tag") || "").trim().replace(/^#/, "");
 
 document.addEventListener("DOMContentLoaded", async function () {
-    // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
     currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
     if (!currentUser) return;
 
-    userEmail = currentUser.email;
-
-    // Inicializa Header (Sino de Notificações + Mobile Offcanvas Sidebar)
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
     EchoUIInstance.initHeader('explorar');
 
-    loadPosts();
-});
+    EchoUIInstance.renderSuggestions();
 
-imageInput.addEventListener("change", function () {
-    const file = this.files[0];
-    selectedImageFile = null;
-    imagePreview.innerHTML = "";
+    const campo = document.getElementById("campoBusca");
+    campo.value = consulta || (etiqueta ? "#" + etiqueta : "");
+    campo.addEventListener("keydown", (e) => { if (e.key === "Enter") buscar(); });
 
-    if (!file) return;
+    feed = EchoFeed.create({
+        container: "feedContainer",
+        params: { limit: 10 },
+        emptyText: "Nenhuma publicação encontrada."
+    });
 
-    selectedImageFile = file;
-    const url = URL.createObjectURL(file);
-    imagePreview.innerHTML = `<img src="${url}" alt="Pré-visualização">`;
+    if (etiqueta) {
+        modoEtiqueta();
+    } else if (consulta) {
+        modoBusca();
+    } else {
+        modoDescobrir();
+    }
 });
 
 function logout() {
     EchoUIInstance.logout();
 }
 
-async function deletePost(postId) {
-    if (!await EchoUIInstance.confirm({
-        title: "Apagar publicação",
-        message: "Esta publicação, seus comentários e suas curtidas serão apagados. Não dá para desfazer.",
-        confirmText: "Apagar",
-        danger: true
-    })) return;
+function buscar() {
+    const termo = document.getElementById("campoBusca").value.trim();
 
-    const res = await fetch("api/posts/delete.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId
-        })
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
+    if (!termo) {
+        window.location = "explorar.html";
         return;
     }
 
-    loadPosts();
-}
-
-async function toggleLike(postId) {
-    const res = await fetch("api/posts/like.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId
-        })
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
+    // "#php" digitado no campo é o filtro de etiqueta, não uma busca por
+    // texto: é o que a pessoa espera ao clicar numa etiqueta e depois
+    // digitar outra.
+    if (/^#[\p{L}\p{N}_-]+$/u.test(termo)) {
+        EchoUIInstance.openTag(termo);
         return;
     }
 
-    loadPosts();
+    window.location = "explorar.html?q=" + encodeURIComponent(termo);
 }
 
-async function sharePost(postId) {
-    const res = await fetch("api/posts/share.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId
-        })
-    });
+/* ======================================================================
+   MODO: DESCOBRIR (sem busca)
 
-    const data = await res.json();
+   O Explorar não repete o Início: aqui a ordem padrão é por engajamento
+   dos últimos 7 dias, não por data. "Recentes" fica como segunda opção,
+   para quem quer ver o que acabou de chegar de gente que ainda não segue.
+   ====================================================================== */
+let ordemDescobrir = "top";
 
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
-        return;
-    }
-
-    loadPosts();
+function modoDescobrir() {
+    document.getElementById("tituloExplorar").textContent = "Explorar";
+    EchoUIInstance.renderTagChips();
+    desenharCabecalhoDescobrir();
+    aplicarOrdemDescobrir();
 }
 
-// Cursor da paginacao: id do post mais antigo ja na tela.
-let proximoCursor = null;
-let carregandoMais = false;
+function desenharCabecalhoDescobrir() {
+    document.getElementById("cabecalhoDescobrir").innerHTML = `
+        <div class="echo-section-title">
+            <i class="fa-solid ${ordemDescobrir === "top" ? "fa-fire text-warning" : "fa-clock text-info"}"></i>
+            <span>${ordemDescobrir === "top" ? "Em alta esta semana" : "Chegando agora"}</span>
+            <small>${ordemDescobrir === "top" ? "· por curtidas, comentários e compartilhamentos" : "· ordem de publicação"}</small>
+        </div>
+        <div class="echo-switch">
+            <button type="button" class="${ordemDescobrir === "top" ? "active" : ""}"
+                    onclick="trocarOrdem('top')">Em alta</button>
+            <button type="button" class="${ordemDescobrir === "recent" ? "active" : ""}"
+                    onclick="trocarOrdem('recent')">Recentes</button>
+        </div>
+    `;
+}
 
-/**
- * Carrega o feed. Sem argumento, comeca do topo; com `append`, anexa a
- * proxima pagina ao que ja esta na tela.
- */
-async function loadPosts({ append = false } = {}) {
-    const feed = document.getElementById("feedContainer");
+function trocarOrdem(ordem) {
+    if (ordem === ordemDescobrir) return;
 
-    if (!append) {
-        feed.innerHTML = EchoUIInstance.getFeedSkeletonHTML(3);
-        proximoCursor = null;
-    }
+    ordemDescobrir = ordem;
+    desenharCabecalhoDescobrir();
+    aplicarOrdemDescobrir();
+}
 
-    if (carregandoMais) return;
-    carregandoMais = true;
+function aplicarOrdemDescobrir() {
+    feed.emptyText = ordemDescobrir === "top"
+        ? "Nenhuma publicação com movimento nos últimos 7 dias."
+        : "Ninguém publicou nada ainda.";
+
+    // `sort=top` devolve uma página única: com ordem por engajamento, o
+    // cursor por id não diz nada sobre a posição na lista.
+    feed.setParams(ordemDescobrir === "top"
+        ? { limit: 15, sort: "top", days: 7 }
+        : { limit: 10 });
+}
+
+/* ======================================================================
+   MODO: ETIQUETA
+   ====================================================================== */
+function modoEtiqueta() {
+    document.getElementById("tagChips").remove();
+    document.title = "ECHO - #" + etiqueta;
+    document.getElementById("tituloExplorar").textContent = "#" + etiqueta;
+
+    document.getElementById("barraFiltro").innerHTML = `
+        <div class="echo-filter-bar">
+            <i class="fa-solid fa-hashtag text-info"></i>
+            <span>Publicações com <span class="echo-filter-tag">#${EchoUIInstance.escapeHTML(etiqueta)}</span></span>
+            <a class="btn btn-sm btn-outline-light rounded-pill px-3 ms-auto" href="explorar.html">Limpar filtro</a>
+        </div>
+    `;
+
+    feed.setParams({ limit: 10, tag: etiqueta });
+}
+
+/* ======================================================================
+   MODO: BUSCA
+   ====================================================================== */
+async function modoBusca() {
+    document.getElementById("tagChips").remove();
+    document.title = "ECHO - " + consulta;
+    document.getElementById("tituloExplorar").textContent = "Resultados";
+
+    const lista = document.getElementById("resultadosLista");
+    lista.innerHTML = EchoUIInstance.getListSkeletonHTML(3);
 
     try {
-        const url = "api/posts/list.php?limit=10"
-                  + (append && proximoCursor ? "&before_id=" + proximoCursor : "");
-
-        const res = await fetch(url, { credentials: "same-origin" });
-        const data = await res.json();
-
-        // O botao da pagina anterior sai antes de qualquer coisa nova entrar.
-        document.getElementById("btnCarregarMais")?.remove();
-
-        if (!append) feed.innerHTML = "";
-
-        if (!data.ok || !data.posts) {
-            feed.innerHTML = "<p class='text-center text-secondary p-4'>Nenhuma publicação encontrada.</p>";
-            return;
-        }
-
-        if (data.posts.length === 0 && !append) {
-            feed.innerHTML = "<p class='text-center text-secondary p-4'>O feed está silencioso. Seja o primeiro a publicar!</p>";
-            return;
-        }
-
-        proximoCursor = data.next_before_id;
-
-        data.posts.forEach(p => {
-            const handle = p.email ? p.email.split("@")[0] : "usuario";
-            const isYou = Boolean(p.is_my_post || (currentUser && Number(p.user_id) === Number(currentUser.id)));
-
-            const likeCount  = Number(p.like_count ?? 0);
-            const shareCount = Number(p.share_count ?? 0);
-            const likedByMe  = Number(p.liked_by_me ?? 0) > 0;
-
-            feed.innerHTML += `
-                <div class="post" id="post-${p.id}">
-                    ${EchoUIInstance.avatarHTML(p, "md", true)}
-                    <div class="post-body">
-                        <div class="post-header">
-                            ${EchoUIInstance.authorLinkHTML(p, "post-name")}
-                            <span class="post-handle">@${EchoUIInstance.escapeHTML(handle)}</span>
-                            ${isYou ? `<span class="badge bg-secondary-subtle text-light">você</span>` : ""}
-                            <span class="post-time" title="${p.created_at}"> · ${EchoUIInstance.formatTime(p.created_at)}</span>
-                            ${p.edited_at ? `<span class="post-edited" title="Editado em ${p.edited_at}">· editado</span>` : ""}
-                        </div>
-                        <div class="post-content" id="post-content-${p.id}">
-                            ${EchoUIInstance.escapeHTML(p.content ?? "")}
-                        </div>
-                        ${p.image ? `<img class="post-image" src="uploads/${p.image}" alt="">` : ""}
-
-                        <div class="post-actions">
-                            <button class="icon-btn" type="button" onclick="toggleComments(${p.id})">
-                                <i class="fa-regular fa-comment"></i><span>${p.comment_count || 0}</span>
-                            </button>
-
-                            <button class="icon-btn" type="button" onclick="sharePost(${p.id})">
-                                <i class="fa-solid fa-retweet"></i><span>${shareCount}</span>
-                            </button>
-
-                            <button class="icon-btn ${likedByMe ? 'liked' : ''}" type="button" onclick="toggleLike(${p.id})">
-                                <i class="${likedByMe ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
-                                <span>${likeCount}</span>
-                            </button>
-
-                            <button class="icon-btn" type="button">
-                                <i class="fa-regular fa-bookmark"></i>
-                            </button>
-
-                            ${
-                                isYou
-                                    ? `<button class="icon-btn" type="button" title="Editar"
-                                               onclick="EchoUIInstance.editPost(${p.id}, loadPosts)">
-                                           <i class="fa-solid fa-pen"></i>
-                                       </button>
-                                       <button class="icon-btn" type="button" title="Apagar"
-                                               onclick="deletePost(${p.id})">
-                                           <i class="fa-solid fa-trash"></i>
-                                       </button>`
-                                    : ""
-                            }
-                        </div>
-
-                        <div class="mt-2" id="comments-box-${p.id}" style="display:none;">
-                            <div id="comment-list-${p.id}" class="mb-2 border-start border-secondary ps-2"></div>
-                            <div class="d-flex gap-2">
-                                <input 
-                                    type="text" 
-                                    class="form-control form-control-sm" 
-                                    id="comment-input-${p.id}" 
-                                    placeholder="Escreva um comentário..."
-                                >
-                                <button class="btn btn-sm btn-primary rounded-pill px-3" type="button" onclick="sendComment(${p.id})">
-                                    Comentar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-        // Botao de proxima pagina, so quando o servidor diz que ha mais.
-        if (data.has_more) {
-            const btn = document.createElement("button");
-            btn.className = "echo-load-more";
-            btn.id = "btnCarregarMais";
-            btn.type = "button";
-            btn.textContent = "Carregar mais publicações";
-            btn.onclick = () => {
-                btn.disabled = true;
-                btn.textContent = "Carregando...";
-                loadPosts({ append: true });
-            };
-            feed.appendChild(btn);
-        }
-    } catch(e) {
-        if (append) {
-            EchoUIInstance.toastError("Erro ao carregar mais publicações.");
-        } else {
-            feed.innerHTML = "<p class='text-center text-danger p-4'><i class='fa-solid fa-circle-exclamation me-2'></i>Erro ao carregar posts.</p>";
-        }
-    } finally {
-        carregandoMais = false;
-    }
-}
-
-async function createPost() {
-    const campo = document.getElementById("postText");
-    const txt = campo.value.trim();
-
-    if (!txt && !selectedImageFile) {
-        EchoUIInstance.toast("Escreva algo ou anexe uma imagem para publicar.", "info");
-        campo.focus();
-        return;
-    }
-
-    const fd = new FormData();
-    fd.append("content", txt);
-    if (selectedImageFile) {
-        fd.append("image", selectedImageFile);
-    }
-
-    // Trava o botao enquanto envia: sem isso, clique duplo publicava o
-    // mesmo post duas vezes.
-    const btn = document.getElementById("btnPostar");
-    const rotulo = btn ? btn.innerHTML : "";
-
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = `<span class="spinner-echo me-2" style="width:14px;height:14px;border-width:2px;"></span>Publicando...`;
-    }
-
-    try {
-        const res = await fetch("api/posts/create.php", {
-            method: "POST",
-            credentials: "same-origin",
-            body: fd
-        });
-
-        const data = await res.json();
-
-        if (EchoUIInstance.showApiError(data)) return;
-
-        campo.value = "";
-        imageInput.value = "";
-        selectedImageFile = null;
-        imagePreview.innerHTML = "";
-
-        EchoUIInstance.toastSuccess("Publicado!");
-        loadPosts();
-    } catch (e) {
-        EchoUIInstance.toastError("Erro de conexão ao publicar.");
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = rotulo;
-        }
-    }
-}
-
-async function toggleComments(postId) {
-    const box = document.getElementById("comments-box-" + postId);
-    if (!box) return;
-
-    const isHidden = box.style.display === "none" || box.style.display === "";
-    if (isHidden) {
-        box.style.display = "block";
-        await loadComments(postId);
-    } else {
-        box.style.display = "none";
-    }
-}
-
-/**
- * Apaga um comentario. O servidor decide quem pode: o autor ou o dono do
- * post. O front so mostra o botao quando `can_delete` vier true.
- */
-async function deleteComment(commentId, postId) {
-    if (!await EchoUIInstance.confirm({
-        title: "Apagar comentário",
-        message: "O comentário some para todo mundo. Não dá para desfazer.",
-        confirmText: "Apagar",
-        danger: true
-    })) return;
-
-    try {
-        const res = await fetch("api/comments/delete.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ comment_id: commentId })
-        });
-        const data = await res.json();
-
-        if (EchoUIInstance.showApiError(data)) return;
-
-        EchoUIInstance.toastSuccess("Comentário apagado.");
-        loadComments(postId);
-        loadPosts();
-    } catch (e) {
-        EchoUIInstance.toastError("Erro ao apagar comentário.");
-    }
-}
-
-async function loadComments(postId) {
-    const listEl = document.getElementById("comment-list-" + postId);
-    if (!listEl) return;
-
-    listEl.innerHTML = "<small class='text-secondary'><span class='spinner-echo me-1' style='width:12px;height:12px;border-width:2px;'></span>Carregando comentários...</small>";
-
-    try {
-        const res = await fetch("api/comments/list.php?post_id=" + postId, {
+        const res  = await fetch("api/search/all.php?limit=20&q=" + encodeURIComponent(consulta), {
             credentials: "same-origin"
         });
         const data = await res.json();
 
         if (data.error) {
-            listEl.innerHTML = "<small style='color:#f66;'>" + EchoUIInstance.escapeHTML(data.error) + "</small>";
+            lista.innerHTML = `<p class="text-center text-danger p-4">${EchoUIInstance.escapeHTML(data.error)}</p>`;
             return;
         }
 
-        const comments = data.comments || (Array.isArray(data) ? data : []);
+        resultadoAtual = data;
 
-        if (!comments.length) {
-            listEl.innerHTML = "<small class='text-secondary'>Seja o primeiro a comentar.</small>";
-            return;
-        }
+        // A aba que abre é a que tem resultado: procurar uma pessoa e cair
+        // numa lista vazia de publicações seria uma busca que "não achou".
+        abaAtiva = data.posts.length ? "posts"
+                 : data.users.length ? "users"
+                 : data.hashtags.length ? "hashtags"
+                 : data.circles.length ? "circles"
+                 : "posts";
 
-        listEl.innerHTML = "";
-        comments.forEach(c => {
-            const handle = c.email ? c.email.split('@')[0] : (c.name || 'usuario');
-            const d = document.createElement("div");
-            d.className = "d-flex gap-2 mb-2";
-            // `can_delete` vem do servidor: autor do comentario ou dono
-            // do post. Nao e conta que o front deva refazer.
-            d.innerHTML = `
-                ${EchoUIInstance.avatarHTML(c, "sm", true)}
-                <div class="flex-grow-1 min-width-0">
-                    <div class="d-flex align-items-center gap-1">
-                        ${EchoUIInstance.authorLinkHTML(c, "small fw-bold")}
-                        <span class="text-secondary small">@${EchoUIInstance.escapeHTML(handle)}</span>
-                        <span class="text-secondary small">· ${EchoUIInstance.formatTime(c.created_at)}</span>
-                        ${c.can_delete ? `
-                        <button class="btn btn-link btn-sm p-0 ms-auto text-secondary"
-                                type="button" title="Apagar comentário"
-                                onclick="deleteComment(${c.id}, ${postId})">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>` : ""}
-                    </div>
-                    <div class="small text-light">${EchoUIInstance.escapeHTML(c.body)}</div>
-                </div>
-            `;
-            listEl.appendChild(d);
-        });
+        desenharAbas();
+        mostrarAba(abaAtiva);
     } catch (e) {
-        listEl.innerHTML = "<small style='color:#f66;'>Erro ao carregar comentários.</small>";
+        lista.innerHTML = `<p class="text-center text-danger p-4">Erro ao buscar.</p>`;
     }
 }
 
-async function sendComment(postId) {
-    const input = document.getElementById("comment-input-" + postId);
-    if (!input) return;
+function desenharAbas() {
+    const d = resultadoAtual;
+    const abas = [
+        ["posts",    "Publicações", d.posts.length],
+        ["users",    "Pessoas",     d.users.length],
+        ["hashtags", "Etiquetas",   d.hashtags.length],
+        ["circles",  "Círculos",    d.circles.length]
+    ];
 
-    const body = input.value.trim();
-    if (!body) {
-        EchoUIInstance.toastError("Digite um comentário.");
-        return;
-    }
+    document.getElementById("abasBusca").innerHTML = `
+        <div class="echo-tabs">
+            ${abas.map(([id, rotulo, total]) => `
+                <button class="echo-tab ${id === abaAtiva ? "active" : ""}" type="button"
+                        onclick="mostrarAba('${id}')">
+                    ${rotulo}<span class="echo-tab-count">${total}</span>
+                </button>
+            `).join("")}
+        </div>
+    `;
+}
 
-    const res = await fetch("api/comments/create.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-            post_id: postId,
-            body: body
-        })
-    });
+function mostrarAba(id) {
+    abaAtiva = id;
+    desenharAbas();
 
-    const data = await res.json();
+    const lista = document.getElementById("resultadosLista");
+    const d     = resultadoAtual;
 
-    if (data.error) {
-        EchoUIInstance.toastError(data.error);
-        return;
-    }
+    // Publicações usam o componente de feed (curtir, salvar, comentar);
+    // as outras abas são listas simples.
+    if (id === "posts") {
+        lista.innerHTML = "";
+        document.getElementById("feedContainer").innerHTML = "";
 
-    input.value = "";
-
-    if (data.ok && data.comment) {
-        const listEl = document.getElementById("comment-list-" + postId);
-        if (listEl) {
-            if (listEl.querySelector(".text-secondary") || listEl.querySelector("[style*='color:#f66']")) {
-                listEl.innerHTML = "";
-            }
-            const c = data.comment;
-            const handle = c.email ? c.email.split('@')[0] : (c.name || 'usuario');
-            const d = document.createElement("div");
-            d.className = "mb-2";
-            d.innerHTML = `
-                <div class="d-flex align-items-center gap-1">
-                    <strong class="small">${EchoUIInstance.escapeHTML(c.name || handle)}</strong>
-                    <span class="text-secondary small">@${EchoUIInstance.escapeHTML(handle)}</span>
-                </div>
-                <div class="small text-light">${EchoUIInstance.escapeHTML(c.body)}</div>
-            `;
-            listEl.appendChild(d);
+        if (!d.posts.length) {
+            lista.innerHTML = vazio("Nenhuma publicação com esse texto.");
+            return;
         }
-    } else {
-        await loadComments(postId);
+
+        // A busca já trouxe os posts prontos, no formato de list.php:
+        // desenhar direto evita uma segunda ida ao servidor.
+        document.getElementById("feedContainer").innerHTML =
+            d.posts.map(p => feed.postHTML(p)).join("");
+        return;
     }
+
+    document.getElementById("feedContainer").innerHTML = "";
+
+    if (id === "users") {
+        lista.innerHTML = d.users.length
+            ? d.users.map(u => pessoaHTML(u)).join("")
+            : vazio("Nenhuma pessoa com esse nome.");
+        return;
+    }
+
+    if (id === "hashtags") {
+        lista.innerHTML = d.hashtags.length
+            ? d.hashtags.map(h => `
+                <a class="echo-result-row" href="explorar.html?tag=${encodeURIComponent(h.tag)}">
+                    <span class="echo-search-hash"><i class="fa-solid fa-hashtag"></i></span>
+                    <span class="echo-result-body">
+                        <strong>#${EchoUIInstance.escapeHTML(h.tag)}</strong><br>
+                        <small>${h.post_count} ${h.post_count === 1 ? "publicação" : "publicações"}</small>
+                    </span>
+                </a>`).join("")
+            : vazio("Nenhuma etiqueta com esse nome.");
+        return;
+    }
+
+    if (id === "circles") {
+        lista.innerHTML = d.circles.length
+            ? d.circles.map(c => `
+                <a class="echo-result-row" href="circle_chat.html?circle_id=${c.id}">
+                    <span class="echo-search-hash"><i class="fa-regular fa-circle"></i></span>
+                    <span class="echo-result-body">
+                        <strong>${EchoUIInstance.escapeHTML(c.name)}</strong>
+                        <span class="badge bg-secondary-subtle text-light ms-1">${c.is_owner ? "Dono" : "Membro"}</span><br>
+                        <small>${EchoUIInstance.escapeHTML(c.description || "Sem descrição")} ·
+                               ${c.member_count} ${c.member_count === 1 ? "membro" : "membros"}</small>
+                    </span>
+                </a>`).join("")
+            // A busca só enxerga círculos de que você participa — círculo
+            // é privado, e a busca não pode virar um índice dos grupos
+            // alheios.
+            : vazio("Nenhum círculo seu com esse nome.");
+    }
+}
+
+function pessoaHTML(u) {
+    const handle = (u.email || "").split("@")[0];
+
+    const botoes = {
+        none:             `<button class="btn btn-sm btn-primary rounded-pill px-3" onclick="pedirAmizade(${u.user_id})">Adicionar</button>`,
+        pending_sent:     `<span class="badge bg-secondary-subtle text-light">Pedido enviado</span>`,
+        pending_received: `<a class="btn btn-sm btn-outline-light rounded-pill px-3" href="amigos.html">Responder</a>`,
+        friends:          `<a class="btn btn-sm btn-outline-light rounded-pill px-3" href="chat.html?friend=${u.user_id}">Conversar</a>`
+    };
+
+    return `
+        <div class="echo-result-row" id="pessoa-${u.user_id}">
+            ${EchoUIInstance.avatarHTML(u, "md", true)}
+            <div class="echo-result-body">
+                ${EchoUIInstance.authorLinkHTML(u, "fw-bold")}<br>
+                <small>@${EchoUIInstance.escapeHTML(handle)}</small>
+            </div>
+            ${botoes[u.status] || botoes.none}
+        </div>
+    `;
+}
+
+async function pedirAmizade(userId) {
+    if (!await EchoUIInstance.addFriend(userId)) return;
+
+    const botao = document.querySelector(`#pessoa-${userId} .btn`);
+    if (botao) botao.outerHTML = `<span class="badge bg-secondary-subtle text-light">Pedido enviado</span>`;
+}
+
+function vazio(texto) {
+    return `<p class="text-center text-secondary p-4">${EchoUIInstance.escapeHTML(texto)}</p>`;
 }
 </script>
 </body>

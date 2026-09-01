@@ -1224,3 +1224,647 @@ a.echo-author-link:hover { text-decoration: underline; }
     100% { background: transparent; }
 }
 .post.destacado { animation: echo-destaque 2.5s ease-out; }
+
+/* ==========================================================================
+   UPGRADE — ETIQUETAS, MENÇÕES, BUSCA, TENDÊNCIAS E SALVOS
+   ========================================================================== */
+
+/* Texto rico do post e do comentário: #etiqueta e @menção viram links. */
+.echo-tag,
+.echo-mention {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+}
+.echo-tag:hover,
+.echo-mention:hover { text-decoration: underline; }
+
+/* Botão de salvar aceso. */
+.post-actions .icon-btn.saved { color: var(--warning); }
+.post-actions .icon-btn.saved:hover { background: var(--warning-hover); }
+
+/* --------------------------------------------------------------------------
+   Busca do cabeçalho
+   -------------------------------------------------------------------------- */
+.echo-search { position: relative; }
+
+.echo-search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: min(360px, 90vw);
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+    z-index: 1080;
+    padding: 6px 0;
+}
+
+.echo-search-group {
+    padding: 8px 14px 4px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.echo-search-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    color: var(--text-main);
+    text-decoration: none;
+    cursor: pointer;
+}
+.echo-search-item:hover { background: rgba(255, 255, 255, 0.06); }
+
+.echo-search-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.echo-search-text strong { font-size: 0.88rem; }
+.echo-search-text small {
+    color: var(--text-soft);
+    font-size: 0.76rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.echo-search-hash {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-input);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.echo-search-empty,
+.echo-search-all {
+    display: block;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+    text-decoration: none;
+}
+.echo-search-all {
+    color: var(--accent);
+    border-top: 1px solid var(--border-soft);
+    font-weight: 600;
+}
+.echo-search-all:hover { background: var(--accent-hover); }
+
+/* --------------------------------------------------------------------------
+   Autocomplete de menção (@)
+   -------------------------------------------------------------------------- */
+.echo-mention-box {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    width: min(300px, 90vw);
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+    z-index: 1080;
+    overflow: hidden;
+}
+
+.echo-mention-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 12px;
+    background: none;
+    border: 0;
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+}
+.echo-mention-item:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* --------------------------------------------------------------------------
+   Card de tendências e de sugestões
+   -------------------------------------------------------------------------- */
+.echo-trend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 4px;
+    color: var(--text-main);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+}
+.echo-trend:hover { background: rgba(255, 255, 255, 0.05); }
+
+.echo-trend-pos {
+    color: var(--text-muted);
+    font-weight: 800;
+    width: 18px;
+    text-align: center;
+}
+
+.echo-trend-body { display: flex; flex-direction: column; min-width: 0; }
+.echo-trend-body strong { font-size: 0.92rem; }
+.echo-trend-body small { color: var(--text-soft); font-size: 0.76rem; }
+
+.echo-suggestion {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+}
+.echo-suggestion + .echo-suggestion { border-top: 1px solid var(--border-soft); }
+.echo-suggestion-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+
+/* --------------------------------------------------------------------------
+   Explorar: abas de resultado e filtro por etiqueta
+   -------------------------------------------------------------------------- */
+.echo-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border-soft);
+    padding: 0 12px;
+    overflow-x: auto;
+}
+
+.echo-tab {
+    background: none;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    color: var(--text-soft);
+    font-weight: 600;
+    padding: 12px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.echo-tab:hover { color: var(--text-main); }
+.echo-tab.active { color: var(--text-main); border-bottom-color: var(--accent); }
+.echo-tab .echo-tab-count {
+    background: var(--bg-input);
+    border-radius: var(--radius-full);
+    padding: 0 7px;
+    margin-left: 6px;
+    font-size: 0.75rem;
+}
+
+.echo-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+    background: var(--bg-card-alt);
+}
+.echo-filter-bar .echo-filter-tag { font-weight: 800; color: var(--accent); }
+
+/* Notificação de menção no sino. */
+.notification-icon-mention { background: rgba(29, 155, 240, 0.15); color: var(--accent); }
+
+/* Lista de pessoas/círculos nos resultados da busca em tela cheia. */
+.echo-result-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-soft);
+}
+.echo-result-row .echo-result-body { flex: 1; min-width: 0; }
+.echo-result-row small { color: var(--text-soft); }
+
+/* --------------------------------------------------------------------------
+   Chips de etiqueta (topo do Explorar) e alternador de feed (Início)
+   -------------------------------------------------------------------------- */
+.echo-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.echo-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-full);
+    color: var(--text-main);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    background: var(--bg-card);
+}
+.echo-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.echo-chip-count {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.75rem;
+}
+
+/* Alternador "Amigos / Todos" do Início — dois estados de um mesmo feed,
+   por isso segmentado e não abas de página. */
+.echo-switch {
+    display: flex;
+    gap: 6px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.echo-switch button {
+    background: transparent;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-full);
+    color: var(--text-soft);
+    font-weight: 600;
+    font-size: 0.82rem;
+    padding: 5px 14px;
+    cursor: pointer;
+}
+.echo-switch button:hover { color: var(--text-main); border-color: var(--border-hover); }
+.echo-switch button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+/* Cabeçalho de seção dentro da coluna central (Explorar). */
+.echo-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px 6px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+.echo-section-title small { color: var(--text-soft); font-weight: 500; }
+
+/* ==========================================================================
+   MOVIMENTO — animações do sistema
+
+   Regra que vale para tudo aqui: a animação existe para explicar uma
+   mudança (algo entrou, algo virou seu, algo pediu atenção), nunca para
+   enfeitar o que já estava parado. Nada passa de ~400 ms, e nada segura
+   um clique.
+
+   Todo este bloco é desligado no fim do arquivo para quem pede menos
+   movimento no sistema operacional (prefers-reduced-motion).
+   ========================================================================== */
+
+/* Entrada da tela: o conteúdo aparece em vez de piscar pronto. */
+@keyframes echo-surge {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.main-col > .main-header { animation: echo-surge 0.28s ease-out both; }
+.right-col .right-card   { animation: echo-surge 0.32s ease-out both; }
+.right-col .right-card:nth-child(2) { animation-delay: 0.06s; }
+
+/* --------------------------------------------------------------------------
+   Feed: cada post entra um pouco depois do anterior (escada). O índice
+   vem do JS na variável --ordem; o teto de 8, aplicado lá, evita que o
+   nono post da página demore meio segundo para aparecer.
+   -------------------------------------------------------------------------- */
+@keyframes echo-post-entra {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+}
+
+.post.entrando {
+    animation: echo-post-entra 0.34s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+    animation-delay: calc(var(--ordem, 0) * 45ms);
+}
+
+.post { transition: background-color var(--transition-fast); }
+.post:hover { background: rgba(255, 255, 255, 0.02); }
+
+/* --------------------------------------------------------------------------
+   Curtir e salvar: o ícone pula e solta um anel. São os gestos mais
+   repetidos do app, e os que mais merecem resposta imediata — a animação
+   roda antes de o servidor responder.
+   -------------------------------------------------------------------------- */
+@keyframes echo-pulo {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.45); }
+    60%  { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+
+@keyframes echo-anel {
+    0%   { transform: scale(0.4); opacity: 0.55; }
+    100% { transform: scale(2.1); opacity: 0; }
+}
+
+.post-actions .icon-btn { position: relative; }
+
+.post-actions .icon-btn.animando i {
+    animation: echo-pulo 0.42s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* O anel é desenhado no ::after do botão: 20 posts na tela não viram 20
+   elementos a mais no DOM. */
+.post-actions .icon-btn.animando::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -2px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    animation: echo-anel 0.5s ease-out forwards;
+    pointer-events: none;
+}
+
+/* Contador que mudou de valor sobe um pixel e volta. */
+@keyframes echo-contador {
+    0%   { transform: translateY(0); }
+    45%  { transform: translateY(-4px); opacity: 0.4; }
+    100% { transform: translateY(0); }
+}
+.post-actions .icon-btn.animando span { animation: echo-contador 0.3s ease-out; }
+
+/* --------------------------------------------------------------------------
+   Sino: chegou notificação nova, ele balança uma vez. Não fica pulsando
+   para sempre — aviso permanente vira ruído permanente.
+   -------------------------------------------------------------------------- */
+@keyframes echo-sino {
+    0%, 100% { transform: rotate(0); }
+    15% { transform: rotate(-14deg); }
+    30% { transform: rotate(11deg); }
+    45% { transform: rotate(-8deg); }
+    60% { transform: rotate(5deg); }
+    75% { transform: rotate(-2deg); }
+}
+
+.notification-bell-btn.tocando i {
+    animation: echo-sino 0.7s ease-in-out;
+    transform-origin: 50% 20%;
+}
+
+@keyframes echo-badge-entra {
+    from { transform: scale(0); }
+    60%  { transform: scale(1.25); }
+    to   { transform: scale(1); }
+}
+.notification-badge { animation: echo-badge-entra 0.32s cubic-bezier(0.2, 0.9, 0.3, 1); }
+
+/* --------------------------------------------------------------------------
+   Painéis que aparecem: busca e menção
+   -------------------------------------------------------------------------- */
+@keyframes echo-painel-entra {
+    from { opacity: 0; transform: translateY(-6px) scale(0.99); }
+    to   { opacity: 1; transform: none; }
+}
+
+.echo-search-results { animation: echo-painel-entra 0.18s ease-out; }
+.echo-mention-box    { animation: echo-painel-entra 0.16s ease-out; }
+
+.echo-search-item,
+.echo-mention-item {
+    transition: background-color var(--transition-fast), padding-left var(--transition-fast);
+}
+.echo-search-item:hover,
+.echo-mention-item:hover { padding-left: 18px; }
+
+/* --------------------------------------------------------------------------
+   Navegação, chips e cards: o toque leve do hover
+   -------------------------------------------------------------------------- */
+.sidebar .nav-link {
+    transition: background-color var(--transition-fast), color var(--transition-fast),
+                transform var(--transition-fast);
+}
+.sidebar .nav-link:hover { transform: translateX(3px); }
+
+.sidebar .nav-link i { transition: transform var(--transition-fast); }
+.sidebar .nav-link:hover i { transform: scale(1.12); }
+
+.echo-chip {
+    transition: border-color var(--transition-fast), color var(--transition-fast),
+                transform var(--transition-fast);
+}
+.echo-chip:hover { transform: translateY(-2px); }
+
+.echo-trend { transition: background-color var(--transition-fast), transform var(--transition-fast); }
+.echo-trend:hover { transform: translateX(3px); }
+
+.echo-switch button, .echo-tab { transition: all var(--transition-fast); }
+.echo-switch button.active { transform: scale(1.03); }
+
+/* Avatar clicável cresce de leve — o alvo do clique fica evidente. */
+.echo-avatar-link { transition: filter var(--transition-fast), transform var(--transition-fast); }
+.echo-avatar-link:hover { transform: scale(1.06); }
+
+/* Botão principal afunda ao ser pressionado: resposta antes da resposta
+   do servidor. */
+.btn-primary { transition: transform var(--transition-fast), background-color var(--transition-fast); }
+.btn-primary:active:not(:disabled) { transform: scale(0.97); }
+
+/* Imagem do post aparece com um leve zoom-out ao carregar. */
+@keyframes echo-imagem-entra {
+    from { opacity: 0; transform: scale(1.02); }
+    to   { opacity: 1; transform: none; }
+}
+.post-image { animation: echo-imagem-entra 0.4s ease-out; }
+
+/* Caixa de comentários abrindo. */
+@keyframes echo-abre {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: none; }
+}
+.echo-comentarios-abrindo { animation: echo-abre 0.22s ease-out; }
+
+/* Post que sai da lista (apagado, ou tirado dos salvos) encolhe antes de
+   sumir — some com destino, em vez de piscar para fora da tela. */
+@keyframes echo-post-sai {
+    to { opacity: 0; transform: translateX(-24px); }
+}
+.post.saindo { animation: echo-post-sai 0.25s ease-in forwards; }
+
+/* --------------------------------------------------------------------------
+   Quem pediu menos movimento recebe menos movimento. Não é detalhe
+   opcional: animação de entrada em lista longa dá enjoo em quem tem
+   sensibilidade vestibular.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* ==========================================================================
+   A MARCA — o eco do ECHO
+
+   O nome do sistema é a animação: a marca solta anéis, como som que se
+   espalha. Dois anéis com meio ciclo de diferença, a cada 3,2 s — devagar
+   o bastante para não competir com o conteúdo, e visível o bastante para
+   a marca ser a primeira coisa que a tela apresenta.
+
+   Vale para a barra lateral, para o menu móvel e para a tela de entrada.
+   Como todo o resto do movimento, morre no prefers-reduced-motion.
+   ========================================================================== */
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: default;
+}
+
+/* Os anéis precisam vazar para fora do círculo da marca. */
+.logo-mark {
+    position: relative;
+    overflow: visible;
+    animation: echo-marca-entra 0.6s cubic-bezier(0.2, 1.2, 0.35, 1) both;
+    transition: transform 0.35s cubic-bezier(0.2, 1.2, 0.35, 1),
+                box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+/* Os dois anéis são ::before e ::after da própria marca: nenhum elemento
+   novo no HTML, e a animação vale nas oito telas de uma vez. */
+.logo-mark::before,
+.logo-mark::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    opacity: 0;
+    animation: echo-onda 3.2s ease-out infinite;
+    pointer-events: none;
+}
+
+.logo-mark::after { animation-delay: 1.6s; }
+
+@keyframes echo-onda {
+    0%   { transform: scale(1);   opacity: 0.55; }
+    70%  { transform: scale(2.1); opacity: 0; }
+    100% { transform: scale(2.1); opacity: 0; }
+}
+
+/* A marca chega girando um quarto de volta e assentando. */
+@keyframes echo-marca-entra {
+    from { transform: rotate(-90deg) scale(0.4); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+
+/* A cerquilha respira junto com os anéis. */
+.logo-mark i {
+    animation: echo-pulsa-icone 3.2s ease-in-out infinite;
+    transition: transform 0.35s cubic-bezier(0.2, 1.2, 0.35, 1);
+}
+
+@keyframes echo-pulsa-icone {
+    0%, 100% { transform: scale(1); }
+    8%       { transform: scale(1.18); }
+    20%      { transform: scale(1); }
+}
+
+/* --------------------------------------------------------------------------
+   ECHO: o brilho atravessa as letras de tempos em tempos.
+
+   O gradiente é recortado no texto (background-clip), e o que anda é a
+   posição do gradiente — não a letra. Animar background-position custa
+   menos que animar cor letra a letra, e não exige um span por caractere.
+   -------------------------------------------------------------------------- */
+.logo-text {
+    background-image: linear-gradient(
+        100deg,
+        var(--text-main) 0%,
+        var(--text-main) 38%,
+        var(--accent) 50%,
+        var(--text-main) 62%,
+        var(--text-main) 100%
+    );
+    background-size: 300% 100%;
+    background-position: 120% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: echo-brilho 3.2s ease-in-out infinite,
+               echo-texto-entra 0.6s ease-out 0.12s both;
+    transition: letter-spacing 0.35s ease;
+}
+
+@keyframes echo-brilho {
+    0%   { background-position: 120% 0; }
+    45%  { background-position: -20% 0; }
+    100% { background-position: -20% 0; }
+}
+
+@keyframes echo-texto-entra {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* Passar o mouse acelera o eco: a marca cresce, gira de leve e as letras
+   se abrem. É a única parte "chamativa" que depende de um gesto — o
+   resto acontece sozinho, mas discreto. */
+.logo:hover .logo-mark {
+    transform: scale(1.12) rotate(-12deg);
+    border-color: var(--accent);
+    box-shadow: 0 4px 18px rgba(29, 155, 240, 0.5);
+}
+
+.logo:hover .logo-mark::before,
+.logo:hover .logo-mark::after { animation-duration: 1.1s; }
+
+.logo:hover .logo-mark i { transform: scale(1.15) rotate(12deg); }
+.logo:hover .logo-text   { letter-spacing: 0.06em; }
+
+/* --------------------------------------------------------------------------
+   Tela de entrada: a mesma ideia, no tamanho do herói.
+   -------------------------------------------------------------------------- */
+.auth-logo {
+    /* A caixa fica exatamente como estava: bloco da largura da coluna.
+       Encolher a caixa para centrar o anel nela deslocava o simbolo em
+       relacao ao titulo — o anel passou a sair do proprio icone. */
+    animation: echo-marca-entra 0.7s cubic-bezier(0.2, 1.2, 0.35, 1) both;
+}
+
+/* O icone vira a referencia de posicao: assim o anel nasce no centro do
+   simbolo, e nao no centro da coluna de texto. `inline-block` porque
+   `position` em elemento inline nao segura um filho absoluto de forma
+   confiavel. */
+.auth-logo i {
+    position: relative;
+    display: inline-block;
+    animation: echo-pulsa-icone 3.2s ease-in-out infinite;
+}
+
+/* Aqui vai um anel so: o `::before` do icone e da Font Awesome — e onde
+   mora o glifo. Sobra o `::after`. */
+.auth-logo i::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1.5em;
+    height: 1.5em;
+    margin: -0.75em 0 0 -0.75em;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    opacity: 0;
+    animation: echo-onda 3.2s ease-out infinite;
+    pointer-events: none;
+}

@@ -30,7 +30,7 @@ if ($espera > 0) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT id, name, email, password_hash FROM users WHERE email = ?");
+    $stmt = $pdo->prepare("SELECT id, name, email, password_hash, session_version FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
@@ -46,7 +46,7 @@ if (!$user || !password_verify($password, $user["password_hash"])) {
 }
 
 login_registrar_tentativa($pdo, $email, true);
-start_user_session((int)$user["id"], $user["name"]);
+start_user_session((int)$user["id"], $user["name"], (int)($user["session_version"] ?? 1));
 
 echo json_encode([
     "success" => true,

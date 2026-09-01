@@ -8,6 +8,8 @@ class EchoUI {
         this.unreadCount = 0;
         this.currentUser = null;
         this.notificationTimer = null;
+        // Ultimo contador pintado no sino, para saber quando ele SOBE.
+        this.ultimoUnread = undefined;
         // Intervalo do polling do sino, em ms.
         this.POLL_INTERVAL = 20000;
     }
@@ -21,6 +23,9 @@ class EchoUI {
         this.setupNotificationDropdown();
         this.renderNotifications();
         this.startNotificationPolling();
+        // O campo "Buscar no ECHO" existe no cabeçalho de todas as telas;
+        // ligá-lo aqui evita repetir a mesma ligação em cada uma.
+        this.initSearchBox();
     }
 
     /**
@@ -123,6 +128,11 @@ class EchoUI {
                     icon = 'fa-envelope';
                     actionText = 'enviou uma nova mensagem.';
                     break;
+                case 'mention':
+                    iconClass = 'notification-icon-mention';
+                    icon = 'fa-at';
+                    actionText = 'mencionou você.';
+                    break;
             }
 
             return `
@@ -159,6 +169,10 @@ class EchoUI {
             case 'like':
             case 'comment':
             case 'share':
+            // `mention` tambem aponta para o post: e onde o texto que
+            // citou a pessoa esta, mesmo quando a mencao veio num
+            // comentario.
+            case 'mention':
                 window.location = item.reference_id
                     ? "inicio.html?post=" + encodeURIComponent(item.reference_id)
                     : "inicio.html";
@@ -204,9 +218,22 @@ class EchoUI {
         // O contador vem do servidor: ele conta TODAS as nao lidas, nao
         // apenas as que couberam no limite da listagem.
         const unreadCount = this.unreadCount;
-        
+
         const btn = document.getElementById('notificationDropdownBtn');
         if (!btn) return;
+
+        // Chegou coisa nova desde a ultima pintura: o sino balanca uma
+        // vez. So quando o numero SOBE — reabrir a tela com tres avisos
+        // parados nao e novidade nenhuma.
+        if (this.ultimoUnread !== undefined && unreadCount > this.ultimoUnread) {
+            btn.classList.remove("tocando");
+            void btn.offsetWidth;
+            btn.classList.add("tocando");
+            btn.addEventListener("animationend",
+                () => btn.classList.remove("tocando"), { once: true });
+        }
+
+        this.ultimoUnread = unreadCount;
 
         if (unreadCount > 0) {
             if (badge) {
@@ -335,6 +362,9 @@ class EchoUI {
                         <a class="nav-link ${activePage === 'perfil' ? 'active' : ''}" href="perfil.html">
                             <i class="fa-solid fa-user"></i><span>Perfil</span>
                         </a>
+                        <a class="nav-link ${activePage === 'salvos' ? 'active' : ''}" href="salvos.html">
+                            <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
+                        </a>
                         <a class="nav-link ${activePage === 'circulos' ? 'active' : ''}" href="circulos.html">
                             <i class="fa-regular fa-circle"></i><span>Círculos</span>
                         </a>
@@ -365,6 +395,7 @@ class EchoUI {
             <div class="mobile-bottom-nav">
                 <a href="inicio.html" class="${activePage === 'inicio' ? 'active' : ''}"><i class="fa-solid fa-house"></i></a>
                 <a href="explorar.html" class="${activePage === 'explorar' ? 'active' : ''}"><i class="fa-solid fa-magnifying-glass"></i></a>
+                <a href="salvos.html" class="${activePage === 'salvos' ? 'active' : ''}"><i class="fa-regular fa-bookmark"></i></a>
                 <a href="circulos.html" class="${activePage === 'circulos' ? 'active' : ''}"><i class="fa-regular fa-circle"></i></a>
                 <a href="amigos.html" class="${activePage === 'amigos' ? 'active' : ''}"><i class="fa-solid fa-user-group"></i></a>
                 <a href="chat.html" class="${activePage === 'chat' ? 'active' : ''}"><i class="fa-solid fa-comments"></i></a>
@@ -600,9 +631,12 @@ class EchoUI {
                 resolve(resultado);
             };
 
+            // Esc cancela; Enter NAO confirma. O atalho de teclado servia
+            // ate a acao ser destrutiva: um Enter distraido com o dialogo
+            // de apagar aberto apagava o post. Confirmar exige o clique
+            // (ou Tab ate o botao e entao Enter, que ja e uma escolha).
             const aoTeclar = (e) => {
                 if (e.key === "Escape") fechar(false);
-                if (e.key === "Enter")  fechar(true);
             };
 
             backdrop.querySelector(".echo-dialog-cancel").onclick  = () => fechar(false);
@@ -612,7 +646,13 @@ class EchoUI {
 
             document.addEventListener("keydown", aoTeclar);
             document.body.appendChild(backdrop);
-            backdrop.querySelector(".echo-dialog-confirm").focus();
+
+            // O foco vai para Cancelar, e nao para Confirmar: botao
+            // focado responde a Enter por conta propria, entao focar o
+            // Confirmar traria de volta exatamente o acidente que a
+            // mudanca acima evita. O padrao de um dialogo destrutivo e
+            // nao fazer nada.
+            backdrop.querySelector(".echo-dialog-cancel").focus();
         });
     }
 
@@ -764,6 +804,471 @@ class EchoUI {
                 salvar.disabled = false;
             }
         };
+    }
+
+    /* ======================================================================
+       TEXTO RICO — #etiquetas e @menções
+       ====================================================================== */
+
+    /**
+     * Escapa o texto e transforma `#etiqueta` em link de busca e
+     * `@handle` em link para a pessoa.
+     *
+     * A ordem importa: **escapar primeiro, ligar depois**. Ligar antes
+     * de escapar deixaria o HTML dos links ser comido pelo escape — ou,
+     * pior, deixaria passar HTML do usuário.
+     */
+    richTextHTML(texto) {
+        if (!texto) return "";
+
+        let html = this.escapeHTML(texto);
+
+        // #etiqueta -> filtro do explorar. As regras (letras, números,
+        // `_`, `-`; nunca só número) são as mesmas de
+        // posts_extract_tags() no back — se divergirem, o link leva a uma
+        // busca vazia.
+        html = html.replace(
+            /(^|[^\w#&])#([\p{L}\p{N}_-]{1,64})/gu,
+            (todo, antes, tag) => /^\d+$/u.test(tag)
+                ? todo
+                : `${antes}<a class="echo-tag" href="explorar.html?tag=${encodeURIComponent(tag.toLowerCase())}">#${tag}</a>`
+        );
+
+        // @handle -> busca por aquela pessoa. O handle é a parte do
+        // e-mail antes do `@`, igual ao que o back usa para notificar.
+        html = html.replace(
+            /(^|[^\w@.&;])@([a-z0-9._-]{2,64})/gi,
+            (todo, antes, handle) => {
+                const limpo = handle.replace(/\.+$/, "");
+                return `${antes}<a class="echo-mention" href="explorar.html?q=${encodeURIComponent(limpo)}">@${limpo}</a>`
+                     + handle.slice(limpo.length);
+            }
+        );
+
+        // Quebra de linha digitada é quebra de linha na tela.
+        return html.replace(/\n/g, "<br>");
+    }
+
+    /** Abre o explorar já filtrado por uma etiqueta. */
+    openTag(tag) {
+        window.location = "explorar.html?tag=" + encodeURIComponent(String(tag).replace(/^#/, ""));
+    }
+
+    /* ======================================================================
+       BUSCA GLOBAL — o campo "Buscar no ECHO" do cabeçalho
+       ====================================================================== */
+
+    /**
+     * Liga o campo de busca do cabeçalho: sugestões enquanto se digita e
+     * Enter para a tela cheia de resultados.
+     *
+     * Uma chamada só (`api/search/all.php`) traz pessoas, publicações,
+     * etiquetas e círculos — o campo é um, a requisição é uma.
+     */
+    initSearchBox() {
+        const caixa = document.querySelector(".search-box");
+        const input = caixa?.querySelector("input");
+
+        if (!input || caixa.dataset.ligado === "1") return;
+
+        caixa.dataset.ligado = "1";
+        caixa.classList.add("echo-search");
+        input.setAttribute("autocomplete", "off");
+
+        const painel = document.createElement("div");
+        painel.className = "echo-search-results";
+        painel.hidden = true;
+        caixa.appendChild(painel);
+
+        const fechar = () => { painel.hidden = true; };
+
+        // Espera a digitação parar: uma requisição por tecla seria uma
+        // requisição por tecla.
+        let timer = null;
+
+        const buscar = async () => {
+            const q = input.value.trim();
+
+            if (q.length < 2) {
+                fechar();
+                return;
+            }
+
+            try {
+                const res = await fetch("api/search/all.php?limit=5&q=" + encodeURIComponent(q), {
+                    credentials: "same-origin"
+                });
+                const data = await res.json();
+
+                if (data.error) {
+                    fechar();
+                    return;
+                }
+
+                painel.innerHTML = this.searchResultsHTML(data);
+                painel.hidden = false;
+            } catch (e) {
+                fechar();
+            }
+        };
+
+        input.addEventListener("input", () => {
+            clearTimeout(timer);
+            timer = setTimeout(buscar, 250);
+        });
+
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                const q = input.value.trim();
+                if (q) window.location = "explorar.html?q=" + encodeURIComponent(q);
+            }
+            if (e.key === "Escape") fechar();
+        });
+
+        input.addEventListener("focus", () => {
+            if (painel.innerHTML.trim() && input.value.trim().length >= 2) painel.hidden = false;
+        });
+
+        // Clique fora fecha; clique dentro do painel, não — senão o link
+        // some antes do clique chegar nele.
+        document.addEventListener("click", (e) => {
+            if (!caixa.contains(e.target)) fechar();
+        });
+    }
+
+    /** Prévia dos resultados da busca, agrupada por tipo. */
+    searchResultsHTML(data) {
+        const q = data.query || "";
+        const partes = [];
+
+        if (data.users?.length) {
+            partes.push(`<div class="echo-search-group">Pessoas</div>`);
+            data.users.forEach(u => {
+                partes.push(`
+                    <a class="echo-search-item" role="button" onclick="EchoUIInstance.openProfile(${u.user_id})">
+                        ${this.avatarHTML(u, "sm")}
+                        <span class="echo-search-text">
+                            <strong>${this.escapeHTML(u.name)}</strong>
+                            <small>@${this.escapeHTML((u.email || "").split("@")[0])}</small>
+                        </span>
+                    </a>`);
+            });
+        }
+
+        if (data.hashtags?.length) {
+            partes.push(`<div class="echo-search-group">Etiquetas</div>`);
+            data.hashtags.forEach(h => {
+                partes.push(`
+                    <a class="echo-search-item" href="explorar.html?tag=${encodeURIComponent(h.tag)}">
+                        <span class="echo-search-hash"><i class="fa-solid fa-hashtag"></i></span>
+                        <span class="echo-search-text">
+                            <strong>#${this.escapeHTML(h.tag)}</strong>
+                            <small>${h.post_count} ${h.post_count === 1 ? "publicação" : "publicações"}</small>
+                        </span>
+                    </a>`);
+            });
+        }
+
+        if (data.circles?.length) {
+            partes.push(`<div class="echo-search-group">Círculos</div>`);
+            data.circles.forEach(c => {
+                partes.push(`
+                    <a class="echo-search-item" href="circle_chat.html?circle_id=${c.id}">
+                        <span class="echo-search-hash"><i class="fa-regular fa-circle"></i></span>
+                        <span class="echo-search-text">
+                            <strong>${this.escapeHTML(c.name)}</strong>
+                            <small>${c.is_owner ? "seu círculo" : "você é membro"}</small>
+                        </span>
+                    </a>`);
+            });
+        }
+
+        if (data.posts?.length) {
+            partes.push(`<div class="echo-search-group">Publicações</div>`);
+            data.posts.slice(0, 3).forEach(p => {
+                partes.push(`
+                    <a class="echo-search-item" href="inicio.html?post=${p.id}">
+                        ${this.avatarHTML(p, "sm")}
+                        <span class="echo-search-text">
+                            <strong>${this.escapeHTML(p.name)}</strong>
+                            <small>${this.escapeHTML((p.content || "").slice(0, 60))}</small>
+                        </span>
+                    </a>`);
+            });
+        }
+
+        if (!partes.length) {
+            return `<div class="echo-search-empty">Nada encontrado para “${this.escapeHTML(q)}”.</div>`;
+        }
+
+        partes.push(`
+            <a class="echo-search-all" href="explorar.html?q=${encodeURIComponent(q)}">
+                Ver todos os resultados de “${this.escapeHTML(q)}”
+            </a>`);
+
+        return partes.join("");
+    }
+
+    /* ======================================================================
+       AUTOCOMPLETE DE MENÇÃO
+       ====================================================================== */
+
+    /**
+     * Sugere pessoas quando se digita `@` num campo de texto.
+     *
+     * Só o handle exato vira notificação no servidor, então errar o nome
+     * é escrever uma menção que não avisa ninguém — o autocomplete
+     * existe para isso não acontecer.
+     */
+    attachMentionAutocomplete(campo) {
+        if (!campo || campo.dataset.mencao === "1") return;
+        campo.dataset.mencao = "1";
+
+        const painel = document.createElement("div");
+        painel.className = "echo-mention-box";
+        painel.hidden = true;
+
+        // O painel é posicionado em relação ao campo; o container precisa
+        // ser o pai posicionado.
+        const pai = campo.parentElement;
+        if (pai && getComputedStyle(pai).position === "static") pai.style.position = "relative";
+        pai?.appendChild(painel);
+
+        let timer = null;
+
+        const fechar = () => { painel.hidden = true; };
+
+        const trechoDaMencao = () => {
+            const ate = campo.value.slice(0, campo.selectionStart ?? campo.value.length);
+            const m   = ate.match(/(?:^|[^\w@.])@([a-z0-9._-]{1,64})$/i);
+            return m ? m[1] : null;
+        };
+
+        const escolher = (email) => {
+            const handle = (email || "").split("@")[0];
+            const pos    = campo.selectionStart ?? campo.value.length;
+            const antes  = campo.value.slice(0, pos).replace(/@[a-z0-9._-]*$/i, "@" + handle + " ");
+            const depois = campo.value.slice(pos);
+
+            campo.value = antes + depois;
+            campo.focus();
+            campo.setSelectionRange(antes.length, antes.length);
+            fechar();
+        };
+
+        campo.addEventListener("input", () => {
+            const termo = trechoDaMencao();
+
+            if (termo === null || termo.length < 1) {
+                fechar();
+                return;
+            }
+
+            clearTimeout(timer);
+            timer = setTimeout(async () => {
+                try {
+                    const res = await fetch("api/friends/search.php?q=" + encodeURIComponent(termo), {
+                        credentials: "same-origin"
+                    });
+                    const data = await res.json();
+
+                    if (!data.ok || !data.users?.length) {
+                        fechar();
+                        return;
+                    }
+
+                    painel.innerHTML = data.users.slice(0, 6).map(u => `
+                        <button type="button" class="echo-mention-item" data-email="${this.escapeHTML(u.email)}">
+                            ${this.avatarHTML(u, "sm")}
+                            <span class="echo-search-text">
+                                <strong>${this.escapeHTML(u.name)}</strong>
+                                <small>@${this.escapeHTML((u.email || "").split("@")[0])}</small>
+                            </span>
+                        </button>
+                    `).join("");
+
+                    painel.querySelectorAll(".echo-mention-item").forEach(btn => {
+                        btn.onclick = () => escolher(btn.dataset.email);
+                    });
+
+                    painel.hidden = false;
+                } catch (e) {
+                    fechar();
+                }
+            }, 200);
+        });
+
+        campo.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") fechar();
+        });
+
+        campo.addEventListener("blur", () => {
+            // Espera o clique no item acontecer antes de esconder.
+            setTimeout(fechar, 150);
+        });
+    }
+
+    /* ======================================================================
+       CARDS DA COLUNA DIREITA — tendências e sugestões
+       ====================================================================== */
+
+    /**
+     * Preenche o card de tendências com as etiquetas reais dos últimos
+     * dias. Até aqui o card era texto fixo no HTML (#PHP, #Linux, #IA).
+     */
+    async renderTrending(containerId = "trendingCard", limit = 5) {
+        const box = document.getElementById(containerId);
+        if (!box) return;
+
+        try {
+            const res  = await fetch(`api/hashtags/trending.php?limit=${limit}`, { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (!data.ok || !data.hashtags.length) {
+                box.innerHTML = `<p class="text-secondary mb-0 small">
+                    Nenhum assunto em alta ainda. Publique com <strong>#etiqueta</strong> para começar um.</p>`;
+                return;
+            }
+
+            box.innerHTML = data.hashtags.map((h, i) => `
+                <a class="echo-trend" href="explorar.html?tag=${encodeURIComponent(h.tag)}">
+                    <span class="echo-trend-pos">${i + 1}</span>
+                    <span class="echo-trend-body">
+                        <strong>#${this.escapeHTML(h.tag)}</strong>
+                        <small>${h.post_count} ${h.post_count === 1 ? "publicação" : "publicações"}
+                               · ${h.people_count} ${h.people_count === 1 ? "pessoa" : "pessoas"}</small>
+                    </span>
+                </a>
+            `).join("");
+        } catch (e) {
+            box.innerHTML = `<p class="text-secondary mb-0 small">Não foi possível carregar as tendências.</p>`;
+        }
+    }
+
+    /**
+     * Fileira de etiquetas em alta, em forma de chip. É o topo do
+     * Explorar: entrar num assunto tem de ser um toque, não uma busca
+     * digitada.
+     */
+    async renderTagChips(containerId = "tagChips", limit = 10) {
+        const box = document.getElementById(containerId);
+        if (!box) return;
+
+        try {
+            const res  = await fetch(`api/hashtags/trending.php?limit=${limit}&days=30`, { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (!data.ok || !data.hashtags.length) {
+                box.innerHTML = `<p class="text-secondary small mb-0">
+                    Nenhuma etiqueta ainda. Publique com <strong>#etiqueta</strong> no Início para abrir o primeiro assunto.</p>`;
+                return;
+            }
+
+            box.innerHTML = data.hashtags.map(h => `
+                <a class="echo-chip" href="explorar.html?tag=${encodeURIComponent(h.tag)}">
+                    #${this.escapeHTML(h.tag)}<span class="echo-chip-count">${h.post_count}</span>
+                </a>
+            `).join("");
+        } catch (e) {
+            box.innerHTML = `<p class="text-secondary small mb-0">Não foi possível carregar as etiquetas.</p>`;
+        }
+    }
+
+    /**
+     * Card "Seus círculos" do Início. Fica aqui, e não no Explorar, de
+     * propósito: o Início é a sua roda; o Explorar é o que está fora
+     * dela.
+     */
+    async renderMyCircles(containerId = "circlesCard", limit = 4) {
+        const box = document.getElementById(containerId);
+        if (!box) return;
+
+        try {
+            const res  = await fetch("api/circles/list.php", { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (!data.ok || !data.circles?.length) {
+                box.innerHTML = `<p class="text-secondary mb-0 small">
+                    Você ainda não participa de nenhum círculo.
+                    <a href="circulos.html">Criar um</a>.</p>`;
+                return;
+            }
+
+            box.innerHTML = data.circles.slice(0, limit).map(c => `
+                <a class="echo-trend" href="circle_chat.html?circle_id=${c.id}">
+                    <span class="echo-search-hash"><i class="fa-regular fa-circle"></i></span>
+                    <span class="echo-trend-body">
+                        <strong>${this.escapeHTML(c.name)}</strong>
+                        <small>${c.is_owner ? "seu círculo" : "você é membro"} ·
+                               ${c.member_count} ${c.member_count === 1 ? "membro" : "membros"}</small>
+                    </span>
+                </a>
+            `).join("");
+        } catch (e) {
+            box.innerHTML = `<p class="text-secondary mb-0 small">Não foi possível carregar os círculos.</p>`;
+        }
+    }
+
+    /**
+     * Preenche o card "Talvez você conheça" com gente de verdade
+     * (`api/friends/suggestions.php`), com botão de adicionar.
+     */
+    async renderSuggestions(containerId = "suggestionsCard", limit = 3) {
+        const box = document.getElementById(containerId);
+        if (!box) return;
+
+        try {
+            const res  = await fetch("api/friends/suggestions.php", { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (!data.ok || !data.users?.length) {
+                box.innerHTML = `<p class="text-secondary mb-0 small">Nenhuma sugestão por enquanto.</p>`;
+                return;
+            }
+
+            box.innerHTML = data.users.slice(0, limit).map(u => `
+                <div class="echo-suggestion" id="suggestion-${u.user_id}">
+                    ${this.avatarHTML(u, "sm", true)}
+                    <div class="echo-suggestion-body">
+                        ${this.authorLinkHTML(u, "fw-bold small")}
+                        <small class="text-secondary">@${this.escapeHTML((u.email || "").split("@")[0])}</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-light rounded-pill px-3" type="button"
+                            onclick="EchoUIInstance.addFriend(${u.user_id})">Seguir</button>
+                </div>
+            `).join("");
+        } catch (e) {
+            box.innerHTML = `<p class="text-secondary mb-0 small">Não foi possível carregar as sugestões.</p>`;
+        }
+    }
+
+    /**
+     * Envia pedido de amizade (card de sugestões e resultados da busca).
+     * Devolve true quando o pedido entrou — quem chamou usa isso para
+     * decidir se troca o botão.
+     */
+    async addFriend(userId) {
+        try {
+            const res = await fetch("api/friends/send.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: JSON.stringify({ user_id: userId })
+            });
+            const data = await res.json();
+
+            if (this.showApiError(data)) return false;
+
+            this.toastSuccess(data.auto_accepted
+                ? "Vocês agora são amigos."
+                : "Pedido de amizade enviado.");
+
+            document.getElementById("suggestion-" + userId)?.remove();
+            return true;
+        } catch (e) {
+            this.toastError("Erro de conexão ao enviar o pedido.");
+            return false;
+        }
     }
 
     escapeHTML(str) {

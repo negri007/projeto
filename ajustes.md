@@ -1,6 +1,6 @@
 # Ajustes do Upgrade — Sistema Echo
 
-Estado do upgrade em **31/08/2026**. Serve para retomar o trabalho sem
+Estado do upgrade em **01/09/2026**. Serve para retomar o trabalho sem
 precisar reler todo o histórico.
 
 Documentos relacionados:
@@ -25,7 +25,8 @@ navegador.
 | Notificações (geração + endpoints + sino) | Completo |
 | Recuperação de senha por e-mail | Completo |
 | Front-end migrado para o novo contrato | Completo |
-| Rodada de melhorias (ver abaixo) | Completo |
+| Rodada de melhorias (31/08) | Completo |
+| Rodada de funcionalidades (01/09) | Completo |
 
 ---
 
@@ -84,6 +85,184 @@ navegador.
   posts de outras pessoas assim que a tela virou perfil público.
 - A conversão automática dos `confirm()` transformou uma template string
   em string comum, quebrando a interpolação do nome do círculo.
+
+---
+
+## Rodada de funcionalidades — 01/09/2026
+
+Cinco coisas novas, mais um componente de feed que apagou a duplicação
+entre as telas.
+
+### Etiquetas e tendências
+
+Publicar com `#etiqueta` indexa o post em `hashtags` + `post_hashtags`.
+Editar o post re-sincroniza (etiqueta que saiu do texto é desligada).
+`GET /api/hashtags/trending.php` alimenta o card "Assuntos em alta", que
+antes era texto fixo no HTML (#PHP, #Linux, #IA), e
+`posts/list.php?tag=` filtra o feed.
+
+A ligação vive numa tabela própria, e não num `LIKE '%#tag%'` sobre
+`posts.content`: LIKE com curinga à esquerda não usa índice e ainda casa
+`#php` dentro de `#phpstorm`.
+
+### Busca global
+
+`GET /api/search/all.php` devolve pessoas, publicações, etiquetas e
+círculos numa chamada só — o campo do cabeçalho é um, a requisição é uma.
+O campo "Buscar no ECHO", que era decorativo em todas as telas, ganhou
+sugestões enquanto se digita (250 ms de espera) e Enter leva ao Explorar.
+
+**Círculo não entra na busca dos outros:** só aparecem os círculos de que
+a pessoa participa. Publicação e perfil são públicos dentro do sistema;
+círculo não é.
+
+### Menções
+
+`@handle` (a parte do e-mail antes do `@`) num post ou comentário gera
+notificação do tipo novo `mention`, com `reference_id` apontando para o
+**post** — inclusive quando a menção veio num comentário. Handle ambíguo
+(duas contas com o mesmo nome antes do `@`) não notifica ninguém: melhor
+perder o aviso do que avisar a pessoa errada. Citar duas vezes no mesmo
+post gera um aviso só.
+
+O campo de publicar e o de comentar têm autocomplete de `@`: errar o
+handle é escrever uma menção que não avisa ninguém, e o autocomplete
+existe para isso não acontecer.
+
+### Posts salvos
+
+O marcador que existia no feed não fazia nada. Agora `posts/save.php`
+alterna, `posts/list.php?saved=1` lista e a tela nova `salvos.html`
+mostra. Salvar é privado: o autor não é avisado e não há contador público
+— existe `saved_by_me` no post, não existe `save_count`.
+
+### Sessão versionada e troca de senha
+
+Item que estava na lista de "ficou de fora". `users.session_version`
+versiona as sessões; `api/auth/db.php` confere a cada requisição, então a
+regra vale em todo endpoint sem uma linha em cada um. Trocar a senha
+incrementa a coluna e derruba as sessões abertas em outros navegadores —
+tanto pela recuperação por e-mail quanto pela rota nova
+`auth/change_password.php` (modal da chave no perfil), que exige a senha
+atual mesmo com sessão aberta.
+
+Pegadinha encontrada no teste: `me.php` lia o id da sessão **antes** de
+incluir `db.php`, então respondia 200 com a sessão que a própria
+requisição tinha acabado de invalidar. Passou a reconferir depois da
+conexão.
+
+### Editar comentário
+
+`comments/edit.php` + coluna `comments.edited_at`. Só o autor edita — o
+dono do post continua podendo apagar, mas não reescrever: editar a fala
+de outra pessoa mantendo o nome dela embaixo seria pôr palavras na boca
+de alguém. O servidor devolve `can_edit` junto de `can_delete`.
+
+### Front-end
+
+- **`js/echo-feed.js` (novo).** O feed estava copiado em três telas
+  (início, explorar, perfil): três cópias do post, das ações e dos
+  comentários. Agora é uma classe só; a tela diz de onde vem a lista
+  (`params`) e onde ela é desenhada. Foi o que permitiu acrescentar o
+  botão de salvar em quatro telas com uma edição.
+- **Curtir/compartilhar/salvar deixaram de recarregar o feed inteiro.** A
+  resposta atualiza o botão no lugar — antes, curtir jogava o scroll de
+  volta para o topo.
+- **`explorar.html` deixou de ser cópia do início** (mesma caixa de
+  publicar, mesmo feed) e virou a tela de descoberta: busca com abas
+  (Publicações / Pessoas / Etiquetas / Círculos), filtro por etiqueta,
+  chips das etiquetas em alta e as publicações **ranqueadas por
+  engajamento**. Publicar continua no início — uma coisa em cada lugar.
+
+### Início e Explorar deixaram de mostrar a mesma coisa
+
+Mesmo depois da separação acima, as duas telas ainda exibiam a mesma
+lista cronológica de todo mundo quando não havia busca. A diferença agora
+está **no conteúdo da lista**, não no enfeite:
+
+| | Início | Explorar |
+|---|---|---|
+| O que lista | você + seus amigos (`scope=friends`) | a rede inteira |
+| Ordem | data (`id` DESC) | engajamento dos últimos 7 dias (`sort=top`) |
+| Coluna direita | assuntos em alta + **seus círculos** | **pessoas para conhecer** + o que é cada tela |
+| Publicar | sim | não |
+
+O Início tem um alternador **Amigos / Todos** (a rede inteira continua a
+um toque, e ainda assim cronológica). O Explorar tem **Em alta /
+Recentes**. As duas listas seguem sendo o mesmo componente
+(`js/echo-feed.js`) — muda só o `params`.
+- **`salvos.html` (novo)** e link "Salvos" na navegação de todas as
+  telas, inclusive no menu móvel.
+- **Texto rico** em post e comentário: `#etiqueta` vira filtro e
+  `@handle` vira link. O texto é escapado **antes** de virar link — na
+  ordem inversa, o HTML do próprio link seria comido pelo escape, ou pior,
+  passaria HTML do usuário.
+- Card "Talvez você conheça" ligado em `friends/suggestions.php`, com
+  botão de adicionar (antes eram três nomes fictícios no HTML).
+
+### Camada de movimento (01/09)
+
+Animações no CSS (`css/echo.css`, bloco final) com ganchos mínimos no JS.
+Regra adotada: **a animação explica uma mudança** — algo entrou, algo
+virou seu, algo pediu atenção. Nada de movimento em elemento parado, nada
+acima de ~400 ms, nada que segure um clique.
+
+| Onde | O que acontece |
+|---|---|
+| Feed | cada post entra em escada (45 ms entre um e outro, teto no oitavo) |
+| Curtir / salvar / compartilhar | o ícone pula e solta um anel; o contador sobe e volta |
+| Post apagado ou tirado dos salvos | encolhe para a esquerda antes de sumir |
+| Sino | balança uma vez **só quando o número de não lidas sobe** — aviso permanente vira ruído permanente |
+| Busca e autocomplete | painel entra deslizando; item empurra o texto no hover |
+| Barra lateral, chips, avatares | deslocamento leve no hover; botão primário afunda ao ser pressionado |
+| Imagem do post | aparece com zoom-out ao carregar |
+
+Dois detalhes de implementação que valem lembrar:
+
+- O anel da curtida é um `::after` do próprio botão. Vinte posts na tela
+  não viram vinte elementos a mais no DOM.
+- A classe `animando` é removida no `animationend`. Deixá-la no elemento
+  faria o segundo clique não animar nada — para o navegador, a animação
+  já teria acontecido.
+- **`prefers-reduced-motion: reduce` desliga tudo.** Não é enfeite de
+  acessibilidade: animação de entrada em lista longa dá enjoo em quem tem
+  sensibilidade vestibular.
+
+### A marca ganhou movimento (01/09)
+
+O nome do sistema virou a animação: a marca solta **anéis**, como som que
+se espalha. Dois anéis com meio ciclo de diferença a cada 3,2 s na barra
+lateral, a cerquilha respirando junto, e um brilho que atravessa as
+letras de "ECHO" (gradiente recortado no texto — anima
+`background-position`, não a cor letra a letra, e não exige um `span` por
+caractere). No hover, a marca cresce, gira e o eco acelera para 1,1 s.
+
+Vale nas oito telas sem tocar em nenhum HTML: os anéis são `::before` e
+`::after` da própria marca.
+
+Pegadinha de layout resolvida no caminho: na tela de entrada, o anel
+precisa nascer no **centro do símbolo**, não no centro da coluna de
+texto. Encolher a caixa do logo (`inline-flex`, depois `width:
+fit-content`) centrava o anel, mas deslocava o símbolo em relação ao
+título — elemento inline-level ainda herda o espaço em branco do HTML
+antes dele. A saída foi deixar a caixa como estava e pendurar o anel no
+`::after` do **ícone** (o `::before` é da Font Awesome, onde mora o
+glifo). Medido numa cópia fiel da tela: logo, ícone e título alinhados no
+mesmo x.
+
+---
+
+### Diálogo de confirmação: Enter deixou de confirmar (01/09)
+
+O `EchoUIInstance.confirm()` fechava com `true` no Enter e abria com o
+foco no botão **Confirmar**. Dois caminhos para o mesmo acidente: um
+Enter distraído com o diálogo de apagar aberto apagava o post — aconteceu
+durante os testes desta rodada.
+
+Agora Esc cancela, Enter não confirma, e o foco inicial vai para
+**Cancelar**. Confirmar exige o clique (ou Tab até o botão e então Enter,
+que já é uma escolha). O padrão de um diálogo destrutivo é não fazer
+nada.
 
 ---
 
@@ -156,6 +335,11 @@ chave única, e **abre a sessão** — quem se cadastra já entra logado.
 Endpoints acrescentados depois: `posts/edit.php`,
 `comments/delete.php`, `circles/delete.php`,
 `messages/conversations.php`, `messages/mark_read.php`.
+
+Em 01/09: `posts/save.php`, `comments/edit.php`,
+`hashtags/trending.php`, `search/all.php` e
+`auth/change_password.php` — mais os filtros `tag` e `saved` em
+`posts/list.php`.
 
 **`friends/`** — chave canônica é `user_id`. `search.php` tem o campo
 `status` (`none` / `pending_sent` / `pending_received` / `friends`) para
@@ -247,20 +431,27 @@ errado; e os limites de validação.
 Para testar recuperação de senha sem SMTP: chamar `forgot_password.php`
 e pegar o link em `logs/mail.log`.
 
+Para testar a invalidação de sessão: logar a mesma conta em dois cookie
+jars diferentes (`curl -c a.txt` e `curl -c b.txt`), trocar a senha por
+um deles e conferir que o outro passa a receber 401 — inclusive em
+`me.php`.
+
 ---
 
 ## O que ficou de fora (candidatos a próximo passo)
 
 Nada disso bloqueia o uso do sistema.
 
-- **Busca de posts** — o campo "Buscar no ECHO" do cabeçalho é
-  decorativo; não há endpoint de busca em `posts`.
-- **Editar e apagar comentário** — dá para apagar, mas não editar.
-- **Notificação de menção** (`@fulano`) — o `type` no banco é um ENUM,
-  então um tipo novo pede `ALTER TABLE`.
-- **Invalidar sessões em outros navegadores ao trocar a senha** —
-  `reset_password.php` derruba só a sessão atual. Fazer isso direito pede
-  uma coluna `session_version` em `users`, conferida no `require_login()`.
+- **Busca dentro do chat e do círculo** — a busca global cobre pessoas,
+  publicações, etiquetas e círculos, mas não o conteúdo das conversas.
+- **Handle próprio, separado do e-mail** — hoje o `@handle` é a parte do
+  e-mail antes do `@`, e por isso duas contas podem colidir (a menção
+  ambígua é ignorada). Resolver de verdade pede uma coluna `handle`
+  única em `users` e um migrador para as contas existentes.
+- **Etiqueta em comentário** — `#tag` num comentário vira link, mas não
+  entra na contagem da tendência; só o texto do post é indexado.
+- **Notificação de menção em tempo real** — chega no sino pelo mesmo
+  polling de 20 s das outras; não há push.
 - **Apagar `api/auth/reset.php`** — está desativada com HTTP 410 desde
   28/08; pode sair quando ninguém mais chamar a rota antiga.
 - **Splash do `index.html` em aba de segundo plano** — a animação GSAP usa
