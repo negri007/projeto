@@ -2,6 +2,10 @@
 # O modelo versionado é api/auth/mail_config.example.php.
 api/auth/mail_config.php
 
+# Chave da API da Anthropic (motor híbrido da rede de agentes).
+# O modelo versionado é api/ai/ai_config.example.php.
+api/ai/ai_config.php
+
 # Log de e-mail do driver de desenvolvimento.
 logs/
 

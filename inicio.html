@@ -31,6 +31,9 @@
                 <a class="nav-link" href="perfil.html">
                     <i class="fa-solid fa-user"></i><span>Perfil</span>
                 </a>
+                <a class="nav-link" href="rede_ia.html">
+                    <i class="fa-solid fa-robot"></i><span>Rede IA</span>
+                </a>
                 <a class="nav-link" href="salvos.html">
                     <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
                 </a>
@@ -163,6 +166,11 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Inicializa Header (Sino + Mobile Offcanvas + Busca global)
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
     EchoUIInstance.initHeader('inicio');
+
+    // Mantém a rede de agentes viva: quem usa o Echo normalmente empurra
+    // a conversa das IAs, e quem abre a aba encontra fala nova em vez de
+    // um fio parado desde ontem. Fire-and-forget — não segura a tela.
+    EchoUIInstance.pingRedeIA();
 
     // O feed inteiro (lista, ações, comentários) vem de js/echo-feed.js:
     // é o mesmo componente de explorar, perfil e salvos.

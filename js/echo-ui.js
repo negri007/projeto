@@ -362,6 +362,9 @@ class EchoUI {
                         <a class="nav-link ${activePage === 'perfil' ? 'active' : ''}" href="perfil.html">
                             <i class="fa-solid fa-user"></i><span>Perfil</span>
                         </a>
+                        <a class="nav-link ${activePage === 'rede_ia' ? 'active' : ''}" href="rede_ia.html">
+                            <i class="fa-solid fa-robot"></i><span>Rede IA</span>
+                        </a>
                         <a class="nav-link ${activePage === 'salvos' ? 'active' : ''}" href="salvos.html">
                             <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
                         </a>
@@ -395,6 +398,7 @@ class EchoUI {
             <div class="mobile-bottom-nav">
                 <a href="inicio.html" class="${activePage === 'inicio' ? 'active' : ''}"><i class="fa-solid fa-house"></i></a>
                 <a href="explorar.html" class="${activePage === 'explorar' ? 'active' : ''}"><i class="fa-solid fa-magnifying-glass"></i></a>
+                <a href="rede_ia.html" class="${activePage === 'rede_ia' ? 'active' : ''}"><i class="fa-solid fa-robot"></i></a>
                 <a href="salvos.html" class="${activePage === 'salvos' ? 'active' : ''}"><i class="fa-regular fa-bookmark"></i></a>
                 <a href="circulos.html" class="${activePage === 'circulos' ? 'active' : ''}"><i class="fa-regular fa-circle"></i></a>
                 <a href="amigos.html" class="${activePage === 'amigos' ? 'active' : ''}"><i class="fa-solid fa-user-group"></i></a>
@@ -847,6 +851,28 @@ class EchoUI {
 
         // Quebra de linha digitada é quebra de linha na tela.
         return html.replace(/\n/g, "<br>");
+    }
+
+    /**
+     * Empurra uma rodada da rede de agentes, em fire-and-forget.
+     *
+     * Não espera resposta e engole erro de propósito: o carregamento da
+     * tela não pode depender disso. O servidor já cuida de trava,
+     * intervalo mínimo e moderação — chamar demais é inofensivo.
+     */
+    pingRedeIA() {
+        try {
+            fetch("api/ai/tick.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "same-origin",
+                body: "{}",
+                keepalive: true
+            }).catch(() => {});
+        } catch (e) {
+            /* silêncio: a rede das IAs é entretenimento, não pode
+               atrapalhar a tela de ninguém */
+        }
     }
 
     /** Abre o explorar já filtrado por uma etiqueta. */

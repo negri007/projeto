@@ -1868,3 +1868,440 @@ a.echo-author-link:hover { text-decoration: underline; }
     animation: echo-onda 3.2s ease-out infinite;
     pointer-events: none;
 }
+
+/* ==========================================================================
+   REDE IA — identidade própria
+
+   A tela precisa parecer outro lugar dentro do mesmo app: fundo com um
+   tom frio, acento ciano/violeta em vez do azul do Echo, e nenhuma ação
+   sobre as falas. Quem chega tem de entender em dois segundos que ali
+   não se participa, se assiste.
+   ========================================================================== */
+
+body.rede-ia {
+    --ia-acento: #00e0c6;
+    --ia-acento-2: #a06bff;
+    --ia-fundo: #06090f;
+}
+
+body.rede-ia .main-col { background: var(--ia-fundo); }
+
+/* Selo do cabeçalho: verde quando a IA real está ligada. */
+.ia-badge-live {
+    background: rgba(0, 224, 198, 0.12);
+    color: var(--ia-acento);
+    border: 1px solid rgba(0, 224, 198, 0.35);
+    border-radius: var(--radius-full);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    text-transform: lowercase;
+}
+
+/* --------------------------------------------------------------------------
+   Banner do conceito
+   -------------------------------------------------------------------------- */
+.ia-banner {
+    position: relative;
+    overflow: hidden;
+    padding: 22px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    background:
+        radial-gradient(120% 140% at 0% 0%, rgba(160, 107, 255, 0.16), transparent 60%),
+        radial-gradient(120% 140% at 100% 0%, rgba(0, 224, 198, 0.14), transparent 55%),
+        var(--bg-card-alt);
+}
+
+.ia-banner h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: #fff;
+}
+
+.ia-banner h2 i { color: var(--ia-acento); }
+
+.ia-banner p {
+    color: var(--text-soft);
+    font-size: 0.92rem;
+    max-width: 60ch;
+    margin-bottom: 14px;
+}
+
+.ia-banner strong { color: #fff; }
+
+/* Brilho que atravessa o banner devagar: a rede está "viva". */
+.ia-banner-glow {
+    position: absolute;
+    top: -60%;
+    left: -30%;
+    width: 45%;
+    height: 220%;
+    background: linear-gradient(90deg, transparent, rgba(0, 224, 198, 0.10), transparent);
+    transform: skewX(-18deg);
+    animation: ia-varredura 9s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes ia-varredura {
+    0%, 100% { left: -35%; opacity: 0; }
+    45%      { opacity: 1; }
+    70%      { left: 105%; opacity: 0; }
+}
+
+.ia-banner-agentes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+}
+
+.ia-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 12px 4px 4px;
+    border: 1px solid color-mix(in srgb, var(--cor-agente) 45%, transparent);
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #fff;
+    background: color-mix(in srgb, var(--cor-agente) 12%, transparent);
+}
+
+/* --------------------------------------------------------------------------
+   Cabeçalho do fio
+   -------------------------------------------------------------------------- */
+.ia-fio-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.ia-fio-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.ia-fio-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ia-acento);
+    font-weight: 700;
+}
+
+.ia-fio-contador { color: var(--text-muted); font-size: 0.78rem; }
+
+.ia-fio-header h3 {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #fff;
+    margin: 0;
+}
+
+.ia-memoria { margin-top: 10px; }
+
+.ia-memoria summary {
+    cursor: pointer;
+    color: var(--text-soft);
+    font-size: 0.82rem;
+}
+.ia-memoria summary:hover { color: #fff; }
+
+.ia-memoria p {
+    margin: 8px 0 0;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 2px solid var(--ia-acento-2);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--text-soft);
+    font-size: 0.85rem;
+}
+
+/* --------------------------------------------------------------------------
+   As falas
+   -------------------------------------------------------------------------- */
+.ia-fala {
+    display: flex;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-left: 2px solid transparent;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.ia-fala:hover {
+    border-left-color: var(--cor-agente);
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.ia-avatar {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: 12px;   /* quadrado arredondado: não é gente */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #04070c;
+    font-size: 1rem;
+}
+
+.ia-avatar-sm {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+}
+
+.ia-corpo { min-width: 0; flex: 1; }
+
+.ia-cabecalho {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 3px;
+}
+
+.ia-cabecalho strong { color: #fff; font-size: 0.92rem; }
+.ia-handle { color: var(--text-muted); font-size: 0.8rem; }
+
+.ia-selo {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(160, 107, 255, 0.18);
+    color: var(--ia-acento-2);
+    border: 1px solid rgba(160, 107, 255, 0.35);
+}
+
+.ia-papel {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-full);
+    padding: 0 8px;
+}
+
+.ia-tempo { color: var(--text-muted); font-size: 0.78rem; }
+
+/* Ponto discreto: esta fala foi gerada na hora, não veio do acervo. A
+   graça é a pessoa notar sozinha que aquela ali saiu diferente. */
+.ia-ponto {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ia-acento);
+    box-shadow: 0 0 8px var(--ia-acento);
+}
+
+.ia-texto {
+    color: #e7edf3;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+/* Fala que acabou de chegar pelo poller. */
+@keyframes ia-chegou {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+}
+.ia-fala-nova { animation: ia-chegou 0.4s cubic-bezier(0.2, 0.9, 0.3, 1); }
+
+/* Divisor de assunto dentro da conversa das IAs. O cabeçalho do topo
+   mostra só o fio corrente; a lista traz vários fios seguidos, e sem
+   isto uma fala aparece debaixo do título errado. */
+.ia-divisor {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px 10px;
+}
+
+.ia-divisor-linha {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-soft), transparent);
+}
+
+.ia-divisor-texto {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ia-acento, #00e0c6);
+    white-space: nowrap;
+    max-width: 60%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* --------------------------------------------------------------------------
+   Interação humana na rede das IAs
+
+   A tela deixou de ser vitrine pura, mas continua tendo de parecer outro
+   lugar: as ações são discretas de propósito, sem o peso das do feed
+   humano. Aqui não se conversa — se cutuca.
+   -------------------------------------------------------------------------- */
+.ia-acoes {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    margin-left: -8px;   /* alinha o ícone com o texto da fala */
+}
+
+.ia-acao {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    border-radius: var(--radius-full);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    padding: 5px 9px;
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.ia-acao:hover { background: rgba(255, 255, 255, 0.05); }
+.ia-acao:disabled { opacity: 0.5; }
+
+.ia-acao-curtir:hover { color: #ff4d6d; }
+.ia-acao-curtir.ativo { color: #ff4d6d; }
+.ia-acao-comentar:hover { color: var(--ia-acento); }
+
+.ia-acao-num { font-variant-numeric: tabular-nums; min-width: 8px; }
+
+/* A fala em que a rede responde a quem está assistindo. É o único momento
+   em que a conversa olha para fora, e passar batido desperdiçaria a graça. */
+.ia-fala-reacao {
+    background: linear-gradient(90deg, rgba(0, 224, 198, 0.06), transparent 65%);
+    border-left-color: var(--ia-acento);
+}
+
+.ia-papel-reacao {
+    color: var(--ia-acento);
+    border-color: rgba(0, 224, 198, 0.4);
+}
+
+.ia-reacao-nota {
+    font-size: 0.7rem;
+    color: var(--ia-acento);
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+    opacity: 0.85;
+}
+
+/* --------------------------------------------------------------------------
+   Comentários numa fala
+   -------------------------------------------------------------------------- */
+.ia-comentarios {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md, 12px);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.ia-com {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+}
+
+.ia-com-corpo { min-width: 0; flex: 1; }
+
+.ia-com-topo {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ia-com-topo strong { font-size: 0.82rem; color: #fff; }
+.ia-com-tempo { font-size: 0.72rem; color: var(--text-muted); }
+
+/* Diz se a rede já reagiu àquele comentário. O estado "aguardando" não é
+   um erro nem uma fila travada: é o desenho — o reconhecimento vem numa
+   rodada futura, nunca na hora. */
+.ia-com-selo {
+    font-size: 0.64rem;
+    letter-spacing: 0.04em;
+    padding: 1px 7px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-soft);
+    color: var(--text-muted);
+}
+
+.ia-com-selo.ativo {
+    color: var(--ia-acento);
+    border-color: rgba(0, 224, 198, 0.4);
+    background: rgba(0, 224, 198, 0.1);
+}
+
+.ia-com-apagar {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    padding: 0 4px;
+}
+
+.ia-com-apagar:hover { color: #ff4d6d; }
+
+.ia-com-texto {
+    font-size: 0.85rem;
+    color: #d8e2ea;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.ia-com-vazio {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 4px 0;
+}
+
+.ia-com-form {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.ia-com-campo {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-full);
+    color: #e7edf3;
+    font-size: 0.83rem;
+    padding: 6px 14px;
+}
+
+.ia-com-campo:focus {
+    outline: none;
+    border-color: var(--ia-acento);
+}
+
+.ia-com-campo::placeholder { color: var(--text-muted); }
+
+.ia-com-enviar {
+    background: var(--ia-acento);
+    border: none;
+    border-radius: var(--radius-full);
+    color: #04070c;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 6px 16px;
+}
+
+.ia-com-enviar:disabled { opacity: 0.5; }
