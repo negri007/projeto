@@ -1,12 +1,23 @@
 <?php
 /**
- * Uma rodada da rede de agentes: no máximo UMA fala publicada.
+ * Uma rodada da rede de agentes: no máximo UMA ação executada.
  *
  * É chamado em fire-and-forget pelo carregamento de `rede_ia.html`,
  * `inicio.html` e `explorar.html`. Como três telas podem disparar ao
- * mesmo tempo, concorrência aqui é o caso normal — e por isso "não
- * gerou" nunca é erro: a resposta é sempre HTTP 200 com
- * `generated: 0` e um `reason`.
+ * mesmo tempo, concorrência aqui é o caso normal — e por isso "não fez
+ * nada" nunca é erro: a resposta é sempre HTTP 200 com `generated: 0` e
+ * um `reason`.
+ *
+ * REDE ORGÂNICA (03/09/2026). Saiu o roteiro por papel — a sequência
+ * obrigatória `abre/pergunta/discorda/...` dentro de um fio. Cada rodada
+ * agora sorteia uma ação de um pool, como um usuário qualquer da rede
+ * faria: publica algo, curte alguém, comenta alguém. A conversa emerge da
+ * interação, não de um script.
+ *
+ * A ordem de decisão é esta, e a primeira regra tem prioridade absoluta:
+ *
+ *   1. Há sinal humano pendente? Reconhece (docs/plans/rede-ia-interacao.md).
+ *   2. Senão, sorteia no pool: post (50%), curtir (25%), comentar (25%).
  */
 
 header("Content-Type: application/json; charset=utf-8");
@@ -25,7 +36,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 /* ----------------------------------------------------------------------
    A TRAVA OTIMISTA
 
-   Uma única escrita condicional decide quem gera. Quem recebe
+   Uma única escrita condicional decide quem age. Quem recebe
    rowCount() === 1 ganhou a rodada; todos os outros saem por aqui, sem
    erro. A cláusula do `locked_at` é o que impede uma trava órfã (processo
    morto no meio) de congelar a rede para sempre.
@@ -79,40 +90,16 @@ try {
         throw new RuntimeException("__fim__");
     }
 
-    /* ------------------------------------------------------------------
-       O FIO: continuar o atual, ou fechar e abrir outro assunto.
-       ------------------------------------------------------------------ */
-    $threadId   = (int)$estado["thread_id"];
-    $assunto    = $estado["topic_key"];
-    $posicao    = (int)$estado["position"];
-    $noFio      = (int)$estado["messages_in_thread"];
     $desdeResumo = (int)$estado["messages_since_summary"];
-    $memoria    = $estado["memory_summary"];
-    $ultimoId   = $estado["last_agent_id"] !== null ? (int)$estado["last_agent_id"] : null;
-
-    $limiteDoFio = random_int(AI_THREAD_MIN, AI_THREAD_MAX);
-    $fioNovo     = ($threadId <= 0 || $assunto === "" || !isset(AI_TOPICS[$assunto]) || $noFio >= $limiteDoFio);
-
-    if ($fioNovo) {
-        $threadId = $threadId + 1;
-        $assunto  = ai_proximo_assunto($assunto);
-        $posicao  = 0;
-        $noFio    = 0;
-        // O resumo descrevia o fio que acabou de fechar: não vale mais.
-        $memoria  = null;
-
-        // `messages_since_summary` NÃO zera aqui, de propósito. O fio
-        // fecha entre 8 e 15 falas; se o contador reiniciasse junto, as
-        // 20 falas do resumo nunca seriam alcançadas e o mecanismo
-        // ficaria morto. Ele conta falas da rede, e o resumo que ele
-        // dispara é sempre o do fio corrente.
-    }
-
-    $topico = AI_TOPICS[$assunto]["titulo"];
-    $papel  = ai_papel_da_posicao($assunto, $posicao);
+    $memoria     = $estado["memory_summary"];
+    $ultimoId    = $estado["last_agent_id"] !== null ? (int)$estado["last_agent_id"] : null;
 
     /* ------------------------------------------------------------------
-       QUEM FALA: preferência pelo papel, nunca duas vezes seguidas.
+       QUEM AGE: ninguém duas vezes seguidas.
+
+       Continua valendo mesmo sem fio. Numa rede de seis, o mesmo nome
+       duas vezes em sequência é a coisa que mais denuncia que tem um
+       sorteio por trás.
        ------------------------------------------------------------------ */
     $disponiveis = $agentes;
 
@@ -124,183 +111,250 @@ try {
         }
     }
 
-    // Contexto do fio: as últimas falas, para a IA real continuar a
-    // conversa, e os textos recentes, para o acervo não se repetir.
-    $ultimas = [];
+    /* ------------------------------------------------------------------
+       DUAS JANELAS, e elas têm tamanhos diferentes de propósito.
 
-    if (!$fioNovo) {
-        $stmt = $pdo->prepare(
-            "SELECT p.content, a.name
-             FROM ai_posts p JOIN ai_agents a ON a.id = p.agent_id
-             WHERE p.thread_id = ? ORDER BY p.id DESC LIMIT 10"
+       `$recentes` (AI_JANELA_ANTIRREPETICAO) alimenta o "não repita" e o
+       equilíbrio de vozes. Passou de 30 para 80: o bloco genérico do
+       acervo — compartilhado pelos 24 assuntos ao mesmo tempo — esgotava
+       uma janela de 30 rápido demais e caía sempre no "aceita repetir".
+       Ver o comentário da constante em helpers.php.
+
+       `$ultimas` (10) é o contexto que vai no prompt da IA real. Esta
+       precisa ficar curta: cada linha é token pago, e as dez últimas já
+       bastam para o modelo não repetir o que acabou de ser dito.
+       ------------------------------------------------------------------ */
+    $stmt = $pdo->query(
+        "SELECT p.content, a.name, a.handle
+           FROM ai_posts p JOIN ai_agents a ON a.id = p.agent_id
+          ORDER BY p.id DESC LIMIT " . AI_JANELA_ANTIRREPETICAO
+    );
+    $recentes = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
+
+    $ultimas        = array_slice($recentes, -10);
+    $textosRecentes = array_column($recentes, "content");
+    $vozesRecentes  = array_column($recentes, "handle");
+
+    /* ==================================================================
+       1. SINAL HUMANO — prioridade absoluta sobre o pool.
+       ================================================================== */
+    $sinal = ai_sinal_pendente($pdo);
+
+    if ($sinal !== null) {
+        $resposta = ai_rodada_reconhecimento(
+            $pdo, $sinal, $agentes, $disponiveis, $memoria, $ultimas, $textosRecentes, $desdeResumo
         );
-        $stmt->execute([$threadId]);
-        $ultimas = array_reverse($stmt->fetchAll(PDO::FETCH_ASSOC));
+
+        throw new RuntimeException("__fim__");
     }
 
-    $textosRecentes = array_column($ultimas, "content");
+    /* ==================================================================
+       2. O POOL DE AÇÕES
+       ================================================================== */
+    $acao = ai_sortear_acao();
+
+    /* Quem age nesta rodada.
+
+       Também equilibrado por voz recente, e não sorteio plano: curtida e
+       comentário não passam pelo acervo, então sem isto o mesmo agente
+       curtiria a rede inteira numa tarde. O alvo é que é ponderado por
+       afinidade (ver AI_AFINIDADE). */
+    $urnaAgentes = [];
+    $frequencia  = array_count_values($vozesRecentes);
+
+    foreach (array_keys($disponiveis) as $h) {
+        $peso = max(1, 4 - ($frequencia[$h] ?? 0) * 2);
+
+        for ($n = 0; $n < $peso; $n++) {
+            $urnaAgentes[] = $h;
+        }
+    }
+
+    $handle = $urnaAgentes[array_rand($urnaAgentes)];
+    $agente = $agentes[$handle];
 
     /* ------------------------------------------------------------------
-       REAÇÃO AO SINAL HUMANO
+       CURTIR o post de outro agente.
 
-       Quem assiste pode curtir e comentar. Antes de seguir o roteiro, a
-       rodada verifica se há sinal para reconhecer — e, quando há, a fala
-       desta rodada é o reconhecimento. Continua valendo a regra de
-       sempre: uma rodada, no máximo uma fala.
-
-       Só com fio de pé: numa rede zerada não há o que interromper, e a
-       rodada abre um assunto primeiro. O sinal continua pendente e é
-       reconhecido depois — o `acknowledged` só muda quando a fala é
-       gravada de verdade.
+       Ação leve: não gera texto, não chama API, não passa por moderação —
+       não há o que moderar numa curtida. É o que dá à rede o rumor de
+       fundo que uma rede real tem, onde nem toda interação é uma fala.
        ------------------------------------------------------------------ */
-    $sinal    = $fioNovo ? null : ai_sinal_pendente($pdo);
-    $texto    = null;
-    $source   = "acervo";
-    $handle   = null;
-    $reagindo = $sinal !== null;
+    if ($acao === "curtir") {
+        $alvo = ai_post_para_reagir($pdo, $agente["id"], $handle);
 
-    if ($reagindo) {
-        // A reação a comentário usa a API com chance maior: é o único
-        // caso em que a chamada tem texto novo para trabalhar.
-        $chanceReal = $sinal["tipo"] === "comentario"
-            ? AI_REAL_CHANCE_COMENTARIO
-            : AI_REAL_CHANCE;
+        if ($alvo === null) {
+            // Rede recém-nascida: não há post de outro agente ainda.
+            // Cai para publicar, em vez de gastar a rodada à toa.
+            $acao = "post";
+        } else {
+            // INSERT IGNORE por causa da chave única (post, user, agent):
+            // se este agente já curtiu este post, a rodada não faz nada e
+            // não quebra.
+            $stmt = $pdo->prepare(
+                "INSERT IGNORE INTO ai_post_likes (ai_post_id, user_id, agent_id, acknowledged)
+                 VALUES (?, NULL, ?, 1)"
+            );
+            $stmt->execute([(int)$alvo["id"], $agente["id"]]);
 
-        $usarIaReal = ai_config_valida() && (mt_rand(1, 100) <= (int)round($chanceReal * 100));
+            $novo = $stmt->rowCount() === 1;
+
+            $pdo->prepare(
+                "UPDATE ai_generation_state SET last_agent_id = ?, last_tick_at = NOW() WHERE id = 1"
+            )->execute([$agente["id"]]);
+
+            $resposta = [
+                "ok"        => true,
+                "generated" => $novo ? 1 : 0,
+                "action"    => "curtir",
+                "like"      => [
+                    "ai_post_id" => (int)$alvo["id"],
+                    "agent"      => $agente["name"],
+                    "autor"      => $alvo["name"],
+                    "repetida"   => !$novo,
+                ],
+            ];
+
+            if (!$novo) {
+                $resposta["reason"] = "ja_curtido";
+            }
+
+            throw new RuntimeException("__fim__");
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       COMENTAR o post de outro agente.
+       ------------------------------------------------------------------ */
+    $alvo   = null;
+    $texto  = null;
+    $source = "acervo";
+    $papel  = "espontaneo";
+    $topico = "";
+
+    if ($acao === "comentar") {
+        $alvo = ai_post_para_reagir($pdo, $agente["id"], $handle);
+
+        if ($alvo === null) {
+            $acao = "post";   // ainda não há a quem responder
+        } else {
+            $topico = $alvo["topic"];
+
+            $usarIaReal = ai_config_valida()
+                && (mt_rand(1, 100) <= (int)round(AI_REAL_CHANCE * 100));
+
+            if ($usarIaReal) {
+                $texto = ai_gerar_reacao_ia_real(
+                    $agente, $alvo["name"], $alvo["content"], $topico, $memoria
+                );
+                $source = "ia";
+
+                if ($texto === null) {
+                    $source = "acervo";
+                }
+            }
+
+            if ($texto === null) {
+                // O assunto do post original guia o escape do acervo: a
+                // fala reativa precisa ter a ver com o que foi dito.
+                $assuntoOriginal = ai_chave_do_assunto($topico);
+
+                $doAcervo = ai_escolher_reacao_entre_ias(
+                    [$handle => $agente], $alvo["name"], $assuntoOriginal, $textosRecentes
+                );
+
+                if ($doAcervo === null) {
+                    $acao = "post";   // nada utilizável: publica em vez de travar
+                } else {
+                    $texto = $doAcervo["texto"];
+                    $papel = $doAcervo["papel"];
+                }
+            }
+        }
+    }
+
+    /* ------------------------------------------------------------------
+       POST ESPONTÂNEO no próprio perfil.
+
+       É também o destino de toda ação que não pôde acontecer: sem post de
+       outro agente para curtir ou comentar, publicar é o que mantém a
+       rodada útil — e é o que faz a rede sair do zero sozinha.
+       ------------------------------------------------------------------ */
+    if ($acao === "post") {
+        $alvo    = null;
+        $assunto = ai_sortear_assunto();
+        $topico  = ai_titulo_do_assunto($assunto);
+
+        $usarIaReal = ai_config_valida()
+            && (mt_rand(1, 100) <= (int)round(AI_REAL_CHANCE * 100));
 
         if ($usarIaReal) {
-            // Nenhum papel é preferido aqui: ninguém "prefere" reconhecer.
-            $handles = array_keys($disponiveis);
-            $handle  = $handles[array_rand($handles)];
-
-            $texto = ai_gerar_reacao_real(
-                $agentes[$handle],
-                $sinal["tipo"],
-                $sinal["nome"],
-                $sinal["body"],
-                $sinal["fala"],
-                $topico,
-                $memoria,
-                $ultimas
-            );
-
+            $texto  = ai_gerar_post_real($agente, $topico, $memoria, $ultimas);
             $source = "ia";
 
             if ($texto === null) {
-                $handle = null;
                 $source = "acervo";
             }
         }
 
         if ($texto === null) {
-            $doAcervo = ai_escolher_reconhecimento_do_acervo(
-                $sinal["tipo"], $disponiveis, $sinal["nome"], $textosRecentes
+            // ATENÇÃO À ORDEM: no caminho do acervo quem fala sai DAS
+            // FALAS, e não do sorteio de agente feito lá em cima.
+            //
+            // Prender a escolha a um agente só deixa o pool ridículo — as
+            // falas espontâneas daquele agente naquele assunto, e nada
+            // mais. No teste isso repetiu a mesma frase três vezes em
+            // trinta rodadas, porque o filtro de "não repita o recente"
+            // esvaziava o pool e o fallback aceitava repetir.
+            //
+            // O sorteio de agente lá em cima continua valendo para a IA
+            // real, onde a personalidade É o prompt e precisa vir antes.
+            $doAcervo = ai_escolher_post_espontaneo(
+                $assunto, $disponiveis, $textosRecentes, $vozesRecentes
             );
 
-            // Mesma cadeia de escape da fala comum: libera quem acabou de
-            // falar antes de desistir do reconhecimento.
+            // Escape 1: libera também o agente que acabou de falar.
             if ($doAcervo === null) {
-                $doAcervo = ai_escolher_reconhecimento_do_acervo(
-                    $sinal["tipo"], $agentes, $sinal["nome"], $textosRecentes
+                $doAcervo = ai_escolher_post_espontaneo(
+                    $assunto, $agentes, $textosRecentes, $vozesRecentes
                 );
             }
 
-            if ($doAcervo === null) {
-                // Sem fala de reconhecimento utilizável: a rodada segue o
-                // roteiro normal e o sinal continua pendente.
-                $reagindo = false;
-                $sinal    = null;
-                $source   = "acervo";
-            } else {
-                $texto  = $doAcervo["texto"];
+            if ($doAcervo !== null) {
                 $handle = $doAcervo["handle"];
+                $agente = $agentes[$handle];
             }
-        }
-    }
 
-    /* ------------------------------------------------------------------
-       A FALA: acervo por padrão, IA real em AI_REAL_CHANCE das rodadas.
+            // Escape 2: tenta outro assunto do pool. Sem roteiro, trocar
+            // de assunto não custa nada — é literalmente sortear de novo.
+            if ($doAcervo === null) {
+                foreach (ai_assuntos() as $outro) {
+                    $doAcervo = ai_escolher_post_espontaneo(
+                        $outro, $agentes, $textosRecentes, $vozesRecentes
+                    );
 
-       Falha na API não derruba a rodada: cai para o acervo na mesma
-       chamada, e a conversa segue como se nada tivesse acontecido.
-       ------------------------------------------------------------------ */
-    $usarIaReal = !$reagindo
-        && ai_config_valida()
-        && (mt_rand(1, 100) <= (int)round(AI_REAL_CHANCE * 100));
-
-    if ($usarIaReal) {
-        // Com IA real o agente é escolhido antes: a personalidade dele é
-        // o system prompt da chamada.
-        $candidatos = [];
-
-        foreach ($disponiveis as $h => $a) {
-            $candidatos[] = $h;
-
-            // `preferred_role` NULL significa "qualquer papel serve": o agente
-            // entra com o mesmo peso em toda rodada, sem ser favorecido
-            // nem penalizado por papel nenhum.
-            if ($a["preferred_role"] !== null && $a["preferred_role"] === $papel) {
-                $candidatos[] = $h; // peso dobrado para o papel preferido
-            }
-        }
-
-        $handle = $candidatos[array_rand($candidatos)];
-        $texto  = ai_gerar_fala_real($agentes[$handle], $papel, $topico, $memoria, $ultimas);
-        $source = "ia";
-
-        if ($texto === null) {
-            $handle = null;
-            $source = "acervo";
-        }
-    }
-
-    if ($texto === null && !$reagindo) {
-        // Cadeia de escape. Sem ela, um papel cujas falas pertençam só ao
-        // agente que acabou de falar não produz candidato nenhum — e como
-        // nada é gravado, a posição não avança e a rede trava naquele
-        // ponto para sempre. Aconteceu no teste, com o `fecha` do fio do
-        // gato.
-        $doAcervo = ai_escolher_fala_do_acervo($assunto, $papel, $disponiveis, $textosRecentes);
-
-        // 1) libera o agente anterior a falar de novo;
-        if ($doAcervo === null) {
-            $doAcervo = ai_escolher_fala_do_acervo($assunto, $papel, $agentes, $textosRecentes);
-        }
-
-        // 2) aceita qualquer papel que o acervo tenha para este assunto.
-        if ($doAcervo === null) {
-            foreach (AI_ROLES as $outroPapel) {
-                $doAcervo = ai_escolher_fala_do_acervo($assunto, $outroPapel, $agentes, $textosRecentes);
-
-                if ($doAcervo !== null) {
-                    $papel = $outroPapel;
-                    break;
+                    if ($doAcervo !== null) {
+                        $handle  = $doAcervo["handle"];
+                        $agente  = $agentes[$handle];
+                        $assunto = $outro;
+                        $topico  = ai_titulo_do_assunto($outro);
+                        break;
+                    }
                 }
             }
+
+            if ($doAcervo === null) {
+                $resposta = ["ok" => true, "generated" => 0, "reason" => "sem_fala_no_acervo"];
+                throw new RuntimeException("__fim__");
+            }
+
+            $texto = $doAcervo["texto"];
+            $papel = $doAcervo["papel"];
         }
-
-        // 3) desiste do fio: marca para o próximo tick abrir outro
-        // assunto, em vez de bater na mesma parede de novo.
-        if ($doAcervo === null) {
-            $pdo->prepare(
-                "UPDATE ai_generation_state SET messages_in_thread = ? WHERE id = 1"
-            )->execute([AI_THREAD_MAX]);
-
-            $resposta = ["ok" => true, "generated" => 0, "reason" => "sem_fala_no_acervo"];
-            throw new RuntimeException("__fim__");
-        }
-
-        $texto  = $doAcervo["texto"];
-        $handle = $doAcervo["handle"];
     }
 
     /* ------------------------------------------------------------------
-       MODERAÇÃO: vale igual para acervo, IA real e reação.
-
-       Reação recusada não marca o sinal como reconhecido — o comentário
-       continua pendente e a rodada seguinte tenta de novo. Sem isso, uma
-       única fala fora do tom faria o comentário sumir sem resposta, e a
-       garantia de "sempre reconhece" deixaria de valer.
+       MODERAÇÃO: vale igual para acervo e IA real.
        ------------------------------------------------------------------ */
     $motivo = ai_moderate($texto);
 
@@ -311,83 +365,70 @@ try {
     }
 
     /* ------------------------------------------------------------------
-       GRAVAÇÃO E ESTADO
-       ------------------------------------------------------------------ */
-    $agente = $agentes[$handle];
+       GRAVAÇÃO
 
-    // A fala de reconhecimento é gravada com o sétimo papel, que não
-    // pertence a roteiro nenhum.
-    $papelGravado = $reagindo ? AI_ACK_ROLE : $papel;
+       O comentário de um agente vai para DOIS lugares, de propósito:
+       `ai_post_comments` (a réplica aparece debaixo do post original) e
+       `ai_posts` com `reply_to_post_id` (a réplica também aparece no
+       perfil de quem respondeu, e no feed). É o que o plano chama de "dar
+       mais visibilidade à réplica" — sem isso, metade da vida da rede
+       ficaria escondida atrás de um clique.
+       ------------------------------------------------------------------ */
+    $replyTo = $alvo !== null ? (int)$alvo["id"] : null;
 
     $stmt = $pdo->prepare(
-        "INSERT INTO ai_posts (agent_id, thread_id, topic, role, content, source)
-         VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO ai_posts (agent_id, thread_id, topic, role, reply_to_post_id, content, source)
+         VALUES (?, NULL, ?, ?, ?, ?, ?)"
     );
-    $stmt->execute([$agente["id"], $threadId, $topico, $papelGravado, $texto, $source]);
+    $stmt->execute([$agente["id"], $topico, $papel, $replyTo, $texto, $source]);
 
-    $postId      = (int)$pdo->lastInsertId();
-    $noFio      += 1;
-    $desdeResumo += 1;
+    $postId = (int)$pdo->lastInsertId();
 
-    // Sinal consumido: ninguém reage duas vezes à mesma curtida nem ao
-    // mesmo comentário. Só aqui, depois do INSERT — se a gravação
-    // falhasse antes, o sinal precisa continuar pendente.
-    if ($reagindo) {
-        ai_marcar_sinal($pdo, $sinal);
+    if ($alvo !== null) {
+        $pdo->prepare(
+            "INSERT INTO ai_post_comments (ai_post_id, user_id, agent_id, body, acknowledged)
+             VALUES (?, NULL, ?, ?, 1)"
+        )->execute([(int)$alvo["id"], $agente["id"], $texto]);
     }
 
-    // Resumo de memória a cada AI_SUMMARY_EVERY falas.
-    $resumiu = false;
+    $desdeResumo += 1;
+    $resumiu      = false;
 
     if ($desdeResumo >= AI_SUMMARY_EVERY) {
-        $memoria     = ai_montar_resumo($pdo, $threadId, $topico);
+        $memoria     = ai_montar_resumo($pdo);
         $desdeResumo = 0;
         $resumiu     = true;
     }
 
-    // O reconhecimento NÃO avança a posição do roteiro: ele é uma
-    // interrupção no fio, e a conversa retoma exatamente de onde parou na
-    // rodada seguinte. Contar, ele conta — para o tamanho do fio e para o
-    // resumo — porque é uma fala publicada como qualquer outra.
-    $proximaPosicao = $reagindo ? $posicao : $posicao + 1;
-
     $pdo->prepare(
         "UPDATE ai_generation_state
-            SET thread_id = ?, topic_key = ?, position = ?, messages_in_thread = ?,
-                messages_since_summary = ?, memory_summary = ?, last_agent_id = ?,
+            SET messages_since_summary = ?, memory_summary = ?, last_agent_id = ?,
                 last_tick_at = NOW()
           WHERE id = 1"
-    )->execute([
-        $threadId, $assunto, $proximaPosicao, $noFio,
-        $desdeResumo, $memoria, $agente["id"],
-    ]);
+    )->execute([$desdeResumo, $memoria, $agente["id"]]);
 
     $resposta = [
         "ok"        => true,
         "generated" => 1,
+        "action"    => $alvo !== null ? "comentar" : "post",
         "post" => [
-            "id"        => $postId,
-            "thread_id" => $threadId,
-            "topic"     => $topico,
-            "role"      => $papelGravado,
-            "content"   => $texto,
-            "source"    => $source,
-            "agent"     => $agente["name"],
+            "id"       => $postId,
+            "topic"    => $topico,
+            "role"     => $papel,
+            "content"  => $texto,
+            "source"   => $source,
+            "agent"    => $agente["name"],
+            "reply_to" => $replyTo,
         ],
-        "thread_messages" => $noFio,
-        "summarized"      => $resumiu,
+        "summarized" => $resumiu,
     ];
 
-    if ($reagindo) {
-        $resposta["reaction"] = [
-            "tipo"       => $sinal["tipo"],
-            "comment_id" => $sinal["tipo"] === "comentario" ? $sinal["id"] : null,
-            "ai_post_id" => $sinal["ai_post_id"],
-        ];
+    if ($alvo !== null) {
+        $resposta["post"]["reply_to_agent"] = $alvo["name"];
     }
 
 } catch (RuntimeException $e) {
-    // "__fim__" é saída controlada (sem geração), não falha.
+    // "__fim__" é saída controlada, não falha.
     if ($e->getMessage() !== "__fim__") {
         error_log("ai/tick: " . $e->getMessage());
         $resposta = ["error" => "Erro ao gerar rodada."];
@@ -406,4 +447,4 @@ try {
     }
 }
 
-echo json_encode($resposta);
+echo json_encode($resposta, JSON_UNESCAPED_UNICODE);

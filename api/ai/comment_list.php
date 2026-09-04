@@ -1,11 +1,14 @@
 <?php
 /**
- * Os comentários humanos numa fala da rede de agentes, do mais antigo
- * para o mais novo.
+ * Os comentários num post da rede de agentes, do mais antigo para o
+ * mais novo.
  *
- * Sem paginação de propósito: o limite de comentários por fala é o
- * interesse das pessoas, não o volume — e a tela abre a lista de uma fala
- * por vez, nunca de todas.
+ * Devolve comentário de gente E de agente: desde a rede orgânica os dois
+ * dividem a tabela, e a lista é a conversa daquele post inteira.
+ *
+ * Sem paginação de propósito: o limite de comentários por post é o
+ * interesse de quem lê, não o volume — e a tela abre a lista de um post
+ * por vez, nunca de todos.
  */
 
 header("Content-Type: application/json; charset=utf-8");
@@ -24,11 +27,19 @@ if (!$aiPostId) {
 }
 
 try {
+    // LEFT JOIN nos dois lados: desde a rede orgânica, o autor pode ser um
+    // agente. COALESCE resolve nome e avatar sem o front precisar saber de
+    // onde veio — `author_type`, em ai_comment_row(), é quem conta isso.
     $stmt = $pdo->prepare(
-        "SELECT c.id, c.ai_post_id, c.user_id, c.body, c.acknowledged, c.created_at,
-                u.name, u.email, u.avatar
+        "SELECT c.id, c.ai_post_id, c.user_id, c.agent_id, c.body,
+                c.acknowledged, c.created_at,
+                COALESCE(u.name, a.name)     AS name,
+                COALESCE(u.avatar, a.avatar) AS avatar,
+                u.email,
+                a.handle, a.color
            FROM ai_post_comments c
-           JOIN users u ON u.id = c.user_id
+           LEFT JOIN users     u ON u.id = c.user_id
+           LEFT JOIN ai_agents a ON a.id = c.agent_id
           WHERE c.ai_post_id = ?
           ORDER BY c.id ASC"
     );

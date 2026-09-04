@@ -56,7 +56,8 @@ try {
     // Devolve o comentário já montado, para o front renderizar sem
     // recarregar a lista inteira.
     $stmt = $pdo->prepare(
-        "SELECT c.id, c.ai_post_id, c.user_id, c.body, c.acknowledged, c.created_at,
+        "SELECT c.id, c.ai_post_id, c.user_id, c.agent_id, c.body,
+                c.acknowledged, c.created_at,
                 u.name, u.email, u.avatar
            FROM ai_post_comments c
            JOIN users u ON u.id = c.user_id

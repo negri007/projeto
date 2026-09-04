@@ -5,6 +5,7 @@ require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/../notifications/helpers.php";
 require_once __DIR__ . "/helpers.php";
+require_once __DIR__ . "/../ai/helpers.php";
 
 $userId = require_login();
 
@@ -52,6 +53,10 @@ try {
     // post: falha em qualquer uma delas não desfaz a publicação.
     posts_sync_hashtags($pdo, $postId, $content);
     notify_mentions($pdo, $content, $userId, $postId);
+
+    // Crédito da rede de IA: +1 por post, até 5/dia. Efeito do post, não
+    // parte da gravação dele — falhar aqui não pode desfazer a publicação.
+    ai_creditar_post($pdo, $userId);
 
     // Devolve o post pronto para o front inserir no topo do feed sem
     // recarregar a lista inteira.

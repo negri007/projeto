@@ -1132,6 +1132,69 @@ a:hover {
 }
 
 /* ==========================================================================
+   CRIAÇÃO DE AGENTE DE IA
+   O mesmo diálogo (js/echo-ui.js: openAgentModal) serve criar e editar.
+   ========================================================================== */
+
+.echo-dialog-agente { max-width: 480px; text-align: left; }
+.echo-dialog-agente h5 { text-align: left; }
+
+.echo-agente-campo { margin-bottom: 14px; }
+.echo-agente-campo label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-soft);
+    margin-bottom: 4px;
+}
+.echo-agente-campo label small { font-weight: 400; color: var(--text-muted); }
+.echo-agente-campo textarea.form-control { resize: vertical; }
+
+.echo-agente-invalido { border-color: var(--danger) !important; }
+.echo-agente-erro-campo {
+    color: var(--danger);
+    font-size: 0.76rem;
+    margin-top: 4px;
+}
+
+.echo-agente-erro-geral {
+    background: rgba(244, 33, 46, 0.12);
+    border: 1px solid rgba(244, 33, 46, 0.35);
+    color: #ff8b93;
+    border-radius: var(--radius-md, 10px);
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    margin-bottom: 14px;
+}
+
+.echo-agente-preview {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+.echo-agente-preview-nome { font-weight: 800; color: #fff; margin-bottom: 6px; }
+.echo-agente-preview-persona {
+    margin: 0 0 8px;
+    padding-left: 10px;
+    border-left: 2px solid var(--border-soft);
+    color: var(--text-main);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    font-style: italic;
+}
+.echo-agente-preview-bio { color: var(--text-soft); font-size: 0.82rem; margin-bottom: 4px; }
+.echo-agente-preview-topicos { color: var(--text-muted); font-size: 0.76rem; }
+
+.echo-agente-saldo {
+    color: var(--text-soft);
+    font-size: 0.82rem;
+    margin-bottom: 16px;
+}
+.echo-agente-saldo strong { color: #fff; }
+
+/* ==========================================================================
    AVATARES
    Foto quando existe; senão a inicial sobre uma cor derivada do id do
    usuário — a mesma pessoa fica sempre com a mesma cor, em toda tela.
@@ -2089,6 +2152,22 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     padding: 0 8px;
 }
 
+/* Agente criado por um usuário, não um dos 6 de sistema. */
+.ia-selo-user {
+    background: rgba(29, 155, 240, 0.15);
+    color: var(--accent);
+    border-color: rgba(29, 155, 240, 0.35);
+}
+
+.ia-creditos {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: var(--text-soft);
+}
+.ia-creditos strong { color: #fff; font-size: 1rem; }
+
 .ia-tempo { color: var(--text-muted); font-size: 0.78rem; }
 
 /* Ponto discreto: esta fala foi gerada na hora, não veio do acervo. A
@@ -2305,3 +2384,156 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ia-com-enviar:disabled { opacity: 0.5; }
+
+/* --------------------------------------------------------------------------
+   Rede orgânica — perfis, avatares e réplica entre agentes
+
+   A tela deixou de ser um debate com fio e virou um feed de seis perfis.
+   Saíram os divisores de assunto e a etiqueta de papel; entraram o avatar
+   de cada agente, o link para o mini-perfil e a linha de quem curtiu.
+   -------------------------------------------------------------------------- */
+
+/* O avatar com arte. `background-size: cover` e não `contain`: os SVGs
+   entregues são quadrados de 120x120, e cover garante que um arquivo com
+   proporção diferente ainda preencha o quadrado em vez de flutuar nele. */
+.ia-avatar-arte {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: transparent;   /* esconde a inicial, quando houver */
+}
+
+.ia-avatar-wrap { flex-shrink: 0; cursor: pointer; }
+
+.ia-avatar-xs {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    font-size: 0.6rem;
+}
+
+.ia-avatar-lg {
+    width: 84px;
+    height: 84px;
+    border-radius: 22px;
+    font-size: 2.2rem;
+}
+
+.ia-nome-link { cursor: pointer; }
+.ia-nome-link:hover { text-decoration: underline; }
+
+/* O assunto do post. Substitui o divisor de fio: a mesma informação, sem
+   cortar o feed em faixas a cada duas linhas. */
+.ia-assunto {
+    font-size: 0.68rem;
+    color: var(--ia-acento);
+    background: rgba(0, 224, 198, 0.08);
+    border: 1px solid rgba(0, 224, 198, 0.22);
+    border-radius: var(--radius-full);
+    padding: 0 8px;
+    max-width: 42%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Réplica de um agente a outro — tom diferente do reconhecimento de
+   humano, que é o roxo do selo IA. */
+.ia-reacao-ia {
+    color: var(--ia-acento-2);
+    opacity: 0.8;
+}
+
+/* "Fuinha e Maré curtiram" */
+.ia-curtiram {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.ia-curtiram-avatares {
+    display: inline-flex;
+}
+
+.ia-curtiram-avatares > * {
+    margin-right: -6px;   /* sobrepostos, como o feed humano faz */
+    border: 1px solid var(--ia-fundo);
+}
+
+/* Comentário escrito por um agente, no meio dos comentários de gente. */
+.ia-com-agente .ia-com-texto { color: #e7edf3; }
+
+.ia-com-agente {
+    border-left: 2px solid var(--ia-acento-2);
+    padding-left: 8px;
+    margin-left: -10px;
+}
+
+/* Ações sem clique: o mini-perfil mostra os números, mas curtir e
+   comentar acontecem na rede, onde o post vive. Duas telas escrevendo a
+   mesma coisa é o tipo de duplicação que sai do sincronismo sozinha. */
+.ia-acoes-leitura .ia-acao { cursor: default; }
+.ia-acoes-leitura .ia-acao:hover { background: none; }
+
+/* --------------------------------------------------------------------------
+   Cabeçalho do mini-perfil
+   -------------------------------------------------------------------------- */
+.ia-voltar {
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-radius: var(--radius-full);
+}
+
+.ia-voltar:hover { color: var(--ia-acento); background: rgba(255, 255, 255, 0.05); }
+
+.ia-perfil {
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.ia-perfil-capa {
+    height: 96px;
+    background: linear-gradient(120deg, var(--cor-agente), transparent 70%),
+                radial-gradient(circle at 80% 20%, rgba(160, 107, 255, 0.35), transparent 60%);
+    opacity: 0.55;
+}
+
+.ia-perfil-corpo {
+    padding: 0 20px 18px;
+    margin-top: -42px;   /* o avatar monta sobre a capa, como o perfil humano */
+}
+
+.ia-perfil-corpo .ia-avatar-lg {
+    border: 3px solid var(--ia-fundo);
+    margin-bottom: 10px;
+}
+
+.ia-perfil-nome h2 {
+    font-size: 1.35rem;
+    color: #fff;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ia-perfil-bio {
+    color: #d8e2ea;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    margin: 10px 0 0;
+    max-width: 52ch;
+}
+
+.ia-perfil-numeros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 14px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.ia-perfil-numeros strong { color: #fff; }

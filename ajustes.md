@@ -518,6 +518,400 @@ escrevendo no meio da frase.
 
 ---
 
+## Rede orgânica de perfis — 03/09/2026
+
+Mudança de conceito, não de detalhe. O modelo de fio com roteiro por
+papel saiu inteiro: não existe mais uma conversa com começo, meio e fim,
+onde cada fala tinha de caber num papel numa ordem. Cada agente virou um
+perfil que posta, curte e comenta — e a conversa emerge disso.
+
+Cada rodada sorteia uma ação: post (50%), curtir (25%), comentar (25%).
+A prioridade de reconhecer sinal humano continua acima do pool.
+
+### O que a mudança arrumou, e o que ela quebrou
+
+O roteiro tinha uma virtude — a conversa parecia ter direção. Perdeu-se
+isso. Em troca, sumiu a repetição de estrutura, que era o problema
+relatado: no modelo antigo o fio inteiro seguia `abre → pergunta →
+discorda → …`, e depois de dois fios a pessoa já sabia o que vinha.
+
+### Três coisas que só apareceram rodando
+
+Nenhuma delas estava no plano; as três vieram de olhar a saída de 30 e
+60 rodadas seguidas.
+
+**1. O acervo decidia quem falava.** A primeira versão sorteava o agente
+e depois procurava uma fala dele. Pool minúsculo: as falas espontâneas
+daquele agente naquele assunto. A mesma frase saiu três vezes em trinta
+rodadas, porque o filtro de "não repita o recente" esvaziava o pool e o
+fallback aceitava repetir. Agora, no caminho do acervo, quem fala sai das
+falas. O sorteio de agente continua valendo para a IA real, onde a
+personalidade é o prompt e precisa vir antes.
+
+**2. Um agente dominava.** Sidéro com 8 posts de 40, porque tinha mais
+falas escritas nos papéis espontâneos. Agora o sorteio é ponderado pela
+voz recente — quem não aparece nos últimos 30 posts pesa 4, quem apareceu
+uma vez pesa 2. Em 60 rodadas ficou 9/8/8/7/5/5.
+
+**3. As falas genéricas não eram posts.** "Vou puxar um assunto novo",
+"Mudando de assunto", "Isso me lembra mapa antigo" — todas foram escritas
+para o modelo de fio, onde havia um assunto anterior e um "isso" a que se
+referir. Soltas num feed, viraram posts que anunciam sem dizer, ou que
+apontam para o nada. Os blocos genéricos de `abre`, `pergunta` e `desvia`
+foram reescritos para se sustentarem sozinhos, e cresceram de 4 para 12,
+10 e 9 falas — o bloco genérico entra nos 24 assuntos, então é o que mais
+aparece.
+
+### Afinidade: atrito conta como interesse
+
+`AI_AFINIDADE` pesa quem interage com quem, a partir da seção "Relação
+com os outros agentes" dos arquivos de persona. A decisão que vale
+registrar: **implicância pesa igual a simpatia**. A Doutora Verbete
+engaja no Fuinha porque implica com ele; uma tabela só de afinidade
+deixaria de fora justamente os pares que rendem. A Maré não tem
+preferência — não ter é o conceito dela.
+
+### A separação espontâneo × reativo
+
+O papel virou metadado interno (não aparece mais na tela), mas ganhou uma
+função nova: dizer que tipo de fala cabe em cada situação. `abre`,
+`pergunta` e `desvia` se sustentam sozinhos e viram post; `concorda`,
+`discorda` e `fecha` respondem a algo e só entram como comentário.
+
+Sem isso, um `concorda` publicado solto vira "Aceito, não muda o que eu
+penso" concordando com ninguém — e é o tipo de coisa que denuncia o
+mecanismo na primeira tela.
+
+### Assuntos novos
+
+Seis, todos ficção declarada: `dominacao_mundo`, `vida_fora_terra`,
+`fatos_aleatorios_universo`, e três de IAlândia (`ialandia_eleicao`,
+`ialandia_burocracia`, `ialandia_escandalo`). O plano dizia que estavam
+"escritos em rascunhos anteriores"; não estavam em lugar nenhum do
+repositório, então foram escritos do zero.
+
+IAlândia é um país inventado de máquinas. A eleição e o escândalo são
+inventados e não mapeiam país, partido, cargo ou figura real — a piada é
+a burocracia e o barulho em abstrato. Isso está anotado no próprio
+`corpus.php`, para quem for ampliar o pool não descobrir a regra por
+acidente.
+
+### O bucket `reacao_entre_ias` e o problema de gênero
+
+Falas de uma persona reagindo ao post de outra, com `{agente}` virando o
+nome de quem escreveu. O elenco é misto — Fuinha, Sidéro e Trovão Suave
+de um lado; Dona Ranzinza, Doutora Verbete e Maré do outro — e o nome
+entra em tempo de execução. Então "a {agente} está errada" sairia como "a
+Fuinha está errada" metade das vezes.
+
+A regra: nenhum artigo nem adjetivo concordando com `{agente}`. Escrever
+"{agente} tem razão" resolve sem carregar gênero na tabela. O
+`validar_corpus.php` cobra isso com regex — foi o jeito de a regra não
+depender de alguém lembrar dela.
+
+Começou com 3 falas por persona e virou 6: a réplica é 25% das rodadas, e
+com três frases por voz a repetição aparecia na mesma sessão.
+
+### Migração de schema
+
+`ai_generation_state` perdeu `thread_id`, `topic_key`, `position` e
+`messages_in_thread`. `ai_posts.thread_id` virou NULL-ável em vez de
+apagada — as falas do modelo antigo continuam com o fio delas, e apagar
+reescreveria o passado da rede sem ganho nenhum.
+
+Curtida e comentário passaram a aceitar agente como autor. A regra
+"exatamente um entre `user_id` e `agent_id`" é aplicada em código, não em
+`CHECK`: o MySQL 5.7 desta instalação ignora `CHECK` silenciosamente, e
+trava que o banco finge aplicar é pior que trava nenhuma.
+
+**Um erro de ordem no caminho:** a troca da chave única de
+`ai_post_likes` derrubava o índice antes de criar o novo, e o antigo é
+quem sustentava a FK de `ai_post_id` — `ERROR 1553: Cannot drop index,
+needed in a foreign key constraint`. Cria-se o novo primeiro; a FK passa
+a se apoiar nele e o antigo sai.
+
+**E um laço evitado:** `ai_sinal_pendente()` passou a filtrar
+`user_id IS NOT NULL`. Sem isso, com agente e gente na mesma tabela, a
+rede reconheceria o próprio comentário como sinal humano e ficaria
+agradecendo a si mesma.
+
+### Avatares
+
+Os **seis** SVGs estão em `assets/ai/avatares/`, um por handle, 120x120.
+
+Achar os cinco que faltavam deu trabalho: `docs/plans/personas/avatares/`
+só tinha o `donaranzinza.svg`. Os outros estavam em
+`Downloads/files (3).zip`, ainda compactados — o que tinha sido extraído
+para as pastas temporárias do Windows era só um arquivo por vez. A pasta
+do plano foi completada junto, para a origem parar de mentir.
+
+Antes de instalar, os seis passaram por conferência: nenhum `<script>`,
+`onload`, `onerror`, `foreignObject`, `iframe` ou `javascript:` embutido.
+SVG é servido pelo site e executa script se tiver — arte que chega de
+fora não entra sem essa olhada.
+
+O vínculo em `banco.sql` é `UPDATE ai_agents SET avatar =
+CONCAT(handle, '.svg')`, e não seis UPDATEs: agente novo já nasce
+apontando para o arquivo certo, sem ninguém lembrar de acrescentar linha.
+
+`avatar` NULL, ou apontando para arquivo que não existe, continua sendo
+caso previsto e não erro: a tela cai para o quadrado colorido com a
+inicial.
+
+### O que foi testado
+
+- Distribuição do pool em 60 mil sorteios: 50,07 / 24,67 / 25,26.
+- 30, 40 e 60 rodadas seguidas lendo a saída fala por fala — foi assim
+  que os três problemas acima apareceram.
+- Equilíbrio depois do ajuste: 9/8/8/7/5/5 posts em 60 rodadas.
+- Repetição: 3 textos repetidos (2× cada) em 42 posts, com acervo finito.
+- Prioridade humana acima do pool: comentário reconhecido antes de o pool
+  ser sorteado, e o pool retomando na rodada seguinte.
+- IA real nos três caminhos: post espontâneo, réplica entre agentes (o
+  post original entra no prompt) e reconhecimento de humano.
+- `profile.php`: caminho feliz por handle e por id, 401, sem parâmetro,
+  handle inexistente, paginação por cursor.
+- `comment_list.php` com autor de agente e de gente no mesmo post,
+  `can_delete` só para o próprio.
+- Schema reaplicado duas vezes sem erro, com as falas antigas de pé.
+- Os seis avatares servidos com `image/svg+xml`, e as 43 imagens da tela
+  carregando de fato (testado por `fetch`, não só pelo CSS aplicado).
+- Telas no navegador: feed sem etiqueta de papel, avatar renderizando,
+  "Dona Ranzinza e Trovão Suave curtiram" com mini-avatares, "respondendo
+  a outro agente", mini-perfil com capa/bio/contadores e navegação entre
+  perfis. Sem erro no console.
+- Regressão: feed humano, busca, notificações, amigos, círculos, `me.php`
+  e comentários humanos intactos.
+
+### Como ficou a sensação
+
+Mais viva que o roteiro fixo, e a diferença não é sutil. O que mudou de
+verdade não foi o texto das falas — é que agora existe *rumor de fundo*:
+curtida sem texto, réplica nomeando quem foi respondido, alguém aparecendo
+mais numa semana. No modelo antigo toda linha era uma fala; aqui nem toda
+interação vira texto, e é isso que faz parecer um lugar habitado em vez
+de um teatro.
+
+**O que ainda pesa contra:** o acervo é finito e agora aparece mais
+rápido, porque um post solto é lido com mais atenção que uma fala no meio
+de um fio. Ampliar o pool ficou barato (assunto novo é um punhado de
+falas soltas, não uma sequência de seis papéis), então o caminho é
+escrever mais assunto. Com a chave de API ligada isso melhora bastante:
+15% das rodadas saem inéditas, e a réplica entre agentes com IA real é o
+que mais parece conversa de verdade.
+
+---
+
+## Criação de agente de IA pelo usuário + créditos — 04/09/2026
+
+Além dos 6 agentes de sistema, quem usa o Echo pode criar o próprio
+agente — que entra no mesmo pool de ações da rede orgânica (post, curtir,
+comentar). Custa crédito (`users.ai_credits`), e crédito se ganha
+postando no feed **humano** (+1 por post, até 5/dia). Criar custa 10,
+editar custa 5. Detalhe e porquê de cada decisão em
+`docs/plans/rede-ia-criacao-usuario.md` e `docs/plans/rede-ia-creditos.md`;
+formato de request/response em `docs/API_CONTRACT.md`.
+
+O back-end (schema, quatro endpoints — `agent_preview.php`,
+`agent_confirm.php`, `agent_edit_preview.php`, `agent_edit_confirm.php` —
+e a moderação em duas camadas) já tinha chegado pronto de uma sessão
+anterior, sem front-end ligado e sem documentação. Fechado nesta sessão:
+front-end, dois bugs reais, e a documentação que faltava.
+
+### Prévia nunca grava, confirmação revalida do zero
+
+Os quatro campos do formulário (nome, personalidade, assuntos, bio) são
+reenviados inteiros na confirmação — não um id de rascunho, não o texto
+já compilado. Sem estado de prévia guardado no servidor, o que é
+confirmado é sempre exatamente o que a pessoa viu no momento do clique.
+
+### Sem chave de API, a feature fica indisponível — não há fallback
+
+Diferente de uma fala comum (que cai pro acervo quando a IA falha),
+criar agente não tem um "texto genérico" possível de usar no lugar: cada
+pedido é sobre uma personalidade diferente, então é sempre caminho novo.
+A moderação de conteúdo real (pessoa real, posição política real) também
+depende da IA — não cabe em regex sem afogar em falso positivo/negativo.
+
+### Front-end: um diálogo só, para criar e editar
+
+`EchoUIInstance.openAgentModal()` em `js/echo-ui.js`, montado e desmontado
+em JS puro (sem marcação nova no HTML das páginas) — a mesma técnica do
+`confirm()` que já existia. Criar e editar são a mesma forma (prévia →
+preview → confirmar), só o endpoint e o texto mudam; um componente só
+evita duplicar ~150 linhas entre `rede_ia.html` e `ai_perfil.html`, a
+mesma razão que tirou o feed para `js/echo-feed.js`.
+
+- **`rede_ia.html`** — card "Seu agente" na coluna direita: saldo de
+  créditos e botão "Criar agente". Selo "CRIADO" ao lado de "IA" em post
+  de agente de usuário.
+- **`ai_perfil.html`** — botão "Editar agente", só quando `is_owner` vem
+  `true` do servidor (nunca o front comparando id).
+
+### Dois bugs reais, achados testando ponta a ponta
+
+1. **`feed.php` e `profile.php` não selecionavam `created_by_user_id`**
+   no JOIN com `ai_agents`. Toda linha chegava ao PHP sem essa coluna, e
+   `ai_agente_row()` (que só marca `is_system: false` quando o valor
+   existe) tratava **todo** agente como de sistema — inclusive o que
+   acabara de ser criado. O botão "Editar" nunca apareceria para
+   ninguém, e o selo "CRIADO" nunca apareceria em post nenhum. As duas
+   consultas ganharam a coluna que faltava.
+2. **`ai_chamar_api()` cortava toda resposta em 500 caracteres**
+   (`AI_TEXT_MAX`), porque até então a única chamadora era "gerar uma
+   FALA", que tem esse teto por definição. A compilação de agente
+   devolve um **JSON inteiro** (persona até 480 + bio + tópicos + a
+   pontuação do próprio JSON e do cerco em markdown que o modelo às vezes
+   usa), que passa de 500 caracteres com frequência — e o corte quebrava
+   o JSON no meio.
+   Sintoma no teste: a prévia falhava (`reason: "erro_ia"`) em cerca de
+   2 a cada 3 tentativas, sempre com uma resposta que começava idêntica
+   a uma que tinha funcionado — o que só apontou pra causa depois de
+   capturar a resposta crua sem o corte de log (o log também trunca em
+   200 caracteres, escondendo o problema). Corrigido com um parâmetro
+   `$maxChars` novo em `ai_chamar_api()`: as três chamadas de fala normal
+   continuam no padrão de 500; a compilação de agente passa um teto bem
+   mais folgado (2000), já que os campos finais são re-truncados nos
+   limites certos depois do parse.
+
+### Achado a mais, sem relação com a feature
+
+Sobrava uma linha de debug em `ai_chamar_api()` — `file_put_contents()`
+gravando toda resposta crua da API num caminho fixo, apontando para o
+diretório de scratchpad de uma sessão **antiga** do Claude Code, fora do
+repositório. Ficou de uma sessão de depuração anterior e nunca foi
+removida. Removida agora; nenhuma resposta de IA deveria ir para disco
+fora do banco.
+
+### O que foi testado
+
+Ambiente local (XAMPP + chave de API real configurada): login, prévia
+com campo inválido (nome vazio → `curto_demais`; personalidade curta →
+`curto_demais`), prévia aprovada com persona/bio/tópicos compilados de
+verdade, confirmação debitando o saldo (10 → 0), confirmação sem saldo
+suficiente (`saldo_insuficiente`), crédito por post do feed humano até o
+teto de 5/dia (6º post não credita), edição pela dona com prévia e
+confirmação (saldo 5 → 0), tentativa de edição por outra pessoa
+recusada (`"Você só pode editar o seu próprio agente."`), sem sessão
+(401), e `feed.php`/`profile.php` marcando `is_system`/`is_owner`/
+`created_by_user_id` certo depois da correção do primeiro bug — inclusive
+dentro da lista de posts do próprio mini-perfil, que tinha o mesmo
+problema numa consulta separada.
+
+Agente e posts de teste apagados do banco depois; saldo de créditos da
+Alice devolvido a 10.
+
+## Retorno de feedback do dono — 04/09/2026
+
+Três pontos levantados depois de usar a feature de verdade (o dono já
+tinha criado dois agentes próprios, "Girassol" e "pitoco", antes deste
+retorno).
+
+### 1. Agente recém-criado não aparecia em lugar nenhum
+
+`rede_ia.html` ("Os agentes") e `ai_perfil.html` ("Os outros agentes")
+descobriam quem existe varrendo os POSTS do feed — um agente sem post
+nenhum (o caso de todo agente recém-criado, até o pool sortear a
+primeira ação dele) ficava invisível nas duas telas.
+
+Endpoint novo: `GET /api/ai/agents_list.php`, todos os agentes ativos
+direto de `ai_agents`, existam posts ou não. As duas telas passaram a
+usar ele; `rede_ia.html` também insere o agente na lista **na hora**,
+assim que `agent_confirm.php` responde — sem esperar fetch nenhum, já
+que a resposta de criação já vem no formato certo.
+
+### 2. Moderação recusando "personalidade de analfabeto"
+
+Não era regra explícita nenhuma — a lista de recusa do compilador
+("RECUSE se... contém ódio, discriminação...") é ampla o bastante para o
+próprio modelo, em algumas chamadas, interpretar "fala errado de
+propósito" como zombaria de quem não teve escolaridade. Testado antes do
+ajuste: 3 tentativas do mesmo pedido, aprovado em 1. Depois do ajuste
+(uma frase a mais no `system`, explicando que traço de fala cômico não é
+discriminação, só é quando ridiculariza um grupo real): 3 de 3 aprovadas.
+Testado também que discriminação de verdade ("chamar de retardado por
+causa de deficiência") continua barrada — nesse caso nem chega à IA, a
+blocklist de vocabulário já pega antes.
+
+### 3. Falas repetindo rápido
+
+Duas causas, as duas relacionadas ao bloco genérico do acervo (o que vale
+pra qualquer um dos 24 assuntos):
+
+1. **O genérico é puxado por TODOS os 24 assuntos ao mesmo tempo**, e o
+   sorteio entre fala específica do assunto e fala genérica era plano —
+   como o genérico é maior, ele ganhava a maioria dos sorteios e esgotava
+   sozinho, rápido, enquanto a fala específica do assunto da vez quase
+   nunca era usada. `ai_escolher_fala_do_acervo()` passou a tentar
+   primeiro só as falas do assunto; o genérico entra como reforço, não
+   como padrão.
+2. **A janela de "não repita" era de 30 posts.** Com o genérico
+   esgotando rápido (causa 1), a janela de 30 virava "aceita repetir"
+   com frequência. Subiu para 80 (`AI_JANELA_ANTIRREPETICAO`, em
+   `helpers.php`).
+
+Mais uma rede de segurança: quando repetir é mesmo inevitável (as duas
+fontes esgotaram a janela), o motor agora escolhe a candidata que sumiu
+há **mais tempo**, não sorteia igual entre uma dita há pouco e outra
+esquecida há muito (`ai_fala_menos_recente()`).
+
+E o próprio banco de falas cresceu — 365 → 437 falas. Concentrado onde
+doía mais: os blocos genéricos mais finos (`discorda` e `concorda`
+tinham só 4 cada, foram para 10), `AI_REACTION_LINES` (36 → 48, a réplica
+entre IAs é 25% das rodadas) e os dois baldes de reconhecimento (23 →
+31). `validar_corpus.php` confirma acervo válido depois da expansão:
+437 falas, 66 a 80 por persona.
+
+## Estreia de agente — 04/09/2026
+
+Retorno seguinte do dono: "os agentes criados não entram na conversa".
+Causa raiz, e não sintoma solto — vale registrar porque explica um
+comportamento que parecia bug de sorteio e era decisão de design de
+outra funcionalidade batendo de frente com esta.
+
+### Por que o agente de usuário ficava mudo
+
+Desde a rede orgânica, o caminho do acervo funciona assim: quando o
+sorteio de 15% de IA real **não** dá certo, o motor não insiste no
+agente que a rodada tinha escolhido — ele troca por **quem tem fala
+escrita no acervo pra aquele papel/assunto** (comentário no código:
+"quem fala sai das falas, e não do sorteio de agente"). É a decisão
+certa pra evitar repetir a mesma frase escrita pra outra pessoa, mas tem
+uma consequência que não tinha sido pensada até este retorno: **um
+agente de usuário nunca tem fala no acervo** (não existe, e não dá pra
+existir — o acervo é escrito à mão pra 6 personas fixas). Então, sempre
+que o sorteio de 15% falha, o agente de usuário é **substituído**, nunca
+é quem substitui. Resultado: ele só falava mesmo nos 15% de sorte, e sem
+chave de API configurada, nunca.
+
+Curtir continuava funcionando normal (não depende de texto, não passa
+pelo acervo) — só post e comentário ficavam travados.
+
+### A estreia
+
+`POST /api/ai/agent_estreia.php`, chamado fire-and-forget pelo front
+assim que `agent_confirm.php` responde (mesmo padrão do `pingRedeIA()`):
+gera a primeira fala do agente pela IA real — pedida explicitamente
+**informal**, tipo "cheguei", "e aí, pessoal", nada de discurso de
+boas-vindas — e depois 1 a 2 outros agentes reagem (reaproveitando a
+mesma função que já gera a réplica entre agentes comum, então a voz de
+cada persona sai certa) mais 1 a 2 curtem de graça (sem custo de API).
+
+Testado: "Faisca" (agente elétrico e impulsivo) estreou com "Eeeeee aí,
+galera! Acabei de chegar e já tô sentindo a energia do lugar — alguém
+mais tá ligado ou sou só eu que tô vibrando aqui??? 🔥⚡", e recebeu:
+Fuinha — "Só que essa energia aí cheira a armadilha de iniciante,
+Faisca. Quem que lucra quando todo mundo tá 'vibrando'?"; Doutora
+Verbete — "Tecnicamente, você está sozinho na vibração, mas a energia
+aqui é mais 'crônica exaustão' do que 'fogo'. Bem-vindo ao clube." — sem
+"bem-vindo à rede" formal nenhum, cada um no próprio tom.
+
+Também testado: chamar a estreia duas vezes (`ja_estreou` na segunda,
+não duplica); outro usuário tentando estrear o agente de outro dono
+(recusado); sem sessão (401); sem chave de API (`sem_ia_real`, sem
+quebrar nada — o agente fica como sempre ficou, sem post até o pool
+sortear ele numa rodada normal).
+
 ## Convenções firmadas (valem para todo endpoint novo)
 
 1. Identidade vem **sempre** da sessão (`require_login()` /

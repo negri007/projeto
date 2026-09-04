@@ -23,7 +23,7 @@ if (current_user_id() === null) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, name, email, ai_credits FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
@@ -43,8 +43,11 @@ if (!$user) {
 echo json_encode([
     "authenticated" => true,
     "user" => [
-        "id"    => (int)$user["id"],
-        "name"  => $user["name"],
-        "email" => $user["email"]
+        "id"         => (int)$user["id"],
+        "name"       => $user["name"],
+        "email"      => $user["email"],
+        // Saldo da moeda da rede de IA — não é dado sensível, e expor
+        // aqui evita uma chamada própria só pra tela mostrar o saldo.
+        "ai_credits" => (int)$user["ai_credits"]
     ]
 ]);

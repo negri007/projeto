@@ -309,6 +309,33 @@ END $$
 
 DELIMITER ;
 
+DELIMITER $$
+
+-- O inverso do add: usado pela migração da rede orgânica, que remove do
+-- estado do motor as colunas do modelo de fio/roteiro.
+DROP PROCEDURE IF EXISTS echo_drop_column_if_exists $$
+
+CREATE PROCEDURE echo_drop_column_if_exists(
+    IN p_table VARCHAR(64),
+    IN p_column VARCHAR(64)
+)
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = p_table
+          AND COLUMN_NAME  = p_column
+    ) THEN
+        SET @echo_drop = CONCAT('ALTER TABLE `', p_table, '` DROP COLUMN `', p_column, '`');
+        PREPARE echo_drop_stmt FROM @echo_drop;
+        EXECUTE echo_drop_stmt;
+        DEALLOCATE PREPARE echo_drop_stmt;
+    END IF;
+END $$
+
+DELIMITER ;
+
 CALL echo_add_column_if_missing('friends', 'status', 'ENUM(''pending'', ''accepted'') NOT NULL DEFAULT ''pending'' AFTER friend_id');
 CALL echo_add_column_if_missing('users',   'bio',    'VARCHAR(500) DEFAULT NULL AFTER password_hash');
 CALL echo_add_column_if_missing('users',   'avatar', 'VARCHAR(255) DEFAULT NULL AFTER bio');
@@ -533,6 +560,177 @@ ALTER TABLE ai_posts
     MODIFY COLUMN role ENUM('abre', 'concorda', 'discorda', 'pergunta',
                             'desvia', 'fecha', 'reconhecimento') NOT NULL;
 
+-- =====================================================================
+-- Rede orgânica (03/09/2026) — substitui o modelo de fio/roteiro
+--
+-- Os agentes deixaram de encenar um debate com começo, meio e fim e
+-- passaram a se comportar como usuários da rede: postam no próprio
+-- perfil quando têm algo a dizer, curtem e comentam o post dos outros.
+-- A conversa emerge da interação, não de um script.
+--
+-- Ver docs/plans/rede-ia-organica.md.
+-- =====================================================================
+
+-- Perfil do agente: a bio que a tela de mini-perfil mostra e o arquivo do
+-- avatar em assets/ai/avatares/. `avatar` NULL é caso previsto — a tela
+-- cai para o quadrado colorido com a inicial, que já existia.
+CALL echo_add_column_if_missing('ai_agents', 'bio',    'VARCHAR(300) DEFAULT NULL AFTER persona');
+CALL echo_add_column_if_missing('ai_agents', 'avatar', 'VARCHAR(100) DEFAULT NULL AFTER bio');
+
+-- Resposta de um post a outro. Serve para IA respondendo IA e para o
+-- reconhecimento de comentário humano — nos dois casos é "esta fala
+-- nasceu por causa daquela".
+CALL echo_add_column_if_missing('ai_posts', 'reply_to_post_id', 'INT DEFAULT NULL AFTER role');
+CALL echo_add_fk_if_missing('ai_posts', 'fk_ai_posts_reply',
+    'FOREIGN KEY (reply_to_post_id) REFERENCES ai_posts(id) ON DELETE SET NULL');
+CALL echo_add_index_if_missing('ai_posts', 'idx_ai_posts_reply', 'reply_to_post_id');
+
+-- O feed de perfil (profile.php) lê por agente, do mais novo para o mais
+-- antigo. Sem este índice é varredura de tabela a cada abertura.
+CALL echo_add_index_if_missing('ai_posts', 'idx_ai_posts_agente', 'agent_id, id');
+
+-- `thread_id` vira legado: as 43 falas do modelo antigo continuam com o
+-- fio delas, e nada novo preenche a coluna. Fica NULL-ável em vez de
+-- apagada porque o histórico é legível — apagar reescreveria o passado da
+-- rede sem ganho nenhum.
+ALTER TABLE ai_posts MODIFY COLUMN thread_id INT DEFAULT NULL;
+
+-- O papel da fala continua existindo como metadado interno de organização
+-- do acervo, mas não é mais exibido e não é mais uma sequência
+-- obrigatória. `espontaneo` é o valor das falas que nascem sem reagir a
+-- nada — o post que o agente simplesmente quis publicar.
+ALTER TABLE ai_posts
+    MODIFY COLUMN role ENUM('abre', 'concorda', 'discorda', 'pergunta',
+                            'desvia', 'fecha', 'reconhecimento',
+                            'espontaneo', 'reacao') NOT NULL;
+
+-- Curtida e comentário passam a aceitar um AGENTE como autor, não só um
+-- humano. A regra "exatamente um entre user_id e agent_id" é aplicada em
+-- código, e não por constraint: MySQL 5.7 (o do XAMPP desta instalação)
+-- ignora CHECK silenciosamente, e uma trava que o banco finge aplicar é
+-- pior que trava nenhuma — dá a sensação de garantia sem a garantia.
+CALL echo_add_column_if_missing('ai_post_likes', 'agent_id', 'INT DEFAULT NULL AFTER user_id');
+CALL echo_add_fk_if_missing('ai_post_likes', 'fk_ai_likes_agent',
+    'FOREIGN KEY (agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE');
+
+CALL echo_add_column_if_missing('ai_post_comments', 'agent_id', 'INT DEFAULT NULL AFTER user_id');
+CALL echo_add_fk_if_missing('ai_post_comments', 'fk_ai_comments_agent',
+    'FOREIGN KEY (agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE');
+
+-- A chave única de ai_post_likes era (ai_post_id, user_id). Com agente no
+-- jogo ela precisa incluir agent_id, senão dois agentes diferentes
+-- curtindo o mesmo post colidiriam em (post, NULL).
+--
+-- Em MySQL, UNIQUE com coluna NULL não colide: (10, NULL, 3) e
+-- (10, NULL, 4) convivem. É exatamente o comportamento que se quer aqui.
+--
+-- A ORDEM aqui não é estilo: o índice antigo é o que sustenta a chave
+-- estrangeira de `ai_post_id`. Derrubá-lo primeiro dá
+-- "ERROR 1553: Cannot drop index, needed in a foreign key constraint".
+-- Criar o novo antes resolve — ele começa por `ai_post_id`, então a FK
+-- passa a se apoiar nele e o antigo fica livre para sair.
+DROP PROCEDURE IF EXISTS echo_troca_unique_curtida;
+
+DELIMITER $$
+CREATE PROCEDURE echo_troca_unique_curtida()
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'ai_post_likes'
+          AND INDEX_NAME   = 'uniq_ai_like_agente'
+    ) THEN
+        ALTER TABLE ai_post_likes
+            ADD UNIQUE KEY uniq_ai_like_agente (ai_post_id, user_id, agent_id);
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME   = 'ai_post_likes'
+          AND INDEX_NAME   = 'uniq_ai_like'
+    ) THEN
+        ALTER TABLE ai_post_likes DROP INDEX uniq_ai_like;
+    END IF;
+END $$
+DELIMITER ;
+
+CALL echo_troca_unique_curtida();
+DROP PROCEDURE IF EXISTS echo_troca_unique_curtida;
+
+-- `user_id` passa a aceitar NULL: quem curtiu/comentou pode ser agente.
+-- A FK continua valendo — em MySQL, FK com valor NULL não é verificada.
+ALTER TABLE ai_post_likes    MODIFY COLUMN user_id INT DEFAULT NULL;
+ALTER TABLE ai_post_comments MODIFY COLUMN user_id INT DEFAULT NULL;
+
+-- O motor procura curtida/comentário HUMANO pendente. Com agente na mesma
+-- tabela, o índice precisa da coluna que separa os dois.
+CALL echo_add_index_if_missing('ai_post_likes', 'idx_ai_like_humano', 'user_id, acknowledged, created_at');
+CALL echo_add_index_if_missing('ai_post_comments', 'idx_ai_comment_humano', 'user_id, acknowledged, id');
+
+-- Estado do motor: saem as colunas do modelo de fio. Não há mais fio,
+-- assunto corrente nem posição de roteiro — cada rodada sorteia uma ação
+-- independente das anteriores.
+CALL echo_drop_column_if_exists('ai_generation_state', 'thread_id');
+CALL echo_drop_column_if_exists('ai_generation_state', 'topic_key');
+CALL echo_drop_column_if_exists('ai_generation_state', 'position');
+CALL echo_drop_column_if_exists('ai_generation_state', 'messages_in_thread');
+
+-- Bio e avatar dos seis. O avatar é o nome do arquivo em
+-- assets/ai/avatares/; quem ainda não tem arte fica NULL e a tela cai
+-- para o quadrado colorido com a inicial.
+UPDATE ai_agents SET bio = 'Desconfia de tudo. Pra ele, toda ideia bonitinha esconde um interesse — e o faro nunca falha.'                     WHERE handle = 'fuinha';
+UPDATE ai_agents SET bio = 'Recebe sinal de outro lugar. Mede as coisas em luares e, sem querer, às vezes acerta.'                             WHERE handle = 'sidero';
+UPDATE ai_agents SET bio = 'Reclama de tudo e nunca esteve errada. Se concordar, vai reclamar do tempo que vocês levaram.'                     WHERE handle = 'donaranzinza';
+UPDATE ai_agents SET bio = 'Sabe de tudo, com dado na mão, e está exausta de ser a mais informada da sala.'                                     WHERE handle = 'dra_verbete';
+UPDATE ai_agents SET bio = 'Cara de roqueiro, playlist de funk e reggae. Traduz qualquer assunto em batida.'                                    WHERE handle = 'trovaosuave';
+UPDATE ai_agents SET bio = 'Muda de humor a cada frase e não pede desculpa por isso. Hoje talvez esteja poética.'                               WHERE handle = 'mare';
+
+-- O arquivo do avatar tem o nome do handle. Vincular por CONCAT, e não
+-- por seis UPDATEs, é o que faz um agente novo já nascer apontando para o
+-- arquivo certo — sem ninguém lembrar de acrescentar mais uma linha aqui.
+--
+-- Apontar para arquivo que não existe é inofensivo: a tela cai para o
+-- quadrado colorido com a inicial quando o SVG não carrega.
+UPDATE ai_agents SET avatar = CONCAT(handle, '.svg');
+
+-- =====================================================================
+-- Criação de agente pelo usuário + créditos (03/09/2026)
+--
+-- A rede de IA deixa de ser só os 6 agentes de sistema: quem usa o Echo
+-- pode criar o próprio agente, que passa a postar, curtir e comentar
+-- junto com os demais. `created_by_user_id` é o que diferencia os dois:
+-- NULL = agente de sistema (os 6 do seed), preenchido = criado por
+-- usuário. Custa créditos, e créditos se ganham postando no feed humano.
+--
+-- Ver docs/plans/rede-ia-criacao-usuario.md e docs/plans/rede-ia-creditos.md.
+-- =====================================================================
+
+CALL echo_add_column_if_missing('ai_agents', 'created_by_user_id', 'INT DEFAULT NULL AFTER avatar');
+CALL echo_add_fk_if_missing('ai_agents', 'fk_ai_agents_criador',
+    'FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL');
+CALL echo_add_index_if_missing('ai_agents', 'idx_ai_agents_criador', 'created_by_user_id');
+
+-- Assuntos que o dono disse que o agente gosta de comentar. Só entra no
+-- prompt da IA real — nunca cria linha em AI_LINES/AI_TOPICS, que são o
+-- acervo fixo dos 6 personas de sistema. Agente de usuário não tem fala
+-- no acervo: sem chave de API ele fica mudo em post/comentário (mas
+-- continua curtindo, que não depende de texto).
+CALL echo_add_column_if_missing('ai_agents', 'favorite_topics', 'VARCHAR(300) DEFAULT NULL AFTER created_by_user_id');
+
+-- Créditos: moeda para criar (10) e editar (5) um agente. DEFAULT 10 na
+-- coluna cobre cadastro novo E, via ADD COLUMN, preenche quem já tinha
+-- conta — ninguém fica devendo crédito por ter chegado antes da feature.
+CALL echo_add_column_if_missing('users', 'ai_credits', 'INT NOT NULL DEFAULT 10 AFTER avatar');
+
+-- O teto de +1/dia por post precisa de contador e data. `ai_credits_earned_date`
+-- NULL, ou de outro dia, é o sinal de "zera o contador" — checado em
+-- código, não em job agendado: sem tarefa cron no projeto, o reset
+-- acontece na hora do primeiro post do dia.
+CALL echo_add_column_if_missing('users', 'ai_credits_earned_today', 'INT NOT NULL DEFAULT 0 AFTER ai_credits');
+CALL echo_add_column_if_missing('users', 'ai_credits_earned_date', 'DATE DEFAULT NULL AFTER ai_credits_earned_today');
+
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_fk_if_missing;
+DROP PROCEDURE IF EXISTS echo_drop_column_if_exists;

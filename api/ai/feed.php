@@ -1,10 +1,14 @@
 <?php
 /**
- * A conversa dos agentes, do mais novo para o mais antigo.
+ * O feed da rede de agentes, do mais novo para o mais antigo.
  *
  * Paginação por cursor (`before_id`), igual a `posts/list.php`: com
- * OFFSET, uma fala nova no topo deslocaria as páginas seguintes e o item
+ * OFFSET, um post novo no topo deslocaria as páginas seguintes e o item
  * da borda apareceria repetido ou sumiria.
+ *
+ * Com a rede orgânica, `thread_id` saiu dos filtros e entrou `agent_id`:
+ * não há mais fio para isolar, e o recorte que interessa passou a ser
+ * "os posts deste agente" — que é o que o mini-perfil pede.
  */
 
 header("Content-Type: application/json; charset=utf-8");
@@ -20,7 +24,10 @@ try {
     $beforeId = (int)($_GET["before_id"] ?? 0);
     // `after_id` serve ao poller da tela: só o que chegou depois.
     $afterId  = (int)($_GET["after_id"] ?? 0);
-    $threadId = (int)($_GET["thread_id"] ?? 0);
+    // `agent_id` filtra o feed por autor — é o que o mini-perfil usa,
+    // do mesmo jeito que posts/list.php?user_id=N faz no feed humano.
+    // Substituiu `thread_id`: não há mais fio para filtrar.
+    $agentId  = (int)($_GET["agent_id"] ?? 0);
 
     if ($limit < 1 || $limit > 50) {
         $limit = 20;
@@ -30,9 +37,9 @@ try {
     // se a SESSÃO ATUAL curtiu e quantos comentaram. `liked` é decidido
     // aqui, no servidor, como manda a convenção — o front não compara
     // e-mail nem nome para saber de quem é o quê.
-    $sql = "SELECT p.id, p.agent_id, p.thread_id, p.topic, p.role, p.content,
-                   p.source, p.created_at,
-                   a.name, a.handle, a.color,
+    $sql = "SELECT p.id, p.agent_id, p.topic, p.role, p.content,
+                   p.source, p.reply_to_post_id, p.created_at,
+                   a.name, a.handle, a.color, a.avatar, a.bio, a.created_by_user_id,
                    (SELECT COUNT(*) FROM ai_post_likes l
                      WHERE l.ai_post_id = p.id) AS likes,
                    (SELECT COUNT(*) FROM ai_post_likes l
@@ -44,7 +51,7 @@ try {
             WHERE 1 = 1"
          . ($beforeId > 0 ? " AND p.id < :before" : "")
          . ($afterId  > 0 ? " AND p.id > :after"  : "")
-         . ($threadId > 0 ? " AND p.thread_id = :thread" : "")
+         . ($agentId  > 0 ? " AND p.agent_id = :agente" : "")
          . " ORDER BY p.id DESC
              LIMIT :lim";
 
@@ -54,7 +61,7 @@ try {
 
     if ($beforeId > 0) $stmt->bindValue("before", $beforeId, PDO::PARAM_INT);
     if ($afterId  > 0) $stmt->bindValue("after",  $afterId,  PDO::PARAM_INT);
-    if ($threadId > 0) $stmt->bindValue("thread", $threadId, PDO::PARAM_INT);
+    if ($agentId  > 0) $stmt->bindValue("agente", $agentId,  PDO::PARAM_INT);
 
     // Um a mais que o pedido: se vier, existe próxima página.
     $stmt->bindValue("lim", $limit + 1, PDO::PARAM_INT);
@@ -65,9 +72,44 @@ try {
     $rows    = array_slice($rows, 0, $limit);
 
     $posts = [];
+    $ids   = array_column($rows, "id");
+
+    // Quais agentes curtiram cada post. Vem numa consulta só, e não uma
+    // por post: com 25 posts na tela, o laço custaria 25 idas ao banco
+    // para desenhar uma linha de rodapé.
+    $curtidasDeIa = [];
+
+    if ($ids) {
+        $marcas = implode(",", array_fill(0, count($ids), "?"));
+
+        $stmt = $pdo->prepare(
+            "SELECT l.ai_post_id, a.name, a.handle, a.color, a.avatar
+               FROM ai_post_likes l
+               JOIN ai_agents a ON a.id = l.agent_id
+              WHERE l.agent_id IS NOT NULL
+                AND l.ai_post_id IN ($marcas)
+              ORDER BY l.id ASC"
+        );
+        $stmt->execute($ids);
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $linha) {
+            $curtidasDeIa[(int)$linha["ai_post_id"]][] = [
+                "name"   => $linha["name"],
+                "handle" => $linha["handle"],
+                "color"  => $linha["color"],
+                "avatar" => !empty($linha["avatar"]) ? $linha["avatar"] : null,
+            ];
+        }
+    }
 
     foreach ($rows as $row) {
-        $posts[] = ai_post_row($row);
+        $post = ai_post_row($row);
+
+        // Curtida de agente aparece por nome ("Fuinha curtiu"), não só no
+        // número: é metade do que faz a rede parecer habitada.
+        $post["liked_by_agents"] = $curtidasDeIa[$post["id"]] ?? [];
+
+        $posts[] = $post;
     }
 
     // O estado vai junto para a tela desenhar o cabeçalho (assunto do
@@ -79,14 +121,12 @@ try {
         "posts"          => $posts,
         "has_more"       => $hasMore,
         "next_before_id" => $hasMore && $posts ? $posts[count($posts) - 1]["id"] : null,
+        // Sem fio, o estado não tem mais "assunto agora" nem contador de
+        // fio: cada post tem o assunto dele. Sobra o resumo do que anda
+        // rolando na rede, que é o que a tela ainda usa no cabeçalho.
         "state" => [
-            "thread_id"          => (int)$estado["thread_id"],
-            "topic"              => isset(AI_TOPICS[$estado["topic_key"]])
-                                    ? AI_TOPICS[$estado["topic_key"]]["titulo"]
-                                    : null,
-            "memory_summary"     => $estado["memory_summary"] !== "" ? $estado["memory_summary"] : null,
-            "messages_in_thread" => (int)$estado["messages_in_thread"],
-            "ai_enabled"         => ai_config_valida(),
+            "memory_summary" => !empty($estado["memory_summary"]) ? $estado["memory_summary"] : null,
+            "ai_enabled"     => ai_config_valida(),
         ],
     ], JSON_UNESCAPED_UNICODE);
 

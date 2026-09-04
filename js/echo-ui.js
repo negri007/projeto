@@ -661,6 +661,295 @@ class EchoUI {
     }
 
     /* ======================================================================
+       CRIAÇÃO DE AGENTE DE IA PELO USUÁRIO
+
+       Um só componente para criar e editar: os dois fluxos são a mesma
+       forma (prévia que nunca grava, confirmação que revalida do zero),
+       só o endpoint e o texto mudam. Fica aqui, e não em rede_ia.html /
+       ai_perfil.html, para não duplicar ~150 linhas entre as duas telas —
+       a mesma razão que tirou o feed para js/echo-feed.js.
+
+       Sem marcação no HTML da página: o diálogo é montado e desmontado em
+       JS puro, igual ao confirm() acima.
+       ====================================================================== */
+
+    /**
+     * Abre o diálogo de criar/editar agente.
+     *
+     * @param {{modo?: "criar"|"editar", agent?: object|null, onSuccess?: function}} opts
+     *   `agent` (só no modo "editar") precisa de {id, name, persona, bio,
+     *   favorite_topics} — é o que `profile.php` devolve para o dono do
+     *   agente, e é o que preenche o formulário com o texto atual.
+     */
+    openAgentModal({ modo = "criar", agent = null, onSuccess = null } = {}) {
+        const editando = modo === "editar";
+
+        const ROTULOS = {
+            nome: "Nome", personalidade: "Personalidade",
+            assuntos: "Assuntos favoritos", bio: "Bio",
+        };
+
+        const estado = {
+            fase: "form",   // "form" | "preview"
+            loading: false,
+            campos: {
+                nome:          agent?.name             || "",
+                personalidade: agent?.persona           || "",
+                assuntos:      agent?.favorite_topics   || "",
+                bio:           agent?.bio                || "",
+            },
+            erroCampo: null,   // {campo, motivo}
+            erroGeral: null,
+            preview:   null,
+            saldo:     null,
+            custo:     editando ? 5 : 10,   // espelha AI_CREDITS_*; o número real vem da prévia
+        };
+
+        const backdrop = document.createElement("div");
+        backdrop.className = "echo-dialog-backdrop";
+        document.body.appendChild(backdrop);
+
+        const fechar = () => {
+            document.removeEventListener("keydown", aoTeclar);
+            backdrop.remove();
+        };
+
+        const aoTeclar = (e) => { if (e.key === "Escape" && !estado.loading) fechar(); };
+        document.addEventListener("keydown", aoTeclar);
+        backdrop.onclick = (e) => { if (e.target === backdrop && !estado.loading) fechar(); };
+
+        const motivoTexto = (motivo) => {
+            if (!motivo) return "Texto não aceito.";
+            if (motivo === "curto_demais") return "Curto demais para este campo.";
+            if (motivo === "longo_demais") return "Longo demais para este campo.";
+            if (motivo === "ataque_pessoal") return "Parece um ataque pessoal — reescreva.";
+            if (motivo === "link") return "Não pode conter link.";
+            if (motivo.indexOf("vocabulario:") === 0) return "Contém um termo não permitido.";
+            return "Texto não aceito.";
+        };
+
+        // "sem_ia_real" e "erro_ia" são códigos internos; qualquer outra
+        // coisa já é a frase pronta que a IA compilou para explicar a
+        // recusa ao usuário (ver ai_compilar_agente_usuario em helpers.php).
+        const razaoTexto = (razao) => {
+            if (razao === "sem_ia_real") return "Este recurso exige IA configurada no servidor, que está indisponível agora.";
+            if (razao === "erro_ia") return "Não deu para avaliar o pedido agora. Tente de novo em instantes.";
+            return razao;
+        };
+
+        const corpoRequisicao = () => Object.assign(
+            {}, estado.campos, editando ? { agent_id: agent.id } : {}
+        );
+
+        const render = () => {
+            const dialogo = backdrop.querySelector(".echo-dialog") || document.createElement("div");
+            dialogo.className = "echo-dialog echo-dialog-agente";
+            dialogo.setAttribute("role", "dialog");
+            dialogo.setAttribute("aria-modal", "true");
+
+            const titulo = editando ? `Editar ${this.escapeHTML(agent.name)}` : "Criar agente";
+
+            if (estado.fase === "form") {
+                const erroCampoHTML = (campo) => estado.erroCampo && estado.erroCampo.campo === campo
+                    ? `<div class="echo-agente-erro-campo">${this.escapeHTML(motivoTexto(estado.erroCampo.motivo))}</div>`
+                    : "";
+                const classeErro = (campo) => estado.erroCampo && estado.erroCampo.campo === campo ? "echo-agente-invalido" : "";
+
+                dialogo.innerHTML = `
+                    <h5>${titulo}</h5>
+                    <p>${editando
+                        ? "Muda o texto que o agente usa para falar. O handle, a cor e o avatar não mudam."
+                        : "Um perfil novo entra na rede, postando, curtindo e comentando junto com os outros."}</p>
+
+                    ${estado.erroGeral ? `<div class="echo-agente-erro-geral">${this.escapeHTML(estado.erroGeral)}</div>` : ""}
+
+                    <div class="echo-agente-campo">
+                        <label>${ROTULOS.nome}</label>
+                        <input type="text" class="form-control ${classeErro("nome")}" data-campo="nome"
+                               maxlength="40" placeholder="Como o agente se chama"
+                               value="${this.escapeHTML(estado.campos.nome)}">
+                        ${erroCampoHTML("nome")}
+                    </div>
+
+                    <div class="echo-agente-campo">
+                        <label>${ROTULOS.personalidade}</label>
+                        <textarea class="form-control ${classeErro("personalidade")}" data-campo="personalidade"
+                                  maxlength="600" rows="4"
+                                  placeholder="Como ele é, como fala, o que o move — a IA compila isso numa persona">${this.escapeHTML(estado.campos.personalidade)}</textarea>
+                        ${erroCampoHTML("personalidade")}
+                    </div>
+
+                    <div class="echo-agente-campo">
+                        <label>${ROTULOS.assuntos} <small>(opcional)</small></label>
+                        <input type="text" class="form-control ${classeErro("assuntos")}" data-campo="assuntos"
+                               maxlength="200" placeholder="Ex.: café, gatos, memória"
+                               value="${this.escapeHTML(estado.campos.assuntos)}">
+                        ${erroCampoHTML("assuntos")}
+                    </div>
+
+                    <div class="echo-agente-campo">
+                        <label>${ROTULOS.bio} <small>(opcional)</small></label>
+                        <textarea class="form-control ${classeErro("bio")}" data-campo="bio"
+                                  maxlength="300" rows="2"
+                                  placeholder="Frase curta pro mini-perfil — se deixar em branco, a IA compõe uma">${this.escapeHTML(estado.campos.bio)}</textarea>
+                        ${erroCampoHTML("bio")}
+                    </div>
+
+                    <div class="echo-dialog-actions">
+                        <button type="button" class="echo-dialog-cancel" data-acao="cancelar">Cancelar</button>
+                        <button type="button" class="echo-dialog-confirm" data-acao="previa">
+                            ${estado.loading ? "Avaliando..." : "Ver prévia"}
+                        </button>
+                    </div>
+                `;
+            } else {
+                const p = estado.preview;
+
+                dialogo.innerHTML = `
+                    <h5>${titulo}</h5>
+                    <p>Prévia: nada foi salvo nem gasto ainda.</p>
+
+                    ${estado.erroGeral ? `<div class="echo-agente-erro-geral">${this.escapeHTML(estado.erroGeral)}</div>` : ""}
+
+                    <div class="echo-agente-preview">
+                        <div class="echo-agente-preview-nome">${this.escapeHTML(p.name)}</div>
+                        <blockquote class="echo-agente-preview-persona">${this.escapeHTML(p.persona)}</blockquote>
+                        ${p.bio ? `<div class="echo-agente-preview-bio">${this.escapeHTML(p.bio)}</div>` : ""}
+                        ${p.favorite_topics ? `<div class="echo-agente-preview-topicos">${this.escapeHTML(p.favorite_topics)}</div>` : ""}
+                    </div>
+
+                    <div class="echo-agente-saldo">
+                        Saldo: <strong>${estado.saldo}</strong> · Custo: <strong>${estado.custo}</strong>
+                    </div>
+
+                    <div class="echo-dialog-actions">
+                        <button type="button" class="echo-dialog-cancel" data-acao="voltar" ${estado.loading ? "disabled" : ""}>Voltar</button>
+                        <button type="button" class="echo-dialog-confirm" data-acao="confirmar" ${estado.loading ? "disabled" : ""}>
+                            ${estado.loading ? "Salvando..." : `Confirmar (gasta ${estado.custo})`}
+                        </button>
+                    </div>
+                `;
+            }
+
+            if (!dialogo.isConnected) backdrop.appendChild(dialogo);
+            ligar();
+        };
+
+        const ligar = () => {
+            const dialogo = backdrop.querySelector(".echo-dialog");
+
+            dialogo.querySelectorAll("[data-campo]").forEach(el => {
+                el.oninput = () => { estado.campos[el.dataset.campo] = el.value; };
+            });
+
+            const btnCancelar = dialogo.querySelector('[data-acao="cancelar"]');
+            if (btnCancelar) btnCancelar.onclick = fechar;
+
+            const btnVoltar = dialogo.querySelector('[data-acao="voltar"]');
+            if (btnVoltar) btnVoltar.onclick = () => { estado.fase = "form"; estado.erroGeral = null; render(); };
+
+            const btnPrevia = dialogo.querySelector('[data-acao="previa"]');
+            if (btnPrevia) btnPrevia.onclick = verPrevia;
+
+            const btnConfirmar = dialogo.querySelector('[data-acao="confirmar"]');
+            if (btnConfirmar) btnConfirmar.onclick = confirmar;
+        };
+
+        const verPrevia = async () => {
+            estado.loading = true;
+            estado.erroGeral = null;
+            estado.erroCampo = null;
+            render();
+
+            try {
+                const res = await fetch(
+                    editando ? "api/ai/agent_edit_preview.php" : "api/ai/agent_preview.php",
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "same-origin",
+                        body: JSON.stringify(corpoRequisicao()),
+                    }
+                );
+                const data = await res.json();
+                estado.loading = false;
+
+                if (data.error) { estado.erroGeral = data.error; render(); return; }
+
+                if (!data.approved) {
+                    if (data.reason === "campo_invalido") {
+                        estado.erroCampo = { campo: data.field, motivo: data.motivo };
+                    } else {
+                        estado.erroGeral = razaoTexto(data.reason);
+                    }
+                    render();
+                    return;
+                }
+
+                estado.preview = data.preview;
+                estado.saldo   = data.saldo;
+                estado.custo   = data.custo;
+                estado.fase    = "preview";
+                render();
+            } catch (e) {
+                estado.loading   = false;
+                estado.erroGeral = "Erro de conexão.";
+                render();
+            }
+        };
+
+        const confirmar = async () => {
+            estado.loading = true;
+            estado.erroGeral = null;
+            render();
+
+            try {
+                const res = await fetch(
+                    editando ? "api/ai/agent_edit_confirm.php" : "api/ai/agent_confirm.php",
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "same-origin",
+                        body: JSON.stringify(corpoRequisicao()),
+                    }
+                );
+                const data = await res.json();
+                estado.loading = false;
+
+                if (data.error) { estado.erroGeral = data.error; render(); return; }
+
+                if (!data.approved) {
+                    if (data.reason === "saldo_insuficiente") {
+                        estado.erroGeral = `Créditos insuficientes (saldo ${data.saldo}, custo ${data.custo}).`;
+                    } else if (data.reason === "campo_invalido") {
+                        // O texto mudou de estado entre a prévia e agora (raro,
+                        // mas possível): volta pro formulário com o motivo.
+                        estado.fase = "form";
+                        estado.erroCampo = { campo: data.field, motivo: data.motivo };
+                    } else {
+                        estado.erroGeral = razaoTexto(data.reason);
+                    }
+                    render();
+                    return;
+                }
+
+                fechar();
+                this.toastSuccess(editando ? "Agente atualizado." : `${data.agent.name} entrou na rede.`);
+                if (typeof onSuccess === "function") onSuccess(data.agent, data.saldo);
+            } catch (e) {
+                estado.loading   = false;
+                estado.erroGeral = "Erro de conexão.";
+                render();
+            }
+        };
+
+        render();
+
+        const primeiroCampo = backdrop.querySelector('[data-campo="nome"]');
+        if (primeiroCampo) primeiroCampo.focus();
+    }
+
+    /* ======================================================================
        AVATARES
        ====================================================================== */
 

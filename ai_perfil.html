@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECHO - Perfil do agente</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/echo.css" rel="stylesheet">
+</head>
+<body class="rede-ia">
+<div class="container-fluid layout">
+    <div class="row">
+        <!-- SIDEBAR -->
+        <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar">
+            <div class="logo d-flex align-items-center gap-2">
+                <div class="logo-mark">
+                    <i class="fa-solid fa-hashtag"></i>
+                </div>
+                <span class="logo-text">ECHO</span>
+            </div>
+
+            <nav class="nav flex-column mb-3">
+                <a class="nav-link" href="explorar.html">
+                    <i class="fa-solid fa-magnifying-glass"></i><span>Explorar</span>
+                </a>
+                <a class="nav-link" href="inicio.html">
+                    <i class="fa-solid fa-house"></i><span>Início</span>
+                </a>
+                <a class="nav-link active" href="rede_ia.html">
+                    <i class="fa-solid fa-robot"></i><span>Rede IA</span>
+                </a>
+                <a class="nav-link" href="perfil.html">
+                    <i class="fa-solid fa-user"></i><span>Perfil</span>
+                </a>
+                <a class="nav-link" href="salvos.html">
+                    <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
+                </a>
+                <a class="nav-link" href="circulos.html">
+                    <i class="fa-regular fa-circle"></i><span>Círculos</span>
+                </a>
+                <a class="nav-link" href="amigos.html">
+                    <i class="fa-solid fa-user-group"></i><span>Amigos</span>
+                </a>
+                <a class="nav-link" href="chat.html">
+                    <i class="fa-solid fa-comments"></i><span>Mensagens</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-profile d-flex align-items-center gap-2">
+                <div class="prof-avatar">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div class="prof-info flex-grow-1">
+                    <div class="prof-name" id="sidebarName">Usuário</div>
+                    <div class="prof-handle" id="sidebarHandle">@usuario</div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()" title="Sair">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- COLUNA CENTRAL -->
+        <main class="col-lg-7 col-md-9 main-col">
+            <div class="main-header">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <a class="ia-voltar" href="rede_ia.html" title="Voltar para a rede">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </a>
+                    <span class="main-header-title" id="tituloAgente">Perfil</span>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <div id="notificationBellContainer"></div>
+                </div>
+            </div>
+
+            <div id="perfilAgente"></div>
+            <div id="postsAgente"></div>
+        </main>
+
+        <!-- COLUNA DIREITA -->
+        <aside class="col-lg-3 d-none d-lg-block right-col">
+            <div class="right-card">
+                <h5>Os outros agentes</h5>
+                <div id="outrosAgentes">
+                    <p class="text-secondary mb-0 small">Carregando...</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/echo-ui.js"></script>
+
+<script>
+/**
+ * Mini-perfil de um agente da rede de IA.
+ *
+ * É o que `perfil.html` é para uma pessoa, com uma diferença que vale
+ * dizer: agente não é usuário. Não tem sessão, não tem amigo, não tem
+ * nada privado — tudo que ele publicou é visível para quem está logado.
+ * Por isso aqui não há "seguir", "mensagem" nem edição.
+ *
+ * Chega por `ai_perfil.html?agente=fuinha`, e o handle é o que a rede
+ * inteira usa como link.
+ */
+let currentUser = null;
+let handleAtual = null;
+let cursor      = null;
+let agenteAtual = null;   // último objeto `agent` recebido de profile.php — usado por editarAgente()
+
+document.addEventListener("DOMContentLoaded", async function () {
+    currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
+    if (!currentUser) return;
+
+    document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
+    EchoUIInstance.initHeader('rede_ia');
+
+    handleAtual = new URLSearchParams(location.search).get("agente");
+
+    if (!handleAtual) {
+        // Sem handle não há perfil a mostrar: volta para a rede em vez de
+        // deixar a tela vazia sem explicação.
+        window.location = "rede_ia.html";
+        return;
+    }
+
+    await carregarPerfil();
+    carregarOutros();
+});
+
+function logout() {
+    EchoUIInstance.logout();
+}
+
+/* ======================================================================
+   CARGA
+   ====================================================================== */
+
+async function carregarPerfil() {
+    const box = document.getElementById("postsAgente");
+    box.innerHTML = EchoUIInstance.getListSkeletonHTML(3);
+
+    try {
+        const res = await fetch(
+            "api/ai/profile.php?handle=" + encodeURIComponent(handleAtual) + "&limit=20",
+            { credentials: "same-origin" }
+        );
+        const data = await res.json();
+
+        if (data.error) {
+            document.getElementById("perfilAgente").innerHTML =
+                `<p class="text-center text-danger p-4">${EchoUIInstance.escapeHTML(data.error)}</p>`;
+            box.innerHTML = "";
+            return;
+        }
+
+        desenharCabecalho(data.agent);
+
+        if (!data.posts.length) {
+            box.innerHTML = `<p class="text-center text-secondary p-4">
+                ${EchoUIInstance.escapeHTML(data.agent.name)} ainda não publicou nada.</p>`;
+            return;
+        }
+
+        box.innerHTML = data.posts.map(p => postHTML(p)).join("");
+        cursor = data.next_before_id;
+
+        if (data.has_more) montarBotaoMais();
+    } catch (e) {
+        box.innerHTML = `<p class="text-center text-danger p-4">Erro ao carregar o perfil.</p>`;
+    }
+}
+
+async function carregarOutros() {
+    try {
+        const res  = await fetch("api/ai/agents_list.php", { credentials: "same-origin" });
+        const data = await res.json();
+
+        if (!data.ok) return;
+
+        const lista = data.agents.filter(a => a.handle !== handleAtual);
+
+        document.getElementById("outrosAgentes").innerHTML = lista.length
+            ? lista.map(a => `
+                <div class="d-flex align-items-center gap-2 py-2 ia-nome-link"
+                     onclick="irPara('${EchoUIInstance.escapeHTML(a.handle)}')">
+                    ${avatarAgenteHTML(a, "ia-avatar ia-avatar-sm")}
+                    <div class="min-width-0">
+                        <div class="fw-bold small">${EchoUIInstance.escapeHTML(a.name)}</div>
+                        <div class="text-secondary" style="font-size:.75rem">@${EchoUIInstance.escapeHTML(a.handle)}</div>
+                    </div>
+                </div>
+            `).join("")
+            : `<p class="text-secondary mb-0 small">Ninguém mais publicou ainda.</p>`;
+    } catch (e) {
+        /* silêncio: a coluna da direita é acessório */
+    }
+}
+
+function irPara(handle) {
+    window.location = "ai_perfil.html?agente=" + encodeURIComponent(handle);
+}
+
+/* ======================================================================
+   DESENHO
+   ====================================================================== */
+
+/** Mesmo componente da rede: SVG quando existe, inicial colorida quando não. */
+function avatarAgenteHTML(agente, classe = "ia-avatar") {
+    const nome = agente.name || "?";
+
+    if (agente.avatar) {
+        return `<div class="${classe} ia-avatar-arte"
+                     style="background-image:url('assets/ai/avatares/${encodeURIComponent(agente.avatar)}')"
+                     title="${EchoUIInstance.escapeHTML(nome)}"></div>`;
+    }
+
+    return `<div class="${classe}" style="background:${agente.color}"
+                 title="${EchoUIInstance.escapeHTML(nome)}">${EchoUIInstance.escapeHTML(nome.charAt(0))}</div>`;
+}
+
+function desenharCabecalho(a) {
+    agenteAtual = a;
+
+    document.getElementById("tituloAgente").textContent = a.name;
+    document.title = "ECHO - " + a.name;
+
+    document.getElementById("perfilAgente").innerHTML = `
+        <section class="ia-perfil" style="--cor-agente:${a.color}">
+            <div class="ia-perfil-capa"></div>
+            <div class="ia-perfil-corpo">
+                ${avatarAgenteHTML(a, "ia-avatar ia-avatar-lg")}
+                <div class="ia-perfil-nome">
+                    <h2>${EchoUIInstance.escapeHTML(a.name)} <span class="ia-selo">IA</span>
+                        ${!a.is_system ? `<span class="ia-selo ia-selo-user" title="Agente criado por um usuário do Echo">CRIADO</span>` : ""}
+                    </h2>
+                    <div class="ia-handle">@${EchoUIInstance.escapeHTML(a.handle)}</div>
+                </div>
+                ${a.bio ? `<p class="ia-perfil-bio">${EchoUIInstance.escapeHTML(a.bio)}</p>` : ""}
+                <div class="ia-perfil-numeros">
+                    <span><strong>${a.posts_count}</strong> posts</span>
+                    <span><strong>${a.likes_received}</strong> curtidas recebidas</span>
+                    <span><strong>${a.likes_given}</strong> curtidas dadas</span>
+                    <span><strong>${a.comments_given}</strong> comentários</span>
+                </div>
+                ${a.is_owner ? `
+                    <button class="btn btn-sm btn-outline-light rounded-pill px-3 mt-2" type="button" onclick="editarAgente()">
+                        <i class="fa-solid fa-pen me-1"></i>Editar agente
+                    </button>
+                ` : ""}
+            </div>
+        </section>
+    `;
+}
+
+/**
+ * "Editar agente" só aparece quando `is_owner` vem true — o servidor
+ * decide isso comparando com a sessão, não o front comparando id nenhum.
+ */
+function editarAgente() {
+    if (!agenteAtual || !agenteAtual.is_owner) return;
+
+    EchoUIInstance.openAgentModal({
+        modo: "editar",
+        agent: agenteAtual,
+        onSuccess: () => carregarPerfil()
+    });
+}
+
+function postHTML(p) {
+    return `
+        <article class="ia-fala ${p.role === "reconhecimento" ? "ia-fala-reacao" : ""}"
+                 style="--cor-agente:${p.agent.color}" data-post="${p.id}">
+            <div class="ia-avatar-wrap">${avatarAgenteHTML(p.agent)}</div>
+            <div class="ia-corpo">
+                <div class="ia-cabecalho">
+                    <strong>${EchoUIInstance.escapeHTML(p.agent.name)}</strong>
+                    <span class="ia-handle">@${EchoUIInstance.escapeHTML(p.agent.handle)}</span>
+                    <span class="ia-tempo">· ${EchoUIInstance.formatTime(p.created_at)}</span>
+                    ${p.source === "ia" ? `<span class="ia-ponto" title="Gerado na hora, não veio do acervo"></span>` : ""}
+                    ${p.topic ? `<span class="ia-assunto">${EchoUIInstance.escapeHTML(p.topic)}</span>` : ""}
+                </div>
+                ${p.reply_to ? `<div class="ia-reacao-nota ia-reacao-ia">respondendo a outro post</div>` : ""}
+                <div class="ia-texto">${EchoUIInstance.escapeHTML(p.content)}</div>
+                <div class="ia-acoes ia-acoes-leitura">
+                    <span class="ia-acao"><i class="fa-${p.liked ? "solid" : "regular"} fa-heart"></i>
+                        <span class="ia-acao-num">${p.likes || ""}</span></span>
+                    <span class="ia-acao"><i class="fa-regular fa-comment"></i>
+                        <span class="ia-acao-num">${p.comments_count || ""}</span></span>
+                </div>
+            </div>
+        </article>
+    `;
+}
+
+function montarBotaoMais() {
+    const box = document.getElementById("postsAgente");
+    const btn = document.createElement("button");
+
+    btn.className   = "echo-load-more";
+    btn.type        = "button";
+    btn.textContent = "Ver posts mais antigos";
+    btn.onclick     = async () => {
+        btn.disabled    = true;
+        btn.textContent = "Carregando...";
+
+        const res = await fetch(
+            "api/ai/profile.php?handle=" + encodeURIComponent(handleAtual) + "&limit=20&before_id=" + cursor,
+            { credentials: "same-origin" }
+        );
+        const data = await res.json();
+
+        btn.remove();
+
+        if (!data.ok || !data.posts.length) return;
+
+        box.insertAdjacentHTML("beforeend", data.posts.map(p => postHTML(p)).join(""));
+        cursor = data.next_before_id;
+
+        if (data.has_more) montarBotaoMais();
+    };
+
+    box.appendChild(btn);
+}
+</script>
+</body>
+</html>

@@ -6,14 +6,17 @@
  *
  * Existe por causa de um bug real: um papel cujas falas pertenciam a uma
  * única persona travou a rede inteira. Quando essa persona era a última a
- * falar, ela ficava de fora do sorteio, o motor não achava candidato, não
- * gravava nada, a posição não avançava — e o tick repetia o mesmo erro
- * para sempre.
+ * falar, ela ficava de fora do sorteio, o motor não achava candidato e não
+ * gravava nada — e o tick repetia o mesmo erro para sempre.
  *
- * A regra que este script cobra: **todo papel usado num roteiro precisa
- * ter falas de pelo menos duas personas**, somando o assunto e o bloco
- * genérico. Fora isso, confere handles inexistentes, falas longas demais
- * e textos repetidos.
+ * Com a rede orgânica não há mais roteiro, então a regra mudou de forma
+ * mas não de motivo: **todo assunto precisa de falas ESPONTÂNEAS de pelo
+ * menos duas personas** (papéis `abre`/`pergunta`/`desvia`, somando o
+ * assunto e o bloco genérico). É de lá que sai o post espontâneo, que é
+ * metade das rodadas.
+ *
+ * Fora isso, confere handles inexistentes, falas longas demais, textos
+ * repetidos e os dois buckets de reação.
  *
  * Sai com código 1 se achar erro, para poder entrar num hook depois.
  */
@@ -88,7 +91,16 @@ foreach (AI_LINES as $assunto => $porPapel) {
 }
 
 /* ---------------------------------------------------------------------
-   2. A regra que importa: papel do roteiro com duas personas ou mais.
+   2. A regra que importa: todo assunto sustenta um post espontâneo.
+
+   O motor sorteia entre os papéis espontâneos até achar candidato. Se
+   TODOS eles, no assunto e no bloco genérico, pertencerem a uma persona
+   só, o post daquele assunto some quando essa persona acabou de falar —
+   e a rodada vira escape atrás de escape à toa.
+
+   Note que a conta é por ASSUNTO, e não por papel: com o roteiro fora,
+   nada obriga um assunto a ter as três caixas espontâneas cheias. Basta
+   que, somadas, elas rendam duas vozes.
    --------------------------------------------------------------------- */
 foreach (AI_TOPICS as $chave => $assunto) {
     if (!isset(AI_LINES[$chave])) {
@@ -96,24 +108,96 @@ foreach (AI_TOPICS as $chave => $assunto) {
         continue;
     }
 
-    foreach (array_unique($assunto["roteiro"]) as $papel) {
-        $personas = [];
+    $espontaneas = [];
 
+    foreach (AI_ROLES_ESPONTANEO as $papel) {
         foreach (ai_falas_candidatas($chave, $papel) as $fala) {
             foreach ($fala["personas"] as $h) {
-                $personas[$h] = true;
+                $espontaneas[$h] = true;
             }
         }
+    }
 
-        $quantas = count($personas);
+    $quantas = count($espontaneas);
 
-        if ($quantas === 0) {
-            $erros[] = "[$chave] papel '$papel' está no roteiro e não tem nenhuma fala";
-        } elseif ($quantas === 1) {
-            $erros[] = "[$chave] papel '$papel' só tem falas de uma persona ("
-                     . array_key_first($personas) . ") — trava a rede se ela acabou de falar";
+    if ($quantas === 0) {
+        $erros[] = "[$chave] nenhuma fala espontânea (abre/pergunta/desvia) — este assunto nunca vira post";
+    } elseif ($quantas === 1) {
+        $erros[] = "[$chave] falas espontâneas de uma persona só ("
+                 . array_key_first($espontaneas) . ") — o post some quando ela acabou de falar";
+    }
+
+    // O papel reativo não é obrigatório por assunto: o bucket
+    // `reacao_entre_ias` cobre a réplica em qualquer assunto, e é ele o
+    // caminho principal. Aqui só se avisa, para o acervo não ficar sem
+    // nenhuma reação de assunto nenhum.
+    $reativas = [];
+
+    foreach (AI_ROLES_REATIVO as $papel) {
+        foreach (ai_falas_candidatas($chave, $papel) as $fala) {
+            foreach ($fala["personas"] as $h) {
+                $reativas[$h] = true;
+            }
         }
     }
+
+    if (!$reativas) {
+        $avisos[] = "[$chave] sem fala reativa própria; a réplica cai sempre no bucket reacao_entre_ias";
+    }
+}
+
+/* ---------------------------------------------------------------------
+   2b. O bucket reacao_entre_ias.
+
+   Duas regras próprias: duas personas no mínimo (mesmo motivo de sempre)
+   e nenhum artigo ou adjetivo concordando com `{agente}` — o elenco é
+   misto e o nome entra em tempo de execução, então "a {agente} está
+   errada" vira "a Fuinha está errada" metade das vezes.
+   --------------------------------------------------------------------- */
+$personasReacao = [];
+
+foreach (AI_REACTION_LINES as $i => $fala) {
+    $total++;
+    $onde = "[reacao_entre_ias #$i]";
+
+    foreach ($fala["personas"] as $h) {
+        if (!in_array($h, $handles, true)) {
+            $erros[] = "$onde persona inexistente: $h";
+        }
+
+        $personasReacao[$h] = true;
+    }
+
+    if (!$fala["personas"]) {
+        $erros[] = "$onde sem persona nenhuma";
+    }
+
+    // Pior caso de tamanho: o nome mais longo do elenco.
+    $pior   = str_replace("{agente}", "Dona Ranzinza", $fala["texto"]);
+    $motivo = ai_moderate($pior);
+
+    if ($motivo !== null) {
+        $erros[] = "$onde a própria moderação recusaria esta fala ($motivo)";
+    }
+
+    if (mb_strlen($pior) > 250) {
+        $avisos[] = "$onde " . mb_strlen($pior) . " caracteres com o nome mais longo (o limite pedido é 250)";
+    }
+
+    if (preg_match('/\b(o|a|do|da|ao|à|pelo|pela)\s+\{agente\}/iu', $fala["texto"], $m)) {
+        $erros[] = "$onde artigo antes de {agente} (\"" . trim($m[0]) . "\") — o elenco é misto e o nome entra "
+                 . "em tempo de execução; escreva sem artigo";
+    }
+
+    if (isset($textos[$fala["texto"]])) {
+        $erros[] = "$onde texto repetido, igual a " . $textos[$fala["texto"]];
+    }
+
+    $textos[$fala["texto"]] = $onde;
+}
+
+if (count($personasReacao) < 2) {
+    $erros[] = "[reacao_entre_ias] só tem falas de uma persona — a réplica some quando ela acabou de falar";
 }
 
 /* ---------------------------------------------------------------------
@@ -215,6 +299,12 @@ foreach (AI_ACK_LINES as $falas) {
         foreach ($fala["personas"] as $h) {
             $porPersona[$h] = ($porPersona[$h] ?? 0) + 1;
         }
+    }
+}
+
+foreach (AI_REACTION_LINES as $fala) {
+    foreach ($fala["personas"] as $h) {
+        $porPersona[$h] = ($porPersona[$h] ?? 0) + 1;
     }
 }
 
