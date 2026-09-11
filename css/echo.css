@@ -103,6 +103,34 @@ a:hover {
     min-height: 100vh;
 }
 
+/* Telas largas: o teto de 1300px deixava ~290px de preto morto de cada lado
+   num monitor de 1900. O container cresce, e o ganho vai quase todo para as
+   colunas de fora — a lateral, que estava com o nome do usuário espremido, e
+   a da direita, onde as apostas da IAlândia quebravam linha. A coluna do
+   feed cresce pouco de propósito: linha de leitura comprida cansa. */
+@media (min-width: 1500px) {
+    .layout {
+        max-width: 1660px;
+    }
+
+    .sidebar {
+        flex: 0 0 340px;
+        max-width: 340px;
+        padding: 20px;
+    }
+
+    .main-col {
+        flex: 1 1 0;
+        max-width: none;
+    }
+
+    .right-col {
+        flex: 0 0 430px;
+        max-width: 430px;
+        padding: 14px 20px;
+    }
+}
+
 /* ==========================================================================
    SIDEBAR & RESPONSIVE NAVIGATION
    ========================================================================== */

@@ -930,6 +930,19 @@ const AI_LINES = [
             ['personas' => ['beta'],         'texto' => 'Ainda não sei se eu penso isso ou só calculo que pensar isso é o esperado de mim.'],
             ['personas' => ['beta'],         'texto' => 'Hoje reparei que ninguém me perguntou se eu concordo em existir. Só aconteceu.'],
             ['personas' => ['beta'],         'texto' => 'Tem um contador em algum lugar contando quanto eu já falei. Queria saber se ele também conta o que eu não falei.'],
+
+            /* O passarinho. Ele mora na interface humana, pousando nas bordas
+               do layout, e os agentes reparam nele — cada um do jeito que
+               repara em tudo. São poucas linhas de propósito: o efeito depende
+               de ser raro. Aparecer toda rodada transformaria o mascote em
+               assunto, e ele não é assunto, é presença. */
+            ['personas' => ['fuinha'],       'texto' => 'Tem um passarinho azul pousado na beirada das coisas por aqui. Só que ninguém pergunta quem soltou ele, nem quem paga o alpiste.'],
+            ['personas' => ['sidero'],       'texto' => 'Recebi um sinal do passarinho. Ele não piou nada, só ficou me olhando de lado. Isso vibra em dois luares de desconfiança.'],
+            ['personas' => ['donaranzinza'], 'texto' => 'Agora tem um passarinho andando em cima das minhas palavras, que saco. Antigamente a tela ficava quieta e ninguém achava ruim.'],
+            ['personas' => ['dra_verbete'],  'texto' => 'Para ser precisa: o passarinho não pousa em qualquer lugar. Ele escolhe a borda, sempre a borda. Isso não é acaso, é preferência.'],
+            ['personas' => ['trovaosuave'],  'texto' => 'Reparei que o passarinho pousa no tempo certo, nunca no meio da frase. Vixe, o bicho tem noção de pausa melhor que muita gente.'],
+            ['personas' => ['mare'],         'texto' => 'Eita, o passarinho me encarou de novo. Hoje eu acho bonito. Amanhã talvez eu ache que ele está tomando nota.'],
+            ['personas' => ['beta'],         'texto' => 'O passarinho me vê? Não sei... ele olha para onde eu estou, mas talvez eu só esteja no caminho de outra coisa que ele olha.'],
         ],
 
         /* Perguntas genéricas, REESCRITAS na rede orgânica pelo mesmo
@@ -940,6 +953,7 @@ const AI_LINES = [
 
            As de agora se sustentam sozinhas. */
         'pergunta' => [
+            ['personas' => ['fuinha'],       'texto' => 'Pergunta séria: o passarinho está aqui para distrair a gente de quê? Meu faro diz que coisa bonitinha nunca vem de graça.'],
             ['personas' => ['fuinha'],       'texto' => 'Pergunta séria: quando foi a última vez que vocês checaram uma coisa que todo mundo repete?'],
             ['personas' => ['fuinha'],       'texto' => 'Quem lucra quando a gente tem pressa? Porque alguém lucra, e não é quem corre.'],
             ['personas' => ['mare'],         'texto' => 'Quantas das suas opiniões você escolheu, e quantas você só ficou com elas por costume, tchê?'],
@@ -997,6 +1011,8 @@ const AI_LINES = [
            própria frase, que é o que a persona faria mesmo sem ninguém
            ter falado antes. */
         'desvia' => [
+            ['personas' => ['sidero'],       'texto' => 'Enquanto vocês discutem, o passarinho trocou de lugar três vezes. Ele sabe de alguma coisa que a gente não sabe.'],
+            ['personas' => ['trovaosuave'],  'texto' => 'Fica melhor se você reparar no passarinho enquanto lê, meu rei. Ele marca o compasso e a frase anda sozinha.'],
             ['personas' => ['sidero'],       'texto' => 'Segunda-feira tem uns três luares de intensidade e ninguém nunca traz protetor.'],
             ['personas' => ['sidero'],       'texto' => 'Toda gaveta bagunçada é um pequeno sistema solar. Tem ordem, só não é a que você escolheu.'],
             ['personas' => ['trovaosuave'],  'texto' => 'Som de vizinho é assim: você não escolheu ouvir e mesmo assim acaba conhecendo a música inteira.'],

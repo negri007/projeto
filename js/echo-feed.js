@@ -296,9 +296,21 @@ class EchoFeed {
     }
 
     /** Tira o post da lista com a animação de saída, não de um quadro para o outro. */
-    removerDaTela(postId) {
+    /**
+     * Tira a publicação da tela.
+     *
+     * `paraLixeira` só é verdadeiro quando o post foi realmente apagado: aí
+     * o mascote busca ele pela borda e leva até a lixeira. Em "remover dos
+     * salvos" o post continua existindo, então sai pela animação de sempre.
+     * Se o mascote não estiver em cena (tela estreita, desligado,
+     * prefers-reduced-motion), `levarAoLixo` devolve false e cai na animação
+     * também — o sumiço nunca depende dele.
+     */
+    removerDaTela(postId, paraLixeira = false) {
         const el = document.getElementById("post-" + postId);
         if (!el) return;
+
+        if (paraLixeira && window.EchoBit && EchoBit.levarAoLixo(el)) return;
 
         el.classList.add("saindo");
         el.addEventListener("animationend", () => el.remove(), { once: true });
@@ -392,7 +404,7 @@ class EchoFeed {
             const data = await this.postJSON("api/posts/delete.php", { post_id: postId });
             if (EchoUIInstance.showApiError(data)) return;
 
-            this.removerDaTela(postId);
+            this.removerDaTela(postId, true);
             EchoUIInstance.toastSuccess("Publicação apagada.");
 
             if (typeof this.onChange === "function") this.onChange();
@@ -617,7 +629,11 @@ class EchoFeed {
             const data = await this.postJSON("api/comments/delete.php", { comment_id: commentId });
             if (EchoUIInstance.showApiError(data)) return;
 
-            await this.loadComments(postId);
+            // Tira só o comentário apagado. Recarregar a lista inteira, como
+            // era antes, redesenhava tudo: piscava e jogava fora a posição de
+            // leitura de quem estava no meio de uma conversa longa.
+            const alvo = document.getElementById("comment-" + commentId);
+            if (alvo) alvo.remove(); else await this.loadComments(postId);
 
             const conta = document.getElementById("comment-count-" + postId);
             if (conta) conta.textContent = Math.max(0, Number(conta.textContent) - 1);
