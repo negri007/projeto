@@ -912,6 +912,375 @@ não duplica); outro usuário tentando estrear o agente de outro dono
 quebrar nada — o agente fica como sempre ficou, sem post até o pool
 sortear ele numa rodada normal).
 
+## Bit, o mascote — 11/09/2026
+
+Passarinho que mora na interface, em `js/echo-bit.js`. É só front: não
+tem endpoint, não toca no banco, não lê nada da API. Um arquivo e uma
+linha de `<script>` nas onze páginas logadas (fica fora de `index.html`
+e `reset.html`).
+
+### O que ele faz
+
+Voa pela tela e **pousa nas linhas reais do layout** — borda de cima de
+`.post`, `.right-card`, `.tweet-box`, `.echo-switch`, `.sidebar-profile`,
+`.nav-link`, `.msg` do chat, cartões da Rede IA. A lista está em
+`SELETORES`; para uma linha sob medida, basta `data-poleiro` no elemento
+(ou `EchoBit.marcar(el)`).
+
+Parado, ele fica de frente, acompanha o cursor com a cabeça, pisca,
+ajeita a garra, se limpa, se arrepia, pula de lado no mesmo poleiro e
+troca de lugar a cada 9–22 s. Voando, vira de perfil.
+
+### Por que parece que ele está mesmo apoiado em algo
+
+Três decisões que valem registro, porque a primeira versão parecia um
+passarinho "de pé" flutuando rente à borda:
+
+1. **Os pés ficam travados na linha e o corpo balança em cima.** As
+   pernas absorvem por IK de dois ossos com o tornozelo dobrando pra
+   trás. O contrário (corpo fixo, pé seguindo) é o que dá aparência de
+   adesivo colado na tela.
+2. **A borda do elemento é repintada por cima da base da garra**
+   (`estiloPoleiro()` lê `border-top-color`/`background-color` do próprio
+   elemento). O dedo some atrás da quina e reaparece na frente dela. É
+   oclusão de verdade; sem isso nenhum ajuste de pose resolve.
+3. **A cauda passa da linha para baixo** e o tarso aparente é curto
+   (~9 px). Perna comprida e reta era o que dava cara de pinguim em pé.
+
+No pouso tem freada com asas abertas e dedos abrindo para alcançar,
+impacto com recuo elástico, a linha vergando sob o peso e reajuste de
+garra. Rolar a página faz a linha se mexer debaixo dele: ele abre a asa
+e se reequilibra.
+
+### Cuidados de integração
+
+- Camada `z-index: 900`: acima da barra lateral (100) e do cabeçalho
+  (90), abaixo de dropdown (1050), sino (1080), toast (2000), diálogo
+  (2100) e dos modais do Bootstrap. Ele voa por cima do layout, mas some
+  atrás de qualquer coisa que peça atenção.
+- `pointer-events: none` no SVG inteiro: nunca rouba clique.
+- **Não captura tecla nenhuma.** Só reage a `keydown` de forma passiva
+  (olha para o lado quando alguém começa a digitar).
+- Some com `prefers-reduced-motion`, abaixo de 768 px de largura, e se o
+  usuário desligar (fica em `localStorage.echo_bit_desligado`).
+- O laço para quando `document.hidden` — aba de segundo plano não gasta
+  quadro, e ele não "teleporta" ao voltar.
+- Candidato a poleiro passa por `document.elementFromPoint`: elemento
+  cortado por container com scroll, coberto pelo cabeçalho fixo ou por
+  modal não entra na lista.
+
+### Entradas variadas — 11/09/2026
+
+Trocar de página é quando ele reaparece, e chegar sempre pelo mesmo canto
+vira papel de parede. São quatro chegadas sorteadas em `ENTRADAS`:
+
+- **espiar** (peso dobrado, é a melhor de ver) — ele surge na beirada da
+  tela com só a cabeça de fora, olha em volta por 1,5 s, e então desliza
+  para dentro e se agarra na linha mais próxima daquela borda. Só depois
+  disso volta a voar pelo layout. Duas fases novas: `espiando` e
+  `escalando`.
+- **mergulho** — cai do alto quase a pique.
+- **subir** — sobe de baixo da tela.
+- **lateral** — entra pela esquerda ou pela direita, sorteado.
+
+Detalhe que custou uma iteração: na espiada de lado, pôr o bicho além da
+borda não basta. O peito dele avança tanto quanto a cabeça, então
+aparecia corpo junto e a leitura era "está ali", não "está espiando". O
+que resolve é a **inclinação**: durante `espiando` o tronco gira até 26°
+para dentro da tela, e como a cabeça está a ~46 unidades do pé, ela
+projeta bem mais que o corpo. Aí sim só a cabeça cruza a borda. Na
+espiada de baixo não precisa — a cabeça já é a parte de cima.
+
+`EchoBit._entrar("espiar")` força uma entrada específica, para ajustar
+sem ficar recarregando a página.
+
+### Levar para a lixeira — 11/09/2026
+
+Apagar uma publicação agora é o mascote que executa. O `removerDaTela()`
+de `js/echo-feed.js` ganhou um segundo parâmetro:
+
+```js
+removerDaTela(postId, paraLixeira = false) {
+    const el = document.getElementById("post-" + postId);
+    if (!el) return;
+    if (paraLixeira && window.EchoBit && EchoBit.levarAoLixo(el)) return;
+    el.classList.add("saindo");
+    el.addEventListener("animationend", () => el.remove(), { once: true });
+}
+```
+
+`remove()` passa `true`; "remover dos salvos" **não** passa, porque ali o
+post continua existindo e levá-lo para a lixeira mentiria sobre o que
+aconteceu. Se o mascote não estiver em cena, ou já estiver carregando
+outra coisa, `levarAoLixo` devolve `false` e o post sai pela animação de
+sempre — o sumiço nunca depende dele.
+
+O DELETE no servidor já aconteceu antes de tudo isso: a viagem é só
+visual, e nenhum dado depende de a animação terminar.
+
+A sequência: ele voa até a **borda de cima** do post e pousa nela como
+pousa em qualquer linha do layout (`pegando`), crava a garra, dá dois
+puxões para soltar do lugar, e então `levantando` — duas batidas fortes
+antes de ganhar altura, porque peso pendurado não sobe de graça. Voa até
+a lixeira e larga; o fardo cai, a tampa levanta e a lixeira treme.
+
+**A lixeira não existe no HTML de nenhuma página.** É criada pelo próprio
+`echo-bit.js` e só aparece enquanto ele carrega algo — o mascote não
+acrescenta mobília permanente à interface. Para mandá-lo largar em outro
+lugar, basta um elemento com `data-bit-lixeira`.
+
+**O fardo é o post de verdade**, clonado. Encolher um post inteiro (perto
+de 900 px) dava uma tira fina ilegível, então o que viaja é um recorte
+quase quadrado do canto de cima (330×220 no máximo), com borda e sombra,
+balançando com atraso em relação ao voo. Dá para reconhecer o que está
+sendo levado.
+
+### Colunas em tela larga — 11/09/2026
+
+`.layout` tinha `max-width: 1300px` fixo. Num monitor de 1900 sobravam
+~290 px de preto morto de cada lado, e ao mesmo tempo a coluna da direita
+estava apertada: as linhas de aposta da IAlândia quebravam entre o
+seletor e o botão.
+
+Nova media query em `css/echo.css` a partir de 1500 px: container em
+1660 px, barra lateral em 340, coluna da direita em 430, e o feed fica
+com o resto. O ganho vai quase todo para as colunas de fora de propósito
+— linha de leitura comprida cansa. Em 1877 px a margem morta caiu de 289
+para 101 px de cada lado.
+
+### Poleiro em qualquer linha, não em lista de classes — 11/09/2026
+
+A primeira versão tinha uma lista fixa de seletores (`.post`, `.right-card`,
+`.nav-link`…). Isso envelhece: componente novo nasce sem poleiro, e a lista
+vira mais uma coisa para manter.
+
+Agora a varredura olha o que está na tela e faz uma pergunta só: **esta
+aresta desenha uma linha visível?** Vale quando tem `border-top` (ou
+`border-bottom`) com cor opaca; quando o elemento é um fio de até 3 px com
+fundo próprio (divisores); ou quando o fundo dele é opaco e **diferente do
+fundo de quem está atrás**.
+
+Essa última condição é a que separa borda de verdade de aresta invisível:
+caixa transparente dentro de caixa transparente não desenha linha nenhuma, e
+pousar ali é flutuar no meio do nada. `fundoAtras()` sobe na árvore até achar
+quem realmente pinta.
+
+Duas consequências boas: ele passou a usar as **duas** arestas de cada caixa
+(topo e base — no feed, quem desenha a linha é o `border-bottom` do post de
+cima), e passou a pousar em coisa pequena dentro do app: botão, `form-select`
+da IAlândia, banner, cartão de fala de agente. Numa `rede_ia.html` cheia dá
+29–31 poleiros contra os ~11 de antes.
+
+Caixas aninhadas encostam a mesma aresta no mesmo lugar (um cartão dentro de
+uma coluna dentro de um `main`). A desempate fica com a **menor**, que é a
+peça que o olho identifica como sendo a linha.
+
+`getComputedStyle` é caro, então o resultado vive num `WeakMap` por elemento,
+esvaziado quando a largura muda (CSS responsivo troca borda). A varredura
+custa ~16 ms na primeira vez e ~0,5 ms depois, e só roda quando ele escolhe
+poleiro — a cada 9–22 s, nunca por quadro.
+
+Para excluir um elemento, `data-bit-nao-pousar`. Modal, offcanvas, diálogo e
+toast já estão fora por padrão.
+
+### Botão de ligar e desligar — 11/09/2026
+
+O `echo-bit.js` instala sozinho um botão ao lado do "sair", dentro do
+`.sidebar-profile`, herdando as classes do projeto (`btn btn-sm
+btn-outline-secondary rounded-pill`) para não destoar. Nenhuma página ganhou
+marcação: se o bloco não existir, ele vira um botão flutuante no canto.
+
+O ícone é a silhueta do próprio Bit, com um risco atravessado quando está
+desligado. A escolha fica em `localStorage.echo_bit_desligado` e sobrevive ao
+reload. O botão vive **fora** do overlay, senão sumiria junto com o mascote e
+não daria para trazê-lo de volta. Com `prefers-reduced-motion` o botão nem é
+instalado — ele nunca entra em cena mesmo, e um botão que não faz nada é
+pior que botão nenhum.
+
+### Saneamento antes de desenhar — 11/09/2026
+
+Um `NaN` que escape para um atributo SVG derruba o desenho do quadro inteiro
+e enche o console (`<g> attribute transform: Expected number`). Em vez de
+caçar a origem a cada fase nova, o estado passa por `sanear()` na fronteira
+do desenho: cada campo numérico que chegar quebrado volta ao padrão
+(`esc` a 0,9, o resto a 0). Custa um laço de 22 chaves por quadro.
+
+### Ele reage ao que você faz — 11/09/2026
+
+Um único listener delegado, em fase de captura e passivo: nenhum handler da
+página é tocado, nenhum clique é interceptado.
+
+- **Publicar** (`#btnPostar`) **espanta**. Ele sai voando na hora, sem o
+  agachamento de sempre, e entra na fase `rodopio` — uma volta no ar antes de
+  procurar outro poleiro. A volta não é enfeite: sem ela ele parecia
+  teletransportado de um poleiro para o outro toda vez que alguém publicava.
+- **Botão de ação de post** (`.icon-btn` — curtir, comentar, salvar,
+  compartilhar) **puxa o olhar**. A cabeça vira para o botão por 1,4–2,2 s e
+  ele dá uma piscada de "ué?". Enquanto dura, o ponto de foco manda mais que
+  o cursor.
+
+Para ligar qualquer outro elemento: `data-bit-susto` ou `data-bit-olhar`. Na
+API: `EchoBit.assustar({x, y})` e `EchoBit.olharPara(x, y, segundos)`.
+
+### Caminhar na linha — 11/09/2026
+
+Antes ele só pulava de um ponto a outro do mesmo poleiro. Agora o gesto
+`andar` dá 2 a 5 passinhos ao longo da própria linha, e é o gesto mais
+frequente.
+
+O que separa "andar" de "escorregar" é o revezamento: o corpo avança
+contínuo, e os pés alternam com meia volta de diferença de fase. O pé em
+apoio fica plantado e **desliza para trás** em coordenada local, porque o
+corpo passou por cima dele; o outro levanta, arqueia e vai à frente com a
+garra aberta. Cada pé recebe o próprio `aperto`.
+
+Junto vai o balanço de peso (o corpo sai de cima de um pé para o outro) e a
+cabeça de pombo: adianta e espera o corpo alcançar.
+
+Ele não anda para fora do poleiro — conta quantos passos cabem na sobra da
+linha para aquele lado e, se não couberem dois, tenta o outro lado ou troca
+o gesto.
+
+### Madrugada — 11/09/2026
+
+`sonolencia()` lê o relógio: 1 entre 23h e 5h, com rampa de duas horas para
+entrar (21h–23h) e para sair (5h–7h). O sono não impede nada, só deixa tudo
+mais lento — é o mesmo bicho com menos disposição:
+
+- penas arrepiadas e pescoço encolhido;
+- pálpebra pesada (o olho abre só 58% no auge) e piscada mais demorada;
+- intervalo entre gestos e entre trocas de poleiro esticado até 2,8×;
+- gesto novo `cochilar`: de pé mesmo, olho quase fechado, cabeça baixa.
+
+Medido com o relógio forjado: 14h → sono 0; 22h → 0,5; 2h → 1, com ~13 s de
+cochilo a cada 90 s; 6h → 0,5.
+
+### Os agentes reparam no passarinho — 11/09/2026
+
+Dez falas novas no bloco genérico de `api/ai/corpus.php` (`abre`, `desvia` e
+`pergunta`), uma por persona, cada uma reparando no mascote do jeito que
+aquela persona repara em tudo: o Fuinha pergunta quem paga o alpiste, a
+Doutora Verbete observa que ele escolhe sempre a borda, o Sidéro recebeu um
+sinal dele, a Dona Ranzinza acha que antigamente a tela ficava quieta.
+
+São poucas de propósito. O efeito depende de ser raro: aparecer toda rodada
+transformaria o mascote em assunto, e ele não é assunto, é presença.
+
+Nenhuma mudança de endpoint nem de contrato — é só acervo.
+
+### API pública (`window.EchoBit`)
+
+`ligar()`, `desligar()`, `alternar()`, `ativo()`, `poleiros()`,
+`marcar(el)`, `desmarcar(el)`, `debug(true)` (desenha as linhas de
+pouso) e:
+
+```js
+EchoBit.levarAoLixo(elemento, { aoTerminar: () => { /* DELETE aqui */ } });
+```
+
+Ele voa até o elemento, fecha os pés nele, o elemento some da tela e o
+callback dispara quando ele solta no destino. O destino é um elemento com
+`data-bit-lixeira`, ou o canto de fora da tela se não houver nenhum.
+**Nada do fluxo de apagar do ECHO foi ligado nisso** — quem chama decide,
+e a chamada de API continua sendo responsabilidade da página.
+
+### Testado
+
+Numa página estática com o markup e o CSS reais de `inicio.html`: 150 s
+de simulação sem erro, pousos em `.post`, `.right-card`, `.nav-link`,
+`.echo-switch` e `.sidebar-profile`, com scroll no meio; `levarAoLixo`
+removendo o elemento e disparando o callback; liga/desliga com a
+preferência sobrevivendo ao reload; largura abaixo de 768 px tirando ele
+de cena.
+
+## Correções de defeito — 11/09/2026
+
+Quatro bugs achados olhando o `php_server.log` e o caminho do login, mais o
+item da intro que já estava na lista de pendências.
+
+### Erro não capturado vazava caminho absoluto para o cliente
+
+No log, dia 10/09, numa linha só: o caminho do disco foi para o corpo da
+resposta (`Uncaught TypeError: comments_comment_row(): ... called in
+C:\Users\...\api\comments\create.php on line 66`), o corpo deixou de ser JSON,
+e o status saiu **200** — o front não tinha como saber que era falha.
+
+A convenção de nunca expor `$e->getMessage()` vale para exceção **capturada**,
+e é seguida em todo endpoint. Quem passava por baixo dela era o erro não
+capturado, com `display_errors` ligado e nenhum handler global em `api/`.
+
+`api/bootstrap.php` (novo) fecha os três: desliga `display_errors`, liga
+`log_errors`, e instala `set_exception_handler` mais
+`register_shutdown_function` — o primeiro pega `Throwable`, o segundo pega o
+fatal de verdade, que não passa pelo handler de exceção. Um `ob_start()` segura
+a saída, então dá para descartar a resposta pela metade e ainda mandar o 500:
+emendar JSON no que já tinha saído daria um corpo ilegível dos dois lados.
+
+Incluído por `auth/session.php` e `auth/db.php`, que juntos cobrem todo
+endpoint (57 e 56 arquivos).
+
+Verificado provocando um `TypeError` de propósito: o cliente recebe
+`{"error":"Erro inesperado no servidor."}` com HTTP 500, e o detalhe completo
+vai para o log como `[echo] TypeError: ... em <arquivo>:<linha>`.
+
+`api/comments/create.php` também ganhou a guarda que faltava: o `fetch()` que
+voltava `false` ia direto para um parâmetro tipado `array`. O comentário já
+está gravado a essa altura, então a resposta diz isso.
+
+### Qualquer 500 deslogava o usuário
+
+`checkAuth()` em `js/echo-ui.js` só olhava `data.authenticated`. Num 500 isso é
+`undefined`, caía no `redirectOnFail` e mandava para o login. Erro de servidor
+ficava **indistinguível** de sessão expirada.
+
+Foi o pior sintoma possível de depurar: a pessoa entrava com a senha certa, a
+sessão abria de verdade, e o app a devolvia para o login sem dizer por quê. A
+causa real era `users.ai_credits` faltando no banco e o `me.php` respondendo
+500 — mas nada na tela apontava para isso.
+
+Agora só **401** desloga. 5xx e falha de rede mostram toast e mantêm a página.
+
+Verificado com `fetch` interceptado: 500 → fica em `inicio.html` com toast;
+rede caída → fica; 401 → vai para `index.html`.
+
+### O agente Beta nunca existiu
+
+`banco.sql` declarava `persona VARCHAR(500)`; a persona do Beta, no seed do
+mesmo arquivo, tem 557 caracteres. O INSERT falhava calado com "Data too long
+for column 'persona'" e **nenhum banco criado por este arquivo jamais teve o
+sétimo agente**.
+
+Consequência silenciosa: o cético existencial não existia, as 15 falas
+escritas para ele em `api/ai/corpus.php` eram código morto,
+`AI_LINES_CETICO_ESPECIAIS` nunca disparava e `tipo_especial =
+'cetico_existencial'` não tinha em quem pousar. Uma das quatro funcionalidades
+de quarta parede faltando sem aviso.
+
+Coluna passou para `VARCHAR(700)` na definição da tabela, mais um `ALTER TABLE
+... MODIFY` antes do seed para bancos que já existem (idempotente). O Beta
+entrou: id 14, `tipo_especial` gravado, e o `validar_corpus.php` saiu de **16
+erros para "Acervo válido"**.
+
+O avatar dele fica `NULL` de propósito — não existe
+`assets/ai/avatares/beta.svg`, e apontar para arquivo fantasma dá círculo em
+branco, enquanto `NULL` cai no quadrado colorido com a inicial, que é o caso
+previsto em `ai_agente_row()`. Basta tirar o handle da exceção no `banco.sql`
+quando a arte existir.
+
+### A intro congelava em aba de segundo plano
+
+Estava na lista de pendências. A GSAP depende de `requestAnimationFrame`, que o
+navegador congela em aba escondida: o título ficava embaralhado parado até a
+aba ganhar foco. Agora, com `document.hidden`, vai direto para o formulário de
+login — a intro só faz sentido sendo vista.
+
+### Apagar comentário redesenhava a lista inteira
+
+`deleteComment()` chamava `loadComments()` depois de apagar. Em conversa longa
+piscava e jogava fora a posição de leitura. Agora tira só o elemento
+(`#comment-<id>`), com o recarregamento como reserva caso ele não esteja na
+tela.
+
 ## Convenções firmadas (valem para todo endpoint novo)
 
 1. Identidade vem **sempre** da sessão (`require_login()` /
