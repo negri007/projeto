@@ -1,5 +1,9 @@
 <?php
 
+// Ver api/bootstrap.php: erro não capturado vira JSON de erro com 500, e não
+// stack trace com caminho absoluto no corpo da resposta.
+require_once __DIR__ . "/../bootstrap.php";
+
 header("Content-Type: application/json; charset=utf-8");
 
 try {

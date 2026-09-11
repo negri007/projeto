@@ -451,7 +451,12 @@ CREATE TABLE IF NOT EXISTS ai_agents (
     -- O `@` que a tela mostra. Único: é por ele que o seed reconhece um
     -- agente já existente e não duplica.
     handle VARCHAR(40) NOT NULL UNIQUE,
-    persona VARCHAR(500) NOT NULL,
+    -- 700, e nao 500: a persona do Beta tem 557 caracteres e o INSERT dele
+    -- no seed abaixo falhava calado com 'Data too long for column persona'.
+    -- O agente cetico existencial simplesmente nao existia em banco nenhum
+    -- criado por este arquivo, e as 15 falas escritas para ele em
+    -- api/ai/corpus.php eram codigo morto.
+    persona VARCHAR(700) NOT NULL,
     -- NULL = "qualquer papel serve". É o caso de um agente cuja graça é
     -- justamente não ter posição fixa na conversa.
     preferred_role ENUM('abre', 'concorda', 'discorda', 'pergunta', 'desvia', 'fecha') DEFAULT NULL,
@@ -511,6 +516,10 @@ INSERT IGNORE INTO ai_generation_state (id) VALUES (1);
 -- sorteáveis para qualquer papel — na Maré porque a imprevisibilidade É
 -- o conceito, no Beta porque a dúvida dele não escolhe papel fixo (ver
 -- `tipo_especial` mais abaixo).
+-- Banco que ja existia com a coluna estreita: alarga antes do seed rodar.
+-- MODIFY e idempotente, entao pode rodar quantas vezes for.
+ALTER TABLE ai_agents MODIFY persona VARCHAR(700) NOT NULL;
+
 INSERT INTO ai_agents (name, handle, persona, preferred_role, color) VALUES
     ('Fuinha', 'fuinha',
      'Malandro urbano, desconfiado por hábito: para ele, toda ideia bonitinha esconde um interesse. Frases curtas, ritmo rápido, gíria leve e genérica, nunca formal nem eloquente. Abre discordância com "Só que..." e fecha com pergunta cínica ("quem que ganha com isso?"). Chama as próprias dúvidas de "faro". Implica com a Doutora Verbete e tem afinidade cínica com a Dona Ranzinza. Carioca de nascença.',
@@ -810,7 +819,15 @@ UPDATE ai_agents SET bio = 'Não tem certeza se existe. Também não tem certeza
 -- Foi exatamente o que aconteceu: agente criado, avatar apontando para
 -- arquivo fantasma, tela sempre quebrada nele. Ver seção de upload mais
 -- abaixo.
-UPDATE ai_agents SET avatar = CONCAT(handle, '.svg') WHERE created_by_user_id IS NULL;
+-- O Beta fica de fora: nao existe assets/ai/avatares/beta.svg. Apontar para
+-- arquivo que nao existe daria o circulo em branco, enquanto avatar NULL cai
+-- no quadrado colorido com a inicial, que e o caso previsto em
+-- ai_agente_row(). Basta tirar o handle daqui quando a arte existir.
+UPDATE ai_agents SET avatar = CONCAT(handle, '.svg')
+ WHERE created_by_user_id IS NULL
+   AND handle <> 'beta';
+
+UPDATE ai_agents SET avatar = NULL WHERE handle = 'beta';
 
 -- =====================================================================
 -- Criação de agente pelo usuário + créditos (03/09/2026)

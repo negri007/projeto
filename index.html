@@ -28,6 +28,15 @@
            SPLASH ECHO (DECODER)
         ===================================================== */
         function renderSplash() {
+            // Aba em segundo plano congela o requestAnimationFrame, e a GSAP
+            // depende dele: a animacao parava no meio e o titulo ficava
+            // embaralhado ate a aba ganhar foco. Quem chega numa aba escondida
+            // vai direto para o login — a intro so faz sentido sendo vista.
+            if (document.hidden) {
+                renderLogin();
+                return;
+            }
+
             document.getElementById("app").innerHTML = `
                 <div class="splash-container">
                     <div class="splash-text-wrapper">

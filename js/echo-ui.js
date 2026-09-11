@@ -415,28 +415,53 @@ class EchoUI {
     }
 
     /**
-     * Checks user authentication via PHP Session (GET /api/auth/me.php)
+     * Confere a sessão em GET /api/auth/me.php.
+     *
+     * Só 401 quer dizer "não logado". Servidor fora do ar, erro 500 ou rede
+     * caída NÃO mandam ninguém para a tela de login: antes mandavam, e o
+     * resultado era o pior sintoma possível de depurar — a pessoa entrava
+     * com a senha certa, a sessão abria, e o app a devolvia para o login sem
+     * dizer por quê. Foi exatamente o que aconteceu quando a coluna
+     * `users.ai_credits` faltava no banco e o `me.php` respondia 500.
+     *
      * @param {Object} options - { redirectOnFail: boolean }
-     * @returns {Promise<Object|null>} User object if authenticated, null if unauthenticated.
+     * @returns {Promise<Object|null>} usuário autenticado, ou null.
      */
     async checkAuth(options = { redirectOnFail: true }) {
+        let naoAutenticado = false;
+
         try {
             const res = await fetch("api/auth/me.php", {
                 credentials: "same-origin"
             });
-            const data = await res.json();
 
-            if (data.authenticated && data.user) {
-                this.currentUser = data.user;
-                this.unreadCount = 0;
-                this.updateUserProfileUI(data.user);
-                return data.user;
+            if (res.status === 401) {
+                naoAutenticado = true;
+            } else if (!res.ok) {
+                // 5xx: é falha do servidor, e a sessão pode estar ótima.
+                console.error("me.php respondeu " + res.status);
+                this.toastError("O servidor não respondeu. Recarregue a página em instantes.");
+                return null;
+            } else {
+                const data = await res.json();
+
+                if (data.authenticated && data.user) {
+                    this.currentUser = data.user;
+                    this.unreadCount = 0;
+                    this.updateUserProfileUI(data.user);
+                    return data.user;
+                }
+
+                naoAutenticado = true;
             }
         } catch (e) {
+            // Rede caída ou JSON quebrado: também não é logout.
             console.error("Erro ao verificar sessão do usuário:", e);
+            this.toastError("Sem conexão com o servidor.");
+            return null;
         }
 
-        if (options.redirectOnFail) {
+        if (naoAutenticado && options.redirectOnFail) {
             window.location = "index.html";
         }
         return null;

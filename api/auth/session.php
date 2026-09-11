@@ -11,6 +11,10 @@
  * identidade — ver docs/API_CONTRACT.md.
  */
 
+// Trata erro não capturado antes de qualquer coisa: sem isto um fatal vira
+// stack trace no corpo da resposta. Ver api/bootstrap.php.
+require_once __DIR__ . "/../bootstrap.php";
+
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         "lifetime" => 0,

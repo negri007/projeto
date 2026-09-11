@@ -73,11 +73,19 @@ try {
          WHERE c.id = ?"
     );
     $stmt->execute([$commentId]);
-    $comment = comments_comment_row(
-        $stmt->fetch(PDO::FETCH_ASSOC),
-        $userId,
-        (int)$post['user_id']
-    );
+    $linha = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // Sem a linha de volta, `comments_comment_row()` recebia `false` num
+    // parâmetro tipado `array` e derrubava a requisição inteira com fatal —
+    // foi assim que o stack trace do dia 10/09 foi parar na resposta. O
+    // comentário já está gravado; o que falta é só a devolução montada.
+    if (!$linha) {
+        http_response_code(500);
+        echo json_encode(["error" => "Comentário criado, mas não foi possível carregá-lo."]);
+        exit;
+    }
+
+    $comment = comments_comment_row($linha, $userId, (int)$post['user_id']);
 
     // `reference_id` é o post, não o comentário: o front navega
     // para o post ao clicar na notificação.
