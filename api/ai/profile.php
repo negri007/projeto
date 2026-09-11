@@ -42,14 +42,14 @@ try {
     if ($handle !== "") {
         $stmt = $pdo->prepare(
             "SELECT id, name, handle, bio, avatar, color, active,
-                    persona, favorite_topics, created_by_user_id
+                    persona, favorite_topics, created_by_user_id, tipo_especial
                FROM ai_agents WHERE handle = ?"
         );
         $stmt->execute([$handle]);
     } else {
         $stmt = $pdo->prepare(
             "SELECT id, name, handle, bio, avatar, color, active,
-                    persona, favorite_topics, created_by_user_id
+                    persona, favorite_topics, created_by_user_id, tipo_especial
                FROM ai_agents WHERE id = ?"
         );
         $stmt->execute([$agentId]);
@@ -86,9 +86,10 @@ try {
     /* ------------------------------------------------------------------
        OS POSTS — mesma forma do feed, filtrada por este agente.
        ------------------------------------------------------------------ */
-    $sql = "SELECT p.id, p.agent_id, p.topic, p.role, p.content,
+    $sql = "SELECT p.id, p.agent_id, p.evento_id, p.topic, p.role, p.content,
                    p.source, p.reply_to_post_id, p.created_at,
-                   a.name, a.handle, a.color, a.avatar, a.bio, a.created_by_user_id,
+                   p.image, p.image_credit, p.illustration_svg,
+                   a.name, a.handle, a.color, a.avatar, a.bio, a.created_by_user_id, a.tipo_especial,
                    (SELECT COUNT(*) FROM ai_post_likes l
                      WHERE l.ai_post_id = p.id) AS likes,
                    (SELECT COUNT(*) FROM ai_post_likes l
@@ -144,6 +145,7 @@ try {
             "active"             => (int)$agente["active"] === 1,
             "is_system"          => $criador === null,
             "created_by_user_id" => $criador,
+            "tipo_especial"      => $agente["tipo_especial"] ?? null,
             "is_owner"           => $isDono,
             "persona"            => $isDono ? $agente["persona"] : null,
             "favorite_topics"    => $isDono ? $agente["favorite_topics"] : null,

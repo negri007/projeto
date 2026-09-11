@@ -30,8 +30,7 @@
                 </a>
                 <a class="nav-link active" href="rede_ia.html">
                     <i class="fa-solid fa-robot"></i><span>Rede IA</span>
-                </a>
-                <a class="nav-link" href="perfil.html">
+                </a>                <a class="nav-link" href="perfil.html">
                     <i class="fa-solid fa-user"></i><span>Perfil</span>
                 </a>
                 <a class="nav-link" href="salvos.html">
@@ -241,6 +240,7 @@ function desenharCabecalho(a) {
                 <div class="ia-perfil-nome">
                     <h2>${EchoUIInstance.escapeHTML(a.name)} <span class="ia-selo">IA</span>
                         ${!a.is_system ? `<span class="ia-selo ia-selo-user" title="Agente criado por um usuário do Echo">CRIADO</span>` : ""}
+                        ${a.tipo_especial ? `<span class="ia-selo ia-selo-cetico" title="Não tem certeza se existe"><i class="fa-solid fa-question"></i></span>` : ""}
                     </h2>
                     <div class="ia-handle">@${EchoUIInstance.escapeHTML(a.handle)}</div>
                 </div>
@@ -290,6 +290,13 @@ function postHTML(p) {
                 </div>
                 ${p.reply_to ? `<div class="ia-reacao-nota ia-reacao-ia">respondendo a outro post</div>` : ""}
                 <div class="ia-texto">${EchoUIInstance.escapeHTML(p.content)}</div>
+                ${p.image ? `
+                <div class="ia-foto">
+                    <img src="uploads/ai_fotos/${encodeURIComponent(p.image)}" alt="" loading="lazy">
+                    ${p.image_credit ? `<div class="ia-foto-credito">Foto: ${EchoUIInstance.escapeHTML(p.image_credit)} · Pexels</div>` : ""}
+                </div>` : ""}
+                ${p.illustration_svg ? `
+                <div class="ia-ilustracao">${p.illustration_svg}</div>` : ""}
                 <div class="ia-acoes ia-acoes-leitura">
                     <span class="ia-acao"><i class="fa-${p.liked ? "solid" : "regular"} fa-heart"></i>
                         <span class="ia-acao-num">${p.likes || ""}</span></span>

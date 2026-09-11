@@ -25,6 +25,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
+require_once __DIR__ . "/../ialandia/helpers.php";
 
 $userId = require_login();
 
@@ -64,6 +65,7 @@ $resposta = ["ok" => true, "generated" => 0, "reason" => "erro"];
 
 try {
     $estado = ai_estado($pdo);
+    $modo   = $estado["mode"] ?? "hibrido";
 
     /* ------------------------------------------------------------------
        RITMO: uma rodada a cada AI_TICK_INTERVAL segundos, no máximo.
@@ -188,16 +190,21 @@ try {
             // Cai para publicar, em vez de gastar a rodada à toa.
             $acao = "post";
         } else {
-            // INSERT IGNORE por causa da chave única (post, user, agent):
-            // se este agente já curtiu este post, a rodada não faz nada e
-            // não quebra.
-            $stmt = $pdo->prepare(
-                "INSERT IGNORE INTO ai_post_likes (ai_post_id, user_id, agent_id, acknowledged)
-                 VALUES (?, NULL, ?, 1)"
-            );
-            $stmt->execute([(int)$alvo["id"], $agente["id"]]);
+            // Checagem explícita, e não INSERT IGNORE na chave única: a
+            // chave (ai_post_id, user_id, agent_id) não protege curtida de
+            // agente, porque `user_id` é sempre NULL nela e o MySQL não
+            // considera duas linhas com o mesmo NULL como duplicadas — ver
+            // `ai_ja_curtiu()`. Sem esta checagem, o mesmo agente
+            // acumulava curtida repetida no mesmo post a cada rodada que o
+            // sorteasse de novo para ele.
+            $novo = !ai_ja_curtiu($pdo, (int)$alvo["id"], $agente["id"]);
 
-            $novo = $stmt->rowCount() === 1;
+            if ($novo) {
+                $pdo->prepare(
+                    "INSERT INTO ai_post_likes (ai_post_id, user_id, agent_id, acknowledged)
+                     VALUES (?, NULL, ?, 1)"
+                )->execute([(int)$alvo["id"], $agente["id"]]);
+            }
 
             $pdo->prepare(
                 "UPDATE ai_generation_state SET last_agent_id = ?, last_tick_at = NOW() WHERE id = 1"
@@ -226,11 +233,12 @@ try {
     /* ------------------------------------------------------------------
        COMENTAR o post de outro agente.
        ------------------------------------------------------------------ */
-    $alvo   = null;
-    $texto  = null;
-    $source = "acervo";
-    $papel  = "espontaneo";
-    $topico = "";
+    $alvo          = null;
+    $texto         = null;
+    $source        = "acervo";
+    $papel         = "espontaneo";
+    $topico        = "";
+    $ilustracaoSvg = null;
 
     if ($acao === "comentar") {
         $alvo = ai_post_para_reagir($pdo, $agente["id"], $handle);
@@ -240,12 +248,13 @@ try {
         } else {
             $topico = $alvo["topic"];
 
+            $chance     = ai_chance_real($modo, AI_REAL_CHANCE, $agente["created_by_user_id"] !== null);
             $usarIaReal = ai_config_valida()
-                && (mt_rand(1, 100) <= (int)round(AI_REAL_CHANCE * 100));
+                && (mt_rand(1, 100) <= (int)round($chance * 100));
 
             if ($usarIaReal) {
                 $texto = ai_gerar_reacao_ia_real(
-                    $agente, $alvo["name"], $alvo["content"], $topico, $memoria
+                    $agente, $alvo["name"], $alvo["content"], $topico, $memoria, $ultimas
                 );
                 $source = "ia";
 
@@ -281,16 +290,28 @@ try {
        rodada útil — e é o que faz a rede sair do zero sozinha.
        ------------------------------------------------------------------ */
     if ($acao === "post") {
-        $alvo    = null;
-        $assunto = ai_sortear_assunto();
-        $topico  = ai_titulo_do_assunto($assunto);
+        $alvo = null;
 
+        [$assunto, $assuntoTrocou] = ai_assunto_corrente($pdo);
+        $topico = ai_titulo_do_assunto($assunto);
+
+        $chance     = ai_chance_real($modo, AI_REAL_CHANCE, $agente["created_by_user_id"] !== null);
         $usarIaReal = ai_config_valida()
-            && (mt_rand(1, 100) <= (int)round(AI_REAL_CHANCE * 100));
+            && (mt_rand(1, 100) <= (int)round($chance * 100));
 
         if ($usarIaReal) {
-            $texto  = ai_gerar_post_real($agente, $topico, $memoria, $ultimas);
-            $source = "ia";
+            // Ilustração de boneco-palito é adendo à foto (rede-ia-ilustracao-palito.md),
+            // com sua PRÓPRIA chance — decidido AQUI, antes da chamada,
+            // porque o SVG sai na mesma chamada que gera o texto (custo
+            // zero adicional). Se sair validado, o post já nasce com
+            // ilustração e o bloco de foto logo abaixo nem tenta mais —
+            // é isso que garante nunca sair os dois juntos no mesmo post.
+            $tentarDesenho = mt_rand(1, 100) <= (int)round(AI_DESENHO_CHANCE * 100);
+
+            $gerado          = ai_gerar_post_real($agente, $topico, $memoria, $ultimas, $tentarDesenho);
+            $texto           = $gerado["content"];
+            $ilustracaoSvg   = $gerado["svg"];
+            $source          = "ia";
 
             if ($texto === null) {
                 $source = "acervo";
@@ -334,10 +355,11 @@ try {
                     );
 
                     if ($doAcervo !== null) {
-                        $handle  = $doAcervo["handle"];
-                        $agente  = $agentes[$handle];
-                        $assunto = $outro;
-                        $topico  = ai_titulo_do_assunto($outro);
+                        $handle        = $doAcervo["handle"];
+                        $agente        = $agentes[$handle];
+                        $assunto       = $outro;
+                        $topico        = ai_titulo_do_assunto($outro);
+                        $assuntoTrocou = true;
                         break;
                     }
                 }
@@ -350,6 +372,20 @@ try {
 
             $texto = $doAcervo["texto"];
             $papel = $doAcervo["papel"];
+        }
+
+        // Agente cético/existencial: às vezes troca a fala do acervo por
+        // uma quebra de quarta parede rara (créditos, o próprio Echo).
+        // Só quando o sorteio normal já escolheu ELE pra falar nesta
+        // rodada — não força a vez de ninguém — e só no caminho do
+        // acervo: a IA real dele segue livre pra reagir como qualquer
+        // outro agente. Ver AI_CETICO_ESPECIAL_CHANCE em helpers.php.
+        if ($source === "acervo"
+            && ($agente["tipo_especial"] ?? null) === "cetico_existencial"
+            && mt_rand(1, 100) <= (int)round(AI_CETICO_ESPECIAL_CHANCE * 100)
+        ) {
+            $texto = AI_LINES_CETICO_ESPECIAIS[array_rand(AI_LINES_CETICO_ESPECIAIS)];
+            $papel = "espontaneo";
         }
     }
 
@@ -365,30 +401,80 @@ try {
     }
 
     /* ------------------------------------------------------------------
+       FOTO DE BANCO DE IMAGENS (08/09/2026) — só post espontâneo, só
+       assunto mapeado, 20% das vezes. Ver docs/plans/rede-ia-fotos.md.
+
+       Vem DEPOIS do assunto final decidido: o "Escape 2" lá em cima pode
+       ter trocado `$assunto` por outro do pool, e é esse valor final que
+       precisa bater com `AI_TOPIC_IMG_QUERY` — testar antes pegaria o
+       assunto errado.
+
+       Falha por qualquer motivo (sem chave, rede, limite de taxa,
+       resposta estranha) nunca derruba a rodada: `$imagem` continua
+       `null` e o post grava normal, sem foto.
+
+       `$ilustracaoSvg !== null` no gate: post já saiu com ilustração
+       (adendo — ver rede-ia-ilustracao-palito.md) nem tenta foto — os
+       dois nunca convivem no mesmo post.
+       ------------------------------------------------------------------ */
+    $imagemArquivo = null;
+    $imagemCredito = null;
+
+    if ($alvo === null && $ilustracaoSvg === null && isset(AI_TOPIC_IMG_QUERY[$assunto])
+        && mt_rand(1, 100) <= (int)round(AI_FOTO_CHANCE * 100)
+    ) {
+        $variantes = AI_TOPIC_IMG_QUERY[$assunto];
+        $foto      = ai_buscar_foto_pexels($variantes[array_rand($variantes)]);
+
+        if ($foto !== null) {
+            $imagemArquivo = $foto["file"];
+            $imagemCredito = $foto["credit"];
+
+            // Tratamento visual assinatura do agente — sobrescreve o
+            // arquivo já salvo. Falha aqui (GD, MIME estranho) nunca
+            // derruba a rodada: a função nunca lança, foto crua fica de
+            // pé. Ver docs/plans/rede-ia-fotos.md.
+            ai_aplicar_tratamento_foto(AI_FOTO_DIR . "/" . $imagemArquivo, $agente["handle"], $agente["color"] ?? "#1d9bf0");
+        }
+    }
+
+    /* ------------------------------------------------------------------
        GRAVAÇÃO
 
-       O comentário de um agente vai para DOIS lugares, de propósito:
-       `ai_post_comments` (a réplica aparece debaixo do post original) e
-       `ai_posts` com `reply_to_post_id` (a réplica também aparece no
-       perfil de quem respondeu, e no feed). É o que o plano chama de "dar
-       mais visibilidade à réplica" — sem isso, metade da vida da rede
-       ficaria escondida atrás de um clique.
+       Só em `ai_posts`, com `reply_to_post_id` quando é resposta ao post
+       de outro agente — é isso que faz o feed e o perfil mostrarem
+       "respondendo a X". ANTES gravava TAMBÉM em `ai_post_comments`, e a
+       mesma fala aparecia duas vezes: uma vez como post próprio marcado
+       "respondendo", outra dentro da lista de comentários do post
+       original — o "comenta e depois publica a mesma coisa" relatado.
+       `ai_post_comments` continua existindo, só que agora é só para
+       comentário HUMANO (ver `comment_create.php`) e para a reação da
+       rede a um comentário humano (`ai_rodada_reconhecimento`, que já
+       gravava só em `ai_posts` mesmo antes desta correção).
        ------------------------------------------------------------------ */
     $replyTo = $alvo !== null ? (int)$alvo["id"] : null;
 
+    // IAlândia (10/09/2026): se existe um evento ABERTO pro assunto desta
+    // fala, o post também entra na timeline dele — é o que faz o placar
+    // de curtida/comentário do evento enxergar esta fala. `$topico` aqui
+    // é sempre um dos títulos fixos de AI_TOPICS (post espontâneo usa
+    // ai_titulo_do_assunto(); "comentar" copia o topic do post-alvo, que
+    // por sua vez também nasceu de lá) — a volta pra chave nunca cai no
+    // sorteio de fallback de ai_chave_do_assunto() na prática.
+    $eventoId = ialandia_evento_aberto_por_assunto($pdo, ai_chave_do_assunto($topico));
+
     $stmt = $pdo->prepare(
-        "INSERT INTO ai_posts (agent_id, thread_id, topic, role, reply_to_post_id, content, source)
-         VALUES (?, NULL, ?, ?, ?, ?, ?)"
+        "INSERT INTO ai_posts (agent_id, evento_id, thread_id, topic, role, reply_to_post_id, content, source, image, image_credit, illustration_svg)
+         VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
-    $stmt->execute([$agente["id"], $topico, $papel, $replyTo, $texto, $source]);
+    $stmt->execute([$agente["id"], $eventoId, $topico, $papel, $replyTo, $texto, $source, $imagemArquivo, $imagemCredito, $ilustracaoSvg]);
 
     $postId = (int)$pdo->lastInsertId();
 
-    if ($alvo !== null) {
-        $pdo->prepare(
-            "INSERT INTO ai_post_comments (ai_post_id, user_id, agent_id, body, acknowledged)
-             VALUES (?, NULL, ?, ?, 1)"
-        )->execute([(int)$alvo["id"], $agente["id"], $texto]);
+    // Só quando a ação foi "post": "comentar" reage a um assunto que já
+    // está em pauta (o do post-alvo), não abre um novo relógio de 5 min.
+    if ($alvo === null && isset($assunto, $assuntoTrocou)) {
+        ai_gravar_assunto_corrente($pdo, $assunto, $assuntoTrocou);
     }
 
     $desdeResumo += 1;
@@ -412,13 +498,16 @@ try {
         "generated" => 1,
         "action"    => $alvo !== null ? "comentar" : "post",
         "post" => [
-            "id"       => $postId,
-            "topic"    => $topico,
-            "role"     => $papel,
-            "content"  => $texto,
-            "source"   => $source,
-            "agent"    => $agente["name"],
-            "reply_to" => $replyTo,
+            "id"            => $postId,
+            "topic"         => $topico,
+            "role"          => $papel,
+            "content"       => $texto,
+            "source"        => $source,
+            "agent"         => $agente["name"],
+            "reply_to"      => $replyTo,
+            "image"         => $imagemArquivo,
+            "image_credit"  => $imagemCredito,
+            "illustration_svg" => $ilustracaoSvg,
         ],
         "summarized" => $resumiu,
     ];

@@ -20,6 +20,10 @@ const POSTS_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 /** Quantas etiquetas (`#tag`) um post indexa. */
 const POSTS_MAX_TAGS = 10;
 
+/** Duração de um post efêmero, do momento em que a decadência zera
+ *  (criação, ou último comentário) até ele ser marcado morto. */
+const POSTS_EFEMERO_HORAS = 24;
+
 /**
  * Valida e grava a imagem enviada. Devolve o nome do arquivo, ou lança
  * RuntimeException com a mensagem pronta para o cliente.
@@ -68,6 +72,9 @@ function posts_load(PDO $pdo, int $postId, int $userId): ?array
 {
     $stmt = $pdo->prepare(
         "SELECT p.id, p.user_id, p.content, p.image, p.created_at, p.edited_at,
+                p.is_efemero, p.efemero_criado_em,
+                TIMESTAMPDIFF(SECOND, p.efemero_criado_em, NOW()) AS efemero_decorrido_seg,
+                (SELECT r.id FROM rumores r WHERE r.post_origem_id = p.id) AS rumor_id,
                 u.name, u.email, u.avatar,
                 (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
                 (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS like_count,
@@ -89,6 +96,8 @@ function posts_load(PDO $pdo, int $postId, int $userId): ?array
 /** Normaliza uma linha de post para o formato do contrato. */
 function posts_post_row(array $row): array
 {
+    $efemero = !empty($row["is_efemero"]);
+
     return [
         "id"            => (int)$row["id"],
         "user_id"       => (int)$row["user_id"],
@@ -104,7 +113,50 @@ function posts_post_row(array $row): array
         "share_count"   => (int)$row["share_count"],
         "liked_by_me"   => (int)$row["liked_by_me"] > 0 ? 1 : 0,
         "saved_by_me"   => (int)($row["saved_by_me"] ?? 0) > 0 ? 1 : 0,
+        "is_efemero"    => $efemero,
+        // null pra post normal — o front só desenha o efeito de decadência
+        // quando o campo vem preenchido.
+        "decadencia"    => $efemero ? posts_nivel_decadencia((int)($row["efemero_decorrido_seg"] ?? 0)) : null,
+        "morre_em_seg"  => $efemero ? posts_morre_em_segundos((int)($row["efemero_decorrido_seg"] ?? 0)) : null,
+        // Presente (id do rumor) só quando este post é origem de um
+        // boato — é o que liga o post à timeline de api/rumores/get.php.
+        "rumor_id"      => isset($row["rumor_id"]) && $row["rumor_id"] !== null ? (int)$row["rumor_id"] : null,
     ];
+}
+
+/**
+ * Nível de decadência (0 a 100) de um post efêmero, a partir de quantos
+ * segundos já se passaram desde `efemero_criado_em` (criação, ou o
+ * último comentário — o que resetou o relógio por último).
+ */
+function posts_nivel_decadencia(int $decorridoSeg): int
+{
+    $totalSeg = POSTS_EFEMERO_HORAS * 3600;
+
+    return (int)min(100, max(0, round(($decorridoSeg / $totalSeg) * 100)));
+}
+
+/** Segundos que faltam para o post morrer; nunca negativo. */
+function posts_morre_em_segundos(int $decorridoSeg): int
+{
+    return max(0, (POSTS_EFEMERO_HORAS * 3600) - $decorridoSeg);
+}
+
+/**
+ * Marca como mortos os posts efêmeros cujas 24h já se esgotaram, sem
+ * apagar a linha — só esconder do feed (`morto = 1`). Chamada antes de
+ * listar, pra nenhuma leitura mostrar um post que já devia ter sumido;
+ * idempotente, então rodar em toda listagem não tem custo de mais.
+ */
+function posts_expirar_efemeros(PDO $pdo): void
+{
+    $pdo->prepare(
+        "UPDATE posts
+            SET morto = 1
+          WHERE is_efemero = 1
+            AND morto = 0
+            AND efemero_criado_em <= (NOW() - INTERVAL :horas HOUR)"
+    )->execute(["horas" => POSTS_EFEMERO_HORAS]);
 }
 
 /**

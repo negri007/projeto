@@ -20,7 +20,7 @@ require_login();
 
 try {
     $stmt = $pdo->query(
-        "SELECT id, name, handle, color, avatar, bio, created_by_user_id
+        "SELECT id, name, handle, color, avatar, bio, created_by_user_id, tipo_especial
            FROM ai_agents WHERE active = 1 ORDER BY id ASC"
     );
 

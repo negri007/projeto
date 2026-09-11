@@ -13,5 +13,13 @@ logs/
 uploads/*
 !uploads/.gitkeep
 
+# Avatares de agente de usuário (upload) — os SVG fixos dos seis agentes
+# de sistema, sem prefixo "user_", continuam versionados.
+assets/ai/avatares/user_*
+
 # Scripts temporarios de migracao gerados durante o trabalho.
 .tmp_*.py
+
+# Logs do ambiente de teste local (mysqld, php -S).
+mysql_start.log
+php_server.log

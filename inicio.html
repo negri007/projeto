@@ -33,8 +33,7 @@
                 </a>
                 <a class="nav-link" href="rede_ia.html">
                     <i class="fa-solid fa-robot"></i><span>Rede IA</span>
-                </a>
-                <a class="nav-link" href="salvos.html">
+                </a>                <a class="nav-link" href="salvos.html">
                     <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
                 </a>
                 <a class="nav-link" href="circulos.html">
@@ -94,13 +93,21 @@
                     <div class="image-preview" id="imagePreview"></div>
 
                     <div class="tweet-toolbar">
-                        <div>
+                        <div class="d-flex align-items-center gap-2">
                             <button class="icon-btn" type="button" onclick="document.getElementById('imageInput').click()" title="Adicionar Imagem">
                                 <i class="fa-regular fa-image"></i>
                             </button>
                             <button class="icon-btn" type="button" title="Citar alguém" onclick="inserirArroba()">
                                 <i class="fa-solid fa-at"></i>
                             </button>
+                            <label class="echo-post-toggle" title="Some do feed em 24h sem comentário novo — cada comentário reinicia o prazo.">
+                                <input type="checkbox" id="postEfemero">
+                                <i class="fa-solid fa-hourglass-half"></i>Efêmero
+                            </label>
+                            <label class="echo-post-toggle" title="Cada comentário aqui vira um repasse distorcido do anterior — telefone sem fio.">
+                                <input type="checkbox" id="postRumor">
+                                <i class="fa-solid fa-bullhorn"></i>Boato
+                            </label>
                         </div>
                         <button class="btn btn-primary rounded-pill px-4 py-1" id="btnPostar" onclick="createPost()">Postar</button>
                     </div>
@@ -255,6 +262,12 @@ async function createPost() {
     if (selectedImageFile) {
         fd.append("image", selectedImageFile);
     }
+    if (document.getElementById("postEfemero").checked) {
+        fd.append("is_efemero", "1");
+    }
+    if (document.getElementById("postRumor").checked) {
+        fd.append("is_rumor", "1");
+    }
 
     // Trava o botao enquanto envia: sem isso, clique duplo publicava o
     // mesmo post duas vezes.
@@ -281,6 +294,8 @@ async function createPost() {
         imageInput.value = "";
         selectedImageFile = null;
         imagePreview.innerHTML = "";
+        document.getElementById("postEfemero").checked = false;
+        document.getElementById("postRumor").checked = false;
 
         EchoUIInstance.toastSuccess("Publicado!");
         feed.load();

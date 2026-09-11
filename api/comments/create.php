@@ -5,6 +5,8 @@ require_once __DIR__ . '/../auth/session.php';
 require_once __DIR__ . '/../auth/db.php';
 require_once __DIR__ . '/../notifications/helpers.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/../ai/helpers.php';
+require_once __DIR__ . '/../rumores/helpers.php';
 
 $userId = require_login();
 
@@ -29,7 +31,7 @@ if (mb_strlen($body) > 2000) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT id, user_id FROM posts WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, user_id, is_efemero FROM posts WHERE id = ? AND morto = 0");
     $stmt->execute([$post_id]);
     $post = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -43,7 +45,23 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$post_id, $userId, $body]);
 
+    // lastInsertId() precisa ser lido logo após o INSERT: qualquer outra
+    // query no meio (a UPDATE do relógio efêmero logo abaixo, por
+    // exemplo) já zera o valor.
     $commentId = (int)$pdo->lastInsertId();
+
+    // Comentário novo é o próprio ponto do post efêmero: só sobrevive o
+    // que gera conversa, então cada comentário reinicia o relógio de
+    // decadência a zero.
+    if (!empty($post['is_efemero'])) {
+        $pdo->prepare("UPDATE posts SET efemero_criado_em = NOW() WHERE id = ?")
+            ->execute([$post_id]);
+    }
+
+    // Se este post é origem de um boato, o comentário vira um repasse:
+    // distorce o texto da cadeia, não usa o corpo deste comentário. Não
+    // faz nada se o post não for origem de rumor nenhum.
+    rumor_registrar_repasse($pdo, $post_id, $userId, $commentId);
 
     // Devolve o comentário já montado para o front renderizar sem
     // precisar recarregar a lista inteira.

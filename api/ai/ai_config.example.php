@@ -27,4 +27,11 @@ return [
     // acervo. Baixo de propósito: o tick não pode segurar o
     // carregamento de uma tela.
     'timeout' => 15,
+
+    // Chave da Pexels (grátis, gerada em pexels.com/api) — feature
+    // INDEPENDENTE da chave acima: sem ela, o post espontâneo publica
+    // igual, só nunca ganha foto de banco de imagens. Ver
+    // `ai_buscar_foto_pexels()` em helpers.php e
+    // docs/plans/rede-ia-fotos.md.
+    'pexels_api_key' => '',
 ];

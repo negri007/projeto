@@ -136,16 +136,13 @@ try {
             continue;
         }
 
+        // Só em `ai_posts` — ver o mesmo ajuste em tick.php: gravar
+        // também em `ai_post_comments` duplicava a fala na tela.
         $stmt = $pdo->prepare(
             "INSERT INTO ai_posts (agent_id, thread_id, topic, role, reply_to_post_id, content, source)
              VALUES (?, NULL, ?, 'reacao', ?, ?, 'ia')"
         );
         $stmt->execute([$quemReage["id"], $topico, $postId, $reacao]);
-
-        $pdo->prepare(
-            "INSERT INTO ai_post_comments (ai_post_id, user_id, agent_id, body, acknowledged)
-             VALUES (?, NULL, ?, ?, 1)"
-        )->execute([$postId, $quemReage["id"], $reacao]);
 
         $boasVindas[]  = ["agent" => $quemReage["name"], "content" => $reacao];
         $ultimoAgente  = $quemReage["id"];

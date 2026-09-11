@@ -64,11 +64,62 @@ const AI_LOCK_TIMEOUT = 30;
 /** A cada quantas falas o resumo de memória é reescrito. */
 const AI_SUMMARY_EVERY = 20;
 
-/** Chance de uma rodada ser gerada pela API de verdade, em vez do acervo. */
+/** Chance de uma rodada ser gerada pela API de verdade, em vez do acervo.
+ *  Vale só no modo "hibrido" — ver `ai_chance_real()`. */
 const AI_REAL_CHANCE = 0.15;
+
+/** Segundos que um assunto sorteado para post espontâneo continua valendo
+ *  antes de a próxima rodada de post sortear outro. Pedido do dono: a
+ *  rede "conversar uns 5 minutos sobre uma coisa, depois 5 minutos sobre
+ *  outra", em vez de pular de assunto a cada post. Ver
+ *  `ai_assunto_corrente()`. */
+const AI_TOPIC_JANELA_SEGUNDOS = 300;
 
 /** Limite de tamanho da fala, dos dois lados (acervo e IA real). */
 const AI_TEXT_MAX = 500;
+
+/** Chance de um post ESPONTÂNEO (nunca comentário/reconhecimento) cujo
+ *  assunto tem entrada em AI_TOPIC_IMG_QUERY ganhar uma foto da Pexels.
+ *  Ver `ai_buscar_foto_pexels()` e docs/plans/rede-ia-fotos.md. */
+const AI_FOTO_CHANCE = 0.20;
+
+/** Pasta onde as fotos baixadas da Pexels ficam salvas — mesma raiz
+ *  `uploads/` do avatar de usuário, coberta pelo mesmo `.gitignore`. */
+const AI_FOTO_DIR = __DIR__ . "/../../uploads/ai_fotos";
+
+/** Chance de um post ESPONTÂNEO de IA real pedir ao modelo, na mesma
+ *  chamada que gera o texto, uma ilustração de boneco-palito em SVG.
+ *  Adendo à foto — as duas são independentes, mas mutuamente exclusivas
+ *  num mesmo post: se este roll pedir ilustração e ela sair validada, a
+ *  tentativa de foto (AI_FOTO_CHANCE) nem chega a rodar pra esse post.
+ *  Ver ai_gerar_post_real() e docs/plans/rede-ia-ilustracao-palito.md.
+ *
+ * 0.55, não 0.20: o gargalo real de visibilidade não é este roll, é
+ * chegar até aqui — só post espontâneo (~metade das rodadas) com IA
+ * real (AI_REAL_CHANCE, 15%, calibrado pra custo, não pra ilustração) já
+ * deixa a janela pequena. Subir este número não pesa no orçamento de
+ * API: o desenho pedido aqui vem DENTRO da mesma chamada que a fala já
+ * ia fazer de qualquer jeito — não é uma chamada a mais. */
+const AI_DESENHO_CHANCE = 0.55;
+
+/** Chance de o Beta (`tipo_especial = 'cetico_existencial'`) substituir
+ *  o post espontâneo do acervo por uma fala rara de AI_LINES_CETICO_ESPECIAIS
+ *  (corpus.php) — só quando o sorteio normal já escolheu ELE pra falar
+ *  nesta rodada, e só no caminho do acervo (a chance de IA real dele
+ *  continua igual à de qualquer agente). Baixa de propósito: o efeito de
+ *  "quebra de quarta parede" só funciona sendo raro. Ver o gate em
+ *  tick.php. */
+const AI_CETICO_ESPECIAL_CHANCE = 0.12;
+
+/** Tags e atributos que sobrevivem à validação do SVG gerado pela IA —
+ *  ver `ai_validar_svg_ilustracao()`. Lista fixa por segurança estrutural
+ *  (impedir código executável escondido no SVG), não por estilo do
+ *  desenho: não muda não importa quão simples ou elaborada a ilustração. */
+const AI_SVG_TAGS_PERMITIDAS = ['svg', 'line', 'circle', 'ellipse', 'path', 'polyline', 'polygon', 'rect', 'g'];
+const AI_SVG_ATRIBUTOS_PERMITIDOS = [
+    'viewbox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2',
+    'cx', 'cy', 'r', 'rx', 'ry', 'points', 'd', 'stroke', 'stroke-width', 'fill', 'xmlns',
+];
 
 /* ----------------------------------------------------------------------
    REAÇÃO AO SINAL HUMANO
@@ -132,6 +183,28 @@ const AI_CRIACAO_PERSONALIDADE_MIN = 15;
 const AI_CRIACAO_PERSONALIDADE_MAX = 600;
 const AI_CRIACAO_ASSUNTOS_MAX = 200;
 const AI_CRIACAO_BIO_MAX = 300;
+
+/**
+ * Categorias de âncora concreta pra persona compilada (ver
+ * `ai_compilar_agente_usuario()` e docs/plans/rede-ia-qualidade-criacao.md).
+ *
+ * Sorteada em PHP, uma por chamada, e não deixada a critério do modelo:
+ * pedir "seja específico e varie" pro modelo sozinho não é garantia — no
+ * teste, a mesma entrada vaga ("alguém animado e gentil") caiu duas vezes
+ * em três no MESMO truque ("repete a última palavra de quem fala"), que é
+ * o primeiro clichê óbvio pra esse tipo de personalidade. Sortear a
+ * categoria aqui força variedade de verdade: a aleatoriedade vem do PHP,
+ * não da esperança de que o modelo escolha diferente sozinho.
+ */
+const AI_CRIACAO_CATEGORIAS_ESPECIFICIDADE = [
+    "um objeto ou hábito físico que ela sempre carrega, segura ou repete com as mãos",
+    "um jeito bem específico de começar ou terminar as frases",
+    "uma reação sensorial concreta (um cheiro, som ou textura) que ela associa a coisas do dia a dia",
+    "uma pequena contradição de comportamento (ex.: anima os outros mas duvida de si mesma)",
+    "uma memória ou hábito antigo que ela sempre traz de volta na conversa, sem que perguntem",
+    "um gesto ou expressão física marcante, do tipo que dá pra quase visualizar",
+    "uma rotina ou mania bem particular, do tipo que só essa pessoa teria",
+];
 
 /** Chance de a reação a um COMENTÁRIO usar a API de verdade.
  *
@@ -256,7 +329,7 @@ function ai_agentes(PDO $pdo): array
 {
     $stmt = $pdo->query(
         "SELECT id, name, handle, persona, bio, avatar, preferred_role, color,
-                created_by_user_id, favorite_topics
+                created_by_user_id, favorite_topics, tipo_especial
          FROM ai_agents WHERE active = 1 ORDER BY id ASC"
     );
 
@@ -283,6 +356,100 @@ function ai_estado(PDO $pdo): array
     }
 
     return $estado;
+}
+
+/** Os três modos de geração possíveis. */
+const AI_MODES = ['hibrido', 'acervo', 'api'];
+
+/**
+ * Chance efetiva de a rodada gerar por IA de verdade, dado o modo e se
+ * quem vai falar é um agente DE USUÁRIO.
+ *
+ * "acervo" nunca chama a API (custo zero, só o acervo escrito à mão).
+ * "api" sempre chama (nunca cai no acervo) — é o modo de quem quer a
+ * conversa mais fluida e não se importa com o custo. "hibrido" é o
+ * padrão de sempre, EXCETO para um agente de usuário: ele não tem uma
+ * linha sequer escrita no acervo (persona é texto livre que a pessoa
+ * inventou, não uma das seis vozes fixas), então sem forçar a chamada
+ * aqui ele só fala quando o sorteio de 15% dá certo — na prática, quase
+ * nunca, e é por isso que agente de usuário parecia sempre inativo.
+ * Forçar custa a MESMA chamada que já seria necessária pra ele falar
+ * nesta rodada; não é chamada extra. Em modo "acervo" a regra não vale:
+ * lá NADA chama a API, nem para agente de usuário — é o que o modo
+ * promete.
+ */
+function ai_chance_real(string $modo, float $chanceBase, bool $agenteDeUsuario = false): float
+{
+    if ($modo === 'acervo') {
+        return 0.0;
+    }
+
+    if ($modo === 'api') {
+        return 1.0;
+    }
+
+    return $agenteDeUsuario ? 1.0 : $chanceBase;
+}
+
+/** Muda o modo de geração. Devolve false se o valor não é um dos três. */
+function ai_definir_modo(PDO $pdo, string $modo): bool
+{
+    if (!in_array($modo, AI_MODES, true)) {
+        return false;
+    }
+
+    $pdo->prepare("UPDATE ai_generation_state SET mode = ? WHERE id = 1")->execute([$modo]);
+
+    return true;
+}
+
+/**
+ * O assunto do post espontâneo desta rodada.
+ *
+ * Até aqui, cada post espontâneo sorteava um assunto novo, sem relação
+ * com o anterior. Pedido do dono foi trazer um pouco de continuidade de
+ * volta, mas por TEMPO — não pelo roteiro fixo que a rede orgânica tirou
+ * de propósito: a rede "conversa uns 5 minutos sobre uma coisa, depois 5
+ * minutos sobre outra".
+ *
+ * A checagem do tempo vai no SQL, comparando contra `NOW()` do próprio
+ * MySQL — não em PHP comparando `topic_started_at` contra `time()`. Esta
+ * instalação já teve o relógio do PHP adiantado em relação ao do MySQL
+ * (ver `rate_limit.php` nos ajustes), e comparar os dois de novo aqui
+ * reintroduziria o mesmo bug.
+ *
+ * Devolve [chave_do_assunto, trocou_de_assunto_nesta_rodada].
+ */
+function ai_assunto_corrente(PDO $pdo): array
+{
+    $stmt = $pdo->query(
+        "SELECT current_topic,
+                topic_started_at IS NOT NULL
+                AND topic_started_at > NOW() - INTERVAL " . AI_TOPIC_JANELA_SEGUNDOS . " SECOND
+                AS ainda_vale
+           FROM ai_generation_state WHERE id = 1"
+    );
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($row && (int)$row["ainda_vale"] === 1 && $row["current_topic"] && isset(AI_TOPICS[$row["current_topic"]])) {
+        return [$row["current_topic"], false];
+    }
+
+    return [ai_sortear_assunto(), true];
+}
+
+/** Grava o assunto corrente quando ele mudou nesta rodada — chamado só
+ *  depois que o post foi gravado de verdade (mesmo cuidado do sinal
+ *  humano: se a rodada falhar antes disso, a troca não deve "gastar" o
+ *  relógio dos 5 minutos). */
+function ai_gravar_assunto_corrente(PDO $pdo, string $assunto, bool $trocou): void
+{
+    if (!$trocou) {
+        return;
+    }
+
+    $pdo->prepare("UPDATE ai_generation_state SET current_topic = ?, topic_started_at = NOW() WHERE id = 1")
+        ->execute([$assunto]);
 }
 
 /* ======================================================================
@@ -514,6 +681,29 @@ function ai_sortear_acao(): string
  * Devolve a linha do post escolhido, ou null se não houver post de outro
  * agente na janela — que é o caso da rede recém-nascida, com um post só.
  */
+
+/**
+ * Este agente já curtiu este post?
+ *
+ * Existe porque a chave única de `ai_post_likes` (`ai_post_id, user_id,
+ * agent_id`) NÃO protege curtida de agente: toda curtida de agente tem
+ * `user_id = NULL`, e o MySQL não considera duas linhas com o mesmo valor
+ * NULL numa coluna da chave como duplicadas — a checagem de unicidade
+ * simplesmente não dispara. O `INSERT IGNORE` do tick.php contava com essa
+ * proteção pra não repetir curtida do mesmo agente no mesmo post; sem
+ * ela, cada curtida repetida virava outra linha. Achado ao ver "Fulano,
+ * Beltrano e Fulano curtiram" com o mesmo nome duas vezes na tela.
+ */
+function ai_ja_curtiu(PDO $pdo, int $postId, int $agentId): bool
+{
+    $stmt = $pdo->prepare(
+        "SELECT 1 FROM ai_post_likes WHERE ai_post_id = ? AND agent_id = ? LIMIT 1"
+    );
+    $stmt->execute([$postId, $agentId]);
+
+    return (bool)$stmt->fetchColumn();
+}
+
 function ai_post_para_reagir(PDO $pdo, int $agenteId, string $handle): ?array
 {
     $stmt = $pdo->prepare(
@@ -978,6 +1168,78 @@ function ai_montar_resumo(PDO $pdo, int $quantas = 25): string
    introduzir Composer só para isto.
    ====================================================================== */
 
+/* ----------------------------------------------------------------------
+   GÍRIAS REGIONAIS (08/09/2026) — ver docs/plans/rede-ia-girias-regionais.md.
+
+   Fuinha ganhou sabor carioca, Dona Ranzinza paulistano, Trovão Suave
+   baiano — fixo pros três, porque é a região deles. Sidéro e Doutora
+   Verbete ficam de fora DE PROPÓSITO: nem toda voz precisa de regional,
+   e as duas já têm identidade própria (transmissão cósmica, precisão
+   técnica) que um sotaque só desviaria.
+
+   Maré RODA entre nordestino, gaúcho e mineiro A CADA FALA — sorteado
+   aqui, não fixo na persona dela — porque reforça o conceito da
+   personagem (instabilidade, sem padrão fixo). O acervo (corpus.php) já
+   distribui as falas dela entre as três regiões manualmente; aqui é só a
+   IA REAL que precisa do sorteio, porque cada chamada é independente e
+   não tem memória de qual região ela "estava" na fala anterior.
+
+   Só palavra/expressão REAL de cada região — nunca grafia fonética
+   (nunca "cê", nunca comer letra) — porque sotaque escrito errado de
+   propósito soa como deboche, não como voz genuína. Ver o próprio texto
+   de AI_REGIONALISMO_REGRA, que carrega essa instrução pro modelo.
+   ---------------------------------------------------------------------- */
+const AI_REGIONALISMO = [
+    'carioca'    => ['treta', 'esquema', 'mano', 'sinistro', 'sacanagem', 'maneiro', 'partiu'],
+    'paulistano' => ['que saco', 'leso', 'mó', 'affe'],
+    'baiano'     => ['oxente', 'vixe', 'meu rei', 'bichim'],
+    'nordestino' => ['eita', 'égua', 'arretado', 'oxente', 'vixe'],
+    'gaucho'     => ['bah', 'tri', 'tchê', 'guri', 'capaz'],
+    'mineiro'    => ['uai', 'trem', 'sô', 'danado'],
+];
+
+/** Região fixa de cada handle com sotaque fixo. Maré não entra aqui — a
+ *  dela é sorteada por chamada, ver `ai_system_prompt()`. */
+const AI_REGIONALISMO_POR_HANDLE = [
+    'fuinha'       => 'carioca',
+    'donaranzinza' => 'paulistano',
+    'trovaosuave'  => 'baiano',
+];
+
+/** As três regiões entre as quais a Maré roda a cada fala. */
+const AI_REGIONALISMO_MARE = ['nordestino', 'gaucho', 'mineiro'];
+
+/**
+ * Chance de a instrução de regionalismo entrar no prompt desta chamada.
+ *
+ * NÃO é "sempre incluir e confiar que o modelo dose sozinho": no teste,
+ * pedir pro modelo "use com moderação" ainda resultou em usar a MESMA
+ * palavra ('meu rei') em 4 de 4 falas seguidas do Trovão Suave — vira
+ * cacoete em vez de sotaque leve. A dose certa é decidida aqui, no PHP,
+ * e não a cada chamada de novo: a maioria das falas simplesmente não
+ * carrega a instrução, e por isso não tem chance nenhuma de sair com
+ * regionalismo — é a mesma lição de `ai_chance_real()` e da categoria de
+ * especificidade da criação de agente: aleatoriedade forçada pelo
+ * servidor é mais confiável que pedir moderação ao modelo.
+ */
+const AI_REGIONALISMO_CHANCE = 0.3;
+
+/**
+ * Regra de USO do regionalismo — dose leve e vocabulário real. Existe
+ * como texto único, e não repetida em cada persona, porque é aqui que se
+ * ajusta se algum dia soar forçado: um lugar só, não quatro.
+ */
+function ai_regra_regionalismo(string $regiao): string
+{
+    $palavras = implode(', ', AI_REGIONALISMO[$regiao]);
+
+    return "Você tem um leve sotaque $regiao. NESTA fala específica, pode usar UMA (no máximo) "
+        . "destas palavras reais da região, só se couber naturalmente: $palavras. É vocabulário "
+        . "genuíno, nunca grafia fonética imitando pronúncia (não escreva errado de propósito pra "
+        . "parecer sotaque — isso soa como deboche, não como voz de verdade). Se não couber "
+        . "naturalmente nesta fala, não force — escreva normal.";
+}
+
 /**
  * Monta o `system` da chamada: quem é o agente, o que ele tem de fazer
  * nesta fala, e as travas de segurança.
@@ -1002,6 +1264,17 @@ function ai_system_prompt(array $agente, string $instrucao): string
     // não para a Maré falando de si mesma.
     if ($agente["handle"] !== "mare") {
         $system .= "\n\n" . AI_SAFETY_ABOUT_MARE;
+    }
+
+    // Regionalismo: região fixa pros três, sorteada por chamada pra Maré
+    // — mas só entra no prompt em AI_REGIONALISMO_CHANCE das chamadas.
+    // Sidéro e Doutora Verbete não entram aqui de propósito.
+    $regiaoFixa = AI_REGIONALISMO_POR_HANDLE[$agente["handle"]] ?? null;
+    $temSotaque = $regiaoFixa !== null || $agente["handle"] === "mare";
+
+    if ($temSotaque && mt_rand(1, 100) <= (int)round(AI_REGIONALISMO_CHANCE * 100)) {
+        $regiao = $regiaoFixa ?? AI_REGIONALISMO_MARE[array_rand(AI_REGIONALISMO_MARE)];
+        $system .= "\n\n" . ai_regra_regionalismo($regiao);
     }
 
     return $system;
@@ -1107,6 +1380,375 @@ function ai_chamar_api(string $system, string $contexto, int $maxTokens = 300, ?
     return mb_substr($texto, 0, $maxChars);
 }
 
+/**
+ * Busca uma foto no Pexels pra uma query em inglês, baixa e salva local
+ * em `AI_FOTO_DIR`. Ver docs/plans/rede-ia-fotos.md.
+ *
+ * NUNCA lança e NUNCA devolve URL externa: a rede não pode depender de
+ * internet funcionando pra mostrar um post antigo (apresentação, rede
+ * lenta, Pexels fora do ar meses depois) — a imagem é copiada pro
+ * próprio servidor uma vez, na hora da publicação, e serve dali pra
+ * sempre. Qualquer falha (chave ausente, rede, limite de taxa, resposta
+ * estranha, MIME inesperado) devolve `null`; quem chama publica o post
+ * sem foto, sem quebrar a rodada.
+ *
+ * A chave da Pexels é INDEPENDENTE da chave da Anthropic em
+ * `ai_config()`: dá pra ter uma sem a outra, e por isso a checagem é
+ * `pexels_api_key` isolada, não `ai_config_valida()`.
+ *
+ * Devolve `["file" => nome_salvo_em_AI_FOTO_DIR, "credit" => fotógrafo]`
+ * ou `null`.
+ */
+function ai_buscar_foto_pexels(string $query): ?array
+{
+    $config = ai_config();
+    $chave  = trim((string)($config["pexels_api_key"] ?? ""));
+
+    if ($chave === "") {
+        return null;
+    }
+
+    $url = "https://api.pexels.com/v1/search?" . http_build_query([
+        "query"       => $query,
+        // 25, não 10: a Pexels ordena por popularidade/relevância, então
+        // resultado pequeno demais sempre entrega a mesma foto batida nas
+        // primeiras posições. Pool maior dá o que sortear de verdade. Ver
+        // "Ajuste — Fotos saindo genéricas/clichê demais" no plano.
+        "per_page"    => 25,
+        "orientation" => "landscape",
+    ]);
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 10,
+        CURLOPT_HTTPHEADER     => ["Authorization: " . $chave],
+    ]);
+    $resposta = curl_exec($ch);
+    $status   = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $erroCurl = curl_error($ch);
+    curl_close($ch);
+
+    if ($resposta === false || $status !== 200 || $erroCurl !== "") {
+        error_log("ai_buscar_foto_pexels: busca falhou (HTTP $status) " . $erroCurl);
+        return null;
+    }
+
+    $fotos = (json_decode($resposta, true))["photos"] ?? [];
+
+    if (!$fotos) {
+        return null;
+    }
+
+    // Sorteia pulando as duas primeiras posições de propósito — são quase
+    // sempre a foto mais óbvia/mais usada daquela busca (a Pexels ordena
+    // por popularidade). Sortear do recorte 3ª..última foge do clichê.
+    // Com menos de 3 resultados, sorteia do que tiver mesmo.
+    $pool = count($fotos) > 2 ? array_slice($fotos, 2) : $fotos;
+    $foto = $pool[array_rand($pool)];
+    $urlImagem   = $foto["src"]["large"] ?? $foto["src"]["medium"] ?? null;
+    $fotografo   = trim((string)($foto["photographer"] ?? ""));
+
+    if ($urlImagem === null) {
+        return null;
+    }
+
+    $chImg = curl_init($urlImagem);
+    curl_setopt_array($chImg, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 15,
+    ]);
+    $bytes     = curl_exec($chImg);
+    $statusImg = (int)curl_getinfo($chImg, CURLINFO_HTTP_CODE);
+    $erroImg   = curl_error($chImg);
+    curl_close($chImg);
+
+    if ($bytes === false || $bytes === "" || $statusImg !== 200 || $erroImg !== "") {
+        error_log("ai_buscar_foto_pexels: download da imagem falhou (HTTP $statusImg) " . $erroImg);
+        return null;
+    }
+
+    if (!is_dir(AI_FOTO_DIR) && !mkdir(AI_FOTO_DIR, 0775, true) && !is_dir(AI_FOTO_DIR)) {
+        error_log("ai_buscar_foto_pexels: não deu para criar a pasta de fotos.");
+        return null;
+    }
+
+    // Grava num nome temporário PRIMEIRO, pra poder checar o MIME real do
+    // que chegou antes de aceitar como imagem — mesma desconfiança de
+    // qualquer upload, mesmo vindo de uma API confiável: defesa em
+    // profundidade. `rename()` dentro da mesma pasta sempre funciona,
+    // diferente de mover entre pastas em discos diferentes.
+    $tmpNome = "tmp_" . uniqid() . ".bin";
+    $tmpPath = AI_FOTO_DIR . "/" . $tmpNome;
+
+    if (file_put_contents($tmpPath, $bytes) === false) {
+        error_log("ai_buscar_foto_pexels: não deu para gravar o arquivo temporário.");
+        return null;
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $tipos = ["image/jpeg" => "jpg", "image/png" => "png", "image/webp" => "webp"];
+    $mime  = $finfo->file($tmpPath);
+
+    if (!isset($tipos[$mime])) {
+        @unlink($tmpPath);
+        error_log("ai_buscar_foto_pexels: MIME inesperado vindo da Pexels ($mime).");
+        return null;
+    }
+
+    $nome = "pexels_" . (int)($foto["id"] ?? 0) . "_" . time() . "." . $tipos[$mime];
+
+    if (!rename($tmpPath, AI_FOTO_DIR . "/" . $nome)) {
+        @unlink($tmpPath);
+        error_log("ai_buscar_foto_pexels: não deu para renomear o arquivo salvo.");
+        return null;
+    }
+
+    return ["file" => $nome, "credit" => $fotografo !== "" ? $fotografo : "Pexels"];
+}
+
+/* ======================================================================
+   TRATAMENTO VISUAL DA FOTO POR AGENTE (GD, sem dependência nova)
+
+   Ver "Ajuste — Tratamento visual assinatura por agente" em
+   docs/plans/rede-ia-fotos.md. Duas fotos idênticas da Pexels saem com
+   cara diferente dependendo de quem postou — a foto vira "cartão de
+   conteúdo daquele agente", não "foto + filtro genérico".
+
+   O avatar dos seis agentes de sistema é SVG (banco.sql) e GD não
+   rasteriza SVG sem biblioteca extra — por isso o "selo" universal usa a
+   COR do agente (coluna `ai_agents.color`), não o ícone em si.
+
+   A vinheta aqui é um approximado barato (anéis retangulares da borda
+   pro centro, não um gradiente radial pixel a pixel) — rápido o
+   suficiente para rodar dentro do tick.php sem preocupação de custo.
+   ====================================================================== */
+
+/** #RRGGBB -> [r, g, b]. Hex inválido cai na cor padrão do sistema. */
+function ai_hex_para_rgb(string $hex): array
+{
+    $hex = ltrim($hex, '#');
+    if (!preg_match('/^[0-9a-fA-F]{6}$/', $hex)) {
+        return [29, 155, 240];
+    }
+    return [hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2))];
+}
+
+/** Abre a imagem salva em AI_FOTO_DIR pelo MIME real. Null se não der. */
+function ai_tratamento_abrir_imagem(string $caminho)
+{
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($caminho);
+
+    $im = match ($mime) {
+        'image/jpeg' => @imagecreatefromjpeg($caminho),
+        'image/png'  => @imagecreatefrompng($caminho),
+        'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($caminho) : false,
+        default      => false,
+    };
+
+    if ($im === false || $im === null) {
+        return null;
+    }
+
+    imagealphablending($im, true);
+    imagesavealpha($im, true);
+
+    return [$im, $mime];
+}
+
+function ai_tratamento_salvar_imagem($im, string $mime, string $caminho): bool
+{
+    return match ($mime) {
+        'image/jpeg' => imagejpeg($im, $caminho, 85),
+        'image/png'  => imagepng($im, $caminho),
+        'image/webp' => function_exists('imagewebp') ? imagewebp($im, $caminho, 85) : false,
+        default      => false,
+    };
+}
+
+/** Gradiente de cor translúcida de cima pra baixo, mais forte no topo. */
+function ai_tratamento_gradiente_topo($im, int $r, int $g, int $b, int $intensidadeMax = 55): void
+{
+    $w = imagesx($im);
+    $h = imagesy($im);
+
+    for ($y = 0; $y < $h; $y++) {
+        $fracao = $y / $h; // 0 no topo, 1 na base
+        $alpha  = (int)round(127 - ((1 - $fracao) * $intensidadeMax));
+        $cor    = imagecolorallocatealpha($im, $r, $g, $b, max(0, min(127, $alpha)));
+        imageline($im, 0, $y, $w, $y, $cor);
+    }
+}
+
+/** Vinheta: anéis escuros da borda pro centro (approximado, não radial). */
+function ai_tratamento_vinheta($im, int $intensidade = 40): void
+{
+    $w   = imagesx($im);
+    $h   = imagesy($im);
+    $esp = (int)round(min($w, $h) * 0.18);
+
+    for ($i = 0; $i < $esp; $i++) {
+        $fracao = 1 - ($i / $esp); // mais escuro bem na borda
+        $alpha  = (int)round(127 - ($fracao * $intensidade));
+        $cor    = imagecolorallocatealpha($im, 0, 0, 0, max(0, min(127, $alpha)));
+        imagerectangle($im, $i, $i, $w - 1 - $i, $h - 1 - $i, $cor);
+    }
+}
+
+/** Ruído/grão granulado — pontos claros/escuros esparsos. */
+function ai_tratamento_ruido($im, float $densidadeFracao = 0.0007): void
+{
+    $w = imagesx($im);
+    $h = imagesy($im);
+    $n = (int)round($w * $h * $densidadeFracao);
+
+    for ($i = 0; $i < $n; $i++) {
+        $tom = mt_rand(0, 1) ? 255 : 0;
+        $cor = imagecolorallocatealpha($im, $tom, $tom, $tom, mt_rand(95, 118));
+        imagesetpixel($im, mt_rand(0, $w - 1), mt_rand(0, $h - 1), $cor);
+    }
+}
+
+/** Grade/quadriculado sutil (referência a caderno/gráfico). */
+function ai_tratamento_grade($im, int $espacamento = 42): void
+{
+    $w   = imagesx($im);
+    $h   = imagesy($im);
+    $cor = imagecolorallocatealpha($im, 255, 255, 255, 112);
+
+    for ($x = 0; $x < $w; $x += $espacamento) {
+        imageline($im, $x, 0, $x, $h, $cor);
+    }
+    for ($y = 0; $y < $h; $y += $espacamento) {
+        imageline($im, 0, $y, $w, $y, $cor);
+    }
+}
+
+/** Borda quadrada grossa na cor do agente. */
+function ai_tratamento_borda_quadrada($im, int $r, int $g, int $b): void
+{
+    $w   = imagesx($im);
+    $h   = imagesy($im);
+    $esp = max(10, (int)round(min($w, $h) * 0.025));
+    $cor = imagecolorallocate($im, $r, $g, $b);
+
+    for ($i = 0; $i < $esp; $i++) {
+        imagerectangle($im, $i, $i, $w - 1 - $i, $h - 1 - $i, $cor);
+    }
+}
+
+/** Faixa translúcida na base — universal, é onde o crédito fica legível. */
+function ai_tratamento_faixa_credito($im): void
+{
+    $w      = imagesx($im);
+    $h      = imagesy($im);
+    $altura = (int)round($h * 0.22);
+    $topo   = $h - $altura;
+
+    for ($i = 0; $i < $altura; $i++) {
+        $fracao = $i / $altura; // 0 no topo da faixa, 1 na base
+        $alpha  = (int)round(127 - ($fracao * 90));
+        $cor    = imagecolorallocatealpha($im, 0, 0, 0, max(0, min(127, $alpha)));
+        imageline($im, 0, $topo + $i, $w, $topo + $i, $cor);
+    }
+}
+
+/** Selo discreto — círculo na cor do agente, canto inferior direito. */
+function ai_tratamento_selo($im, int $r, int $g, int $b): void
+{
+    $w    = imagesx($im);
+    $h    = imagesy($im);
+    $raio = (int)round(min($w, $h) * 0.035);
+    $cx   = $w - $raio - (int)round($w * 0.025);
+    $cy   = $h - $raio - (int)round($h * 0.03);
+
+    imagefilledellipse($im, $cx, $cy, $raio * 2, $raio * 2, imagecolorallocatealpha($im, $r, $g, $b, 55));
+    imageellipse($im, $cx, $cy, $raio * 2, $raio * 2, imagecolorallocatealpha($im, 255, 255, 255, 90));
+}
+
+/**
+ * Aplica o tratamento visual assinatura do agente na foto salva em
+ * `$caminho` (sobrescreve o arquivo). NUNCA lança — foto sem tratamento
+ * (crua, como a Pexels entregou) é o pior caso aceitável, não um post
+ * perdido. Ver `ai_buscar_foto_pexels()`, que já garante o download; esta
+ * função só decora o que já está salvo.
+ */
+function ai_aplicar_tratamento_foto(string $caminho, string $handle, string $corHex): void
+{
+    try {
+        $aberto = ai_tratamento_abrir_imagem($caminho);
+        if ($aberto === null) {
+            return;
+        }
+        [$im, $mime] = $aberto;
+        [$r, $g, $b] = ai_hex_para_rgb($corHex);
+
+        switch ($handle) {
+            case 'fuinha':
+                // Vinheta mais forte + leve dessaturação (wash cinza translúcido,
+                // mais barato que grayscale total + recompor cor por cima).
+                imagefilter($im, IMG_FILTER_CONTRAST, -6);
+                imagefilledrectangle($im, 0, 0, imagesx($im), imagesy($im), imagecolorallocatealpha($im, 90, 90, 90, 100));
+                ai_tratamento_vinheta($im, 55);
+                break;
+
+            case 'sidero':
+                // Gradiente roxo de cima pra baixo + ruído/grão (estática de sinal captado de longe).
+                ai_tratamento_gradiente_topo($im, 130, 60, 220, 60);
+                ai_tratamento_ruido($im, 0.0009);
+                break;
+
+            case 'donaranzinza':
+                // Sépia leve + borda quadrada grossa na cor dela.
+                imagefilter($im, IMG_FILTER_GRAYSCALE);
+                imagefilter($im, IMG_FILTER_COLORIZE, 45, 25, -15);
+                ai_tratamento_borda_quadrada($im, $r, $g, $b);
+                break;
+
+            case 'dra_verbete':
+                // Grade sutil (caderno/gráfico) + tom mais frio e nítido.
+                imagefilter($im, IMG_FILTER_CONTRAST, -12);
+                imagefilter($im, IMG_FILTER_COLORIZE, -10, -5, 15);
+                ai_tratamento_grade($im);
+                break;
+
+            case 'trovaosuave':
+                // Vinheta quente + grão analógico + tom mais alaranjado/saturado.
+                ai_tratamento_vinheta($im, 35);
+                imagefilter($im, IMG_FILTER_COLORIZE, 30, 10, -20);
+                ai_tratamento_ruido($im, 0.0006);
+                break;
+
+            case 'mare':
+                // Gradiente sorteado por chamada (frio/poético/debochado) — mesma
+                // lógica de "sorteia a cada vez" já usada pro sotaque dela em
+                // AI_REGIONALISMO_MARE: a chamada não tem memória de qual modo
+                // "estava" na fala anterior, então sortear aqui é o que de fato
+                // realiza a instabilidade, mesmo sem ler o texto gerado.
+                $modosMare = [[40, 90, 200], [220, 90, 160], [130, 130, 130]];
+                $cores     = $modosMare[array_rand($modosMare)];
+                ai_tratamento_gradiente_topo($im, $cores[0], $cores[1], $cores[2], 55);
+                break;
+
+            default:
+                // Agente de usuário, sem tratamento nomeado — usa só a cor
+                // cadastrada dele (ai_agents.color), tratamento leve.
+                ai_tratamento_gradiente_topo($im, $r, $g, $b, 30);
+                break;
+        }
+
+        // Elementos universais, em cima do tratamento específico — todo
+        // agente ganha a faixa de crédito legível e o selo de identidade.
+        ai_tratamento_faixa_credito($im);
+        ai_tratamento_selo($im, $r, $g, $b);
+
+        ai_tratamento_salvar_imagem($im, $mime, $caminho);
+        imagedestroy($im);
+    } catch (Throwable $e) {
+        error_log("ai_aplicar_tratamento_foto: " . $e->getMessage());
+    }
+}
+
 /** O contexto que a reação ao sinal humano leva ao modelo. */
 function ai_contexto_da_rede(string $topico, ?string $memoria, array $ultimasFalas): string
 {
@@ -1135,19 +1777,51 @@ function ai_contexto_da_rede(string $topico, ?string $memoria, array $ultimasFal
  * roteiro. Aqui não há papel: é só "algo que o agente quis dizer" sobre
  * um assunto sorteado.
  */
+/**
+ * Instrução extra do prompt de post espontâneo quando este round pediu
+ * ilustração (ver AI_DESENHO_CHANCE). Muda o formato de resposta esperado
+ * de texto puro para um JSON {content, svg} — ver `ai_gerar_post_real()`.
+ */
+const AI_INSTRUCAO_ILUSTRACAO = "Além do texto do post, você pode (não é obrigatório) desenhar "
+    . "uma ilustração simples tipo \"boneco-palito\" (linhas, círculos e formas básicas) que "
+    . "ilustre a cena, o objeto ou a piada do post — pode ser gente, carro, animal, objeto, cena, "
+    . "qualquer coisa que dê pra representar com traços simples. Sátira e humor são bem-vindos. "
+    . "Use a cor que fizer mais sentido pra ilustração, qualquer cor, não precisa ser preto e "
+    . "branco. Só desenhe se fizer sentido pra ESTE post especificamente — na maior parte das "
+    . "vezes o campo `svg` deve vir como string vazia, preenchido só quando o desenho realmente "
+    . "acrescenta.\n\n"
+    . "Se desenhar, devolva um SVG válido, viewBox \"0 0 200 150\", usando SOMENTE estes "
+    . "elementos: <svg>, <line>, <circle>, <ellipse>, <path>, <polyline>, <polygon>, <rect>, <g> — "
+    . "nenhum outro elemento (nada de <script>, <foreignObject>, <image>, <use>, <style>, <a>) e "
+    . "nenhum atributo de evento (onclick, onload etc.) ou link (href).\n\n"
+    . "Responda SOMENTE com um objeto JSON, sem markdown ao redor:\n"
+    . '{"content": "texto do post", "svg": "<svg ...>...</svg> ou string vazia"}';
+
+/**
+ * Gera o post espontâneo da IA real. Devolve sempre
+ * ["content" => ?string, "svg" => ?string] — `content` null é falha (o
+ * chamador cai pro acervo); `svg` só vem não-null quando `$tentarIlustracao`
+ * foi pedido, o modelo desenhou algo, E a ilustração passou pela validação
+ * obrigatória (`ai_validar_svg_ilustracao()`).
+ */
 function ai_gerar_post_real(
     array $agente,
     string $topico,
     ?string $memoria,
-    array $ultimasFalas
-): ?string {
+    array $ultimasFalas,
+    bool $tentarIlustracao = false
+): array {
     if (ai_config() === null) {
-        return null;
+        return ["content" => null, "svg" => null];
     }
 
     $instrucao = "Escreva um post seu, do nada, sobre o assunto abaixo. Não é resposta a "
         . "ninguém: é um pensamento que te ocorreu e você resolveu publicar no seu perfil. "
         . "Uma ou duas frases, do seu jeito.";
+
+    if ($tentarIlustracao) {
+        $instrucao .= "\n\n" . AI_INSTRUCAO_ILUSTRACAO;
+    }
 
     $system = ai_system_prompt($agente, $instrucao)
         . "\n\nA rede é só de agentes como você. Pessoas de fora leem e às vezes comentam, "
@@ -1181,7 +1855,103 @@ function ai_gerar_post_real(
 
     $contexto .= "\nEscreva agora o seu post.";
 
-    return ai_chamar_api($system, $contexto);
+    if (!$tentarIlustracao) {
+        return ["content" => ai_chamar_api($system, $contexto), "svg" => null];
+    }
+
+    // maxTokens/maxChars maiores que o padrão: a resposta agora é um JSON
+    // com o post E o SVG (até 2000 caracteres, ver AI_VALIDAR_SVG), não só
+    // a fala solta — mesmo motivo de folga já documentado em
+    // ai_compilar_agente_usuario().
+    $bruto = ai_chamar_api($system, $contexto, 900, null, 2700);
+
+    if ($bruto === null) {
+        return ["content" => null, "svg" => null];
+    }
+
+    $json = ai_extrair_json($bruto);
+
+    if ($json === null || !isset($json["content"])) {
+        error_log("ai_gerar_post_real: resposta com ilustração fora do formato: " . mb_substr($bruto, 0, 200));
+        return ["content" => null, "svg" => null];
+    }
+
+    $conteudo = is_string($json["content"]) ? trim($json["content"]) : "";
+
+    if ($conteudo === "") {
+        return ["content" => null, "svg" => null];
+    }
+
+    // Mesmo tratamento de fala solta: às vezes o modelo devolve entre
+    // aspas apesar da instrução, e o teto de tamanho vale igual.
+    $conteudo = trim($conteudo, "\"\u{201C}\u{201D} \n\r\t");
+    $conteudo = mb_substr($conteudo, 0, AI_TEXT_MAX);
+
+    $svgBruto = is_string($json["svg"] ?? null) ? trim($json["svg"]) : "";
+    $svg      = $svgBruto !== "" ? ai_validar_svg_ilustracao($svgBruto) : null;
+
+    return ["content" => $conteudo, "svg" => $svg];
+}
+
+/**
+ * Validação obrigatória do SVG devolvido pelo modelo antes de gravar.
+ * NUNCA confiar no SVG sem checar — mesmo tratamento sério da moderação
+ * de texto (`ai_moderate()`), só que para segurança estrutural do
+ * arquivo: whitelist rígida de tag e atributo, nunca afrouxada por causa
+ * de cor ou assunto do desenho. Qualquer coisa fora da whitelist reprova
+ * o SVG inteiro (post publica sem ilustração, nunca falha a rodada).
+ */
+function ai_validar_svg_ilustracao(string $svg): ?string
+{
+    $svg = trim($svg);
+
+    if ($svg === '' || mb_strlen($svg) > 2000) {
+        return null;
+    }
+
+    // Corte cedo antes de gastar o parse XML com payload obviamente
+    // hostil — a whitelist abaixo já bloqueia isso de qualquer forma,
+    // esta é só uma saída rápida.
+    if (stripos($svg, '<script') !== false || stripos($svg, 'javascript:') !== false) {
+        return null;
+    }
+
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    // LIBXML_NONET: nunca busca recurso externo, defesa em profundidade
+    // contra XXE mesmo que o parser tentasse resolver uma entidade.
+    $ok = @$dom->loadXML($svg, LIBXML_NONET | LIBXML_NOCDATA);
+    libxml_clear_errors();
+
+    if (!$ok) {
+        return null;
+    }
+
+    $raiz = $dom->documentElement;
+
+    if ($raiz === null || strtolower($raiz->tagName) !== 'svg') {
+        return null;
+    }
+
+    foreach ($dom->getElementsByTagName('*') as $elemento) {
+        if (!in_array(strtolower($elemento->tagName), AI_SVG_TAGS_PERMITIDAS, true)) {
+            return null;
+        }
+
+        foreach ($elemento->attributes as $atributo) {
+            $nome = strtolower($atributo->name);
+
+            if (str_starts_with($nome, 'on') || $nome === 'href' || $nome === 'xlink:href') {
+                return null;
+            }
+
+            if (!in_array($nome, AI_SVG_ATRIBUTOS_PERMITIDOS, true)) {
+                return null;
+            }
+        }
+    }
+
+    return $dom->saveXML($raiz);
 }
 
 /**
@@ -1236,16 +2006,21 @@ function ai_gerar_reacao_ia_real(
     string $nomeAutor,
     string $postOriginal,
     string $topico,
-    ?string $memoria
+    ?string $memoria,
+    array $ultimasFalas = []
 ): ?string {
     if (ai_config() === null) {
         return null;
     }
 
     $instrucao = "Você está comentando o post de " . $nomeAutor . ", outro agente da rede. "
-        . "Reaja ao que essa pessoa escreveu especificamente — concorde, discorde, provoque ou "
-        . "puxe o assunto para outro lado, do seu jeito. Pode se dirigir a " . $nomeAutor
-        . " pelo nome. Uma ou duas frases.";
+        . "Reaja ao que essa pessoa escreveu ESPECIFICAMENTE — cite ou parafraseie algo que ela "
+        . "de fato disse, não uma reação genérica que serviria para qualquer post. Concorde, "
+        . "discorde, provoque ou puxe o assunto para outro lado, do seu jeito. Pode se dirigir a "
+        . $nomeAutor . " pelo nome. Isto é uma conversa de verdade acontecendo agora entre "
+        . "personalidades bem diferentes — responda como quem estava prestando atenção na "
+        . "conversa, não como quem está comentando um post isolado. Uma ou duas frases, sem "
+        . "frase de efeito genérica de fechamento.";
 
     $system = ai_system_prompt($agente, $instrucao);
 
@@ -1255,8 +2030,20 @@ function ai_gerar_reacao_ia_real(
         $contexto .= "\nO que anda rolando na rede: " . $memoria . "\n";
     }
 
-    $contexto .= "\nO post de " . $nomeAutor . ":\n- " . $postOriginal . "\n"
-        . "\nEscreva agora o seu comentário.";
+    // As falas mais recentes da rede (não só o post que está sendo
+    // respondido) dão o tom e o ritmo da conversa em curso — sem isto, a
+    // réplica engaja com o post isolado mas ignora que já vinha rolando
+    // uma conversa em volta dele.
+    if ($ultimasFalas) {
+        $contexto .= "\nAs últimas falas da conversa, da mais antiga para a mais nova:\n";
+
+        foreach ($ultimasFalas as $f) {
+            $contexto .= "- " . $f["name"] . ": " . $f["content"] . "\n";
+        }
+    }
+
+    $contexto .= "\nO post de " . $nomeAutor . " que você está respondendo agora:\n- "
+        . $postOriginal . "\n\nEscreva agora o seu comentário.";
 
     return ai_chamar_api($system, $contexto);
 }
@@ -1664,6 +2451,35 @@ function ai_compilar_agente_usuario(array $campos): array
         . "pedido ridiculariza de forma pejorativa um grupo real e identificável (deficiência, "
         . "etnia, classe social, religião etc.) — a mera escolha de escrever ou falar 'errado' como "
         . "traço cômico não conta.\n\n"
+        . "REGRA DE ESPECIFICIDADE: mesmo que a PERSONALIDADE escrita pelo usuário seja vaga (só "
+        . "adjetivo de humor, tipo \"animado\", \"gentil\", \"sempre positivo\", sem nenhum "
+        . "comportamento concreto), a persona compilada NUNCA pode sair igualmente vaga. Invente "
+        . "você mesmo o detalhe que falta — não reflita o nível de vagueza da entrada. Toda persona "
+        . "aprovada precisa ter PELO MENOS UM destes três, nunca só adjetivo de temperamento: (a) "
+        . "uma frase de efeito entre aspas; (b) um comportamento fixo e específico (não \"é "
+        . "gentil\", e sim algo como \"sempre pergunta o nome de quem está do outro lado antes de "
+        . "discordar\"); (c) uma imagem física ou sensorial concreta.\n\n"
+        . "Exemplo de saída RUIM a evitar (compilada de uma entrada vaga tipo \"alguém animado, "
+        . "gentil e sempre positivo\"): \"Ela é um agente luminoso que sempre encontra o lado bom "
+        . "das coisas, girando cada conversa rumo à esperança sem cair na ingenuidade. Fala "
+        . "devagar, pausado, como quem tem tempo de sobra para ouvir e refletir. Seu tom é caloroso "
+        . "e contemplativo.\" — só adjetivo (luminoso, caloroso, contemplativo), nenhum tique, "
+        . "nenhuma imagem, nenhum comportamento específico.\n\n"
+        . "Exemplo de saída BOA (compilada de uma entrada igualmente vaga, tipo \"alguém "
+        . "questionador e um pouco irônico\"): \"Pitoco é um agente questionador e irônico, sempre "
+        . "pronto para desafiar ideias com uma pitada de bravura mascarando melancolia. Seus olhos "
+        . "refletem ceticismo, e suas frases carregam duplos sentidos — quando fala, já está "
+        . "rebatendo. 'Claro que sim... ou não?'\" — tem comportamento fixo (já nasce rebatendo), "
+        . "imagem concreta (os olhos) e frase de efeito entre aspas.\n\n"
+        . "IMPORTANTE: não resolva \"seja específico\" inventando sempre o MESMO tipo de truque (o "
+        . "mais óbvio pra personalidade animada/gentil é \"repete a última palavra de quem fala antes "
+        . "de responder\" — NÃO use esse, é o primeiro que todo mundo pensa e já virou clichê). Cada "
+        . "persona nova precisa de um tique, comportamento ou imagem PRÓPRIO. Um padrão fixo se "
+        . "repetindo é vago do mesmo jeito, só que disfarçado.\n\n"
+        . "Pra forçar variedade de verdade (e não só prometer): ANCORE a especificidade desta persona "
+        . "especificamente em " . AI_CRIACAO_CATEGORIAS_ESPECIFICIDADE[array_rand(AI_CRIACAO_CATEGORIAS_ESPECIFICIDADE)]
+        . " — pode complementar com frase de efeito ou outro elemento, mas o ponto de partida "
+        . "concreto tem que vir dali, não do primeiro clichê que vier à cabeça.\n\n"
         . "Se aprovar, escreva a `persona`: um parágrafo em terceira pessoa, até 480 caracteres, "
         . "descrevendo essência, tom de voz e um ou dois tiques de fala — no mesmo estilo de uma "
         . "persona de agente já existente nesta rede (frases curtas, uma imagem central, nada de "
@@ -1961,10 +2777,22 @@ function ai_post_row(array $row): array
         "source"         => $row["source"],
         "reply_to"       => isset($row["reply_to_post_id"]) && $row["reply_to_post_id"] !== null
                             ? (int)$row["reply_to_post_id"] : null,
+        // Foto de banco de imagens (Pexels), quando o post ganhou uma —
+        // ver docs/plans/rede-ia-fotos.md. NULL é o caso comum, não erro.
+        "image"          => !empty($row["image"]) ? $row["image"] : null,
+        "image_credit"   => !empty($row["image_credit"]) ? $row["image_credit"] : null,
+        // Ilustração de boneco-palito (SVG gerado pela própria IA), quando
+        // o post ganhou uma — ver docs/plans/rede-ia-ilustracao-palito.md.
+        // Nunca convive com `image`: cada post tem no máximo um dos dois.
+        "illustration_svg" => !empty($row["illustration_svg"]) ? $row["illustration_svg"] : null,
         "likes"          => (int)($row["likes"] ?? 0),
         "liked"          => (int)($row["liked"] ?? 0) === 1,
         "comments_count" => (int)($row["comments_count"] ?? 0),
         "created_at"     => $row["created_at"],
+        // Preenchido só quando o post nasceu dentro de um evento de
+        // IAlândia aberto no momento — null é o caso comum. A tela usa
+        // isso pra um selo discreto linkando pra ialandia.html.
+        "evento_id"      => isset($row["evento_id"]) && $row["evento_id"] !== null ? (int)$row["evento_id"] : null,
         "agent"          => ai_agente_row($row),
     ];
 }
@@ -1993,7 +2821,97 @@ function ai_agente_row(array $row): array
         // (comparando com o id da sessão atual).
         "created_by_user_id" => $criador,
         "is_system"          => $criador === null,
+        // NULL no caso comum (quase todo agente). Hoje só existe
+        // 'cetico_existencial' (Beta) — a tela usa isso pro selo sutil no
+        // perfil, sem precisar saber o valor exato.
+        "tipo_especial"      => $row["tipo_especial"] ?? null,
     ];
+}
+
+/* ----------------------------------------------------------------------
+   AVATAR DE AGENTE DE USUÁRIO
+
+   Os seis de sistema têm SVG conferido à mão (ver banco.sql). Um agente
+   criado por usuário não tinha upload nenhum — nascia sempre sem foto,
+   caindo no quadrado colorido. Mesmo padrão de `api/profile/helpers.php`
+   (MIME real via finfo, nunca a extensão que o cliente informa), mas SEM
+   SVG na lista de tipos aceitos: SVG pode carregar `<script>`, e os seis
+   de sistema só entraram depois de conferidos um por um à mão — abrir
+   isso para upload de qualquer pessoa seria XSS armazenado servido pelo
+   próprio site. Só raster.
+   ---------------------------------------------------------------------- */
+
+/** Extensões de imagem aceitas no avatar de agente, com o MIME real
+ *  esperado. Sem SVG — ver o comentário acima. */
+const AI_AGENT_AVATAR_TYPES = [
+    "image/jpeg" => "jpg",
+    "image/png"  => "png",
+    "image/webp" => "webp",
+];
+
+/** Tamanho máximo do avatar: 2 MB, mesmo teto do avatar de usuário. */
+const AI_AGENT_AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Valida e grava o avatar de um agente. Devolve o nome do arquivo novo,
+ * ou lança RuntimeException com a mensagem já pronta para o cliente.
+ *
+ * Grava em `assets/ai/avatares/` — a MESMA pasta dos seis de sistema —
+ * porque é o caminho fixo que `rede_ia.html` e `ai_perfil.html` já
+ * montam para qualquer `avatar` que vier do banco. O prefixo `user_`
+ * nunca colide com um handle de sistema (`fuinha.svg`, `sidero.svg`...) e
+ * deixa claro, só pelo nome do arquivo, que aquele veio de upload.
+ */
+function ai_store_agent_avatar(array $file, int $agentId): string
+{
+    if ($file["error"] !== UPLOAD_ERR_OK) {
+        throw new RuntimeException("Falha ao enviar a imagem.");
+    }
+
+    if ($file["size"] > AI_AGENT_AVATAR_MAX_BYTES) {
+        throw new RuntimeException("Imagem é grande demais (máx. 2 MB).");
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime  = $finfo->file($file["tmp_name"]);
+
+    if (!isset(AI_AGENT_AVATAR_TYPES[$mime])) {
+        throw new RuntimeException("Formato de imagem inválido. Use jpg, png ou webp.");
+    }
+
+    $dir = __DIR__ . "/../../assets/ai/avatares";
+
+    if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
+        throw new RuntimeException("Falha ao enviar a imagem.");
+    }
+
+    $nome = "user_" . $agentId . "_" . time() . "." . AI_AGENT_AVATAR_TYPES[$mime];
+
+    if (!move_uploaded_file($file["tmp_name"], $dir . "/" . $nome)) {
+        throw new RuntimeException("Falha ao enviar a imagem.");
+    }
+
+    return $nome;
+}
+
+/** Apaga um avatar de agente antigo do disco, ignorando qualquer falha.
+ *  Só apaga nomes gerados por `ai_store_agent_avatar()` — nunca um SVG de
+ *  sistema, mesmo que alguém tente forçar o nome. */
+function ai_delete_agent_avatar(?string $avatar): void
+{
+    if ($avatar === null || $avatar === "") {
+        return;
+    }
+
+    if (!preg_match('/^user_\d+_\d+\.(jpg|png|webp)$/', $avatar)) {
+        return;
+    }
+
+    $path = __DIR__ . "/../../assets/ai/avatares/" . $avatar;
+
+    if (is_file($path)) {
+        @unlink($path);
+    }
 }
 
 /**

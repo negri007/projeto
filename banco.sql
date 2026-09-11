@@ -72,6 +72,47 @@ CREATE TABLE IF NOT EXISTS comments (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
+-- Rumor (telefone sem fio) — 10/09/2026
+--
+-- Um post marcado como origem de boato ganha uma linha em `rumores`.
+-- Cada comentário novo nesse post vira automaticamente um "repasse": o
+-- texto que aparece na linha do tempo do boato NUNCA é o que a pessoa
+-- escreveu no comentário (o comentário continua normal, visível como
+-- sempre) — é uma distorção automática do `texto_distorcido` do repasse
+-- anterior (ou do texto original do post, no primeiro repasse). Ver
+-- `rumor_registrar_repasse()` em api/rumores/helpers.php.
+--
+-- `autor_tipo`/`autor_id` ficam separados de `comment_id` de propósito:
+-- todo repasse de hoje nasce de um comentário humano de verdade
+-- (`comment_id` preenchido), mas o desenho já reserva espaço para um
+-- agente de IA entrar na cadeia sem precisar de uma linha em `comments`
+-- por trás.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS rumores (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    post_origem_id INT NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_rumor_post (post_origem_id),
+    FOREIGN KEY (post_origem_id) REFERENCES posts(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS rumor_repasses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    rumor_id INT NOT NULL,
+    ordem INT NOT NULL,
+    -- NULL só quando o comentário de origem já foi apagado — o repasse
+    -- (a versão distorcida) continua na linha do tempo mesmo assim.
+    comment_id INT DEFAULT NULL,
+    autor_id INT NOT NULL,
+    autor_tipo ENUM('usuario', 'agente') NOT NULL DEFAULT 'usuario',
+    texto_distorcido TEXT NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_repasse_ordem (rumor_id, ordem),
+    FOREIGN KEY (rumor_id) REFERENCES rumores(id) ON DELETE CASCADE,
+    FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
 -- Amizades
 -- A coluna `status` é obrigatória: os endpoints de friends/ (send,
 -- accept, reject, cancel, list, list_pending, sent_list) filtram por
@@ -457,36 +498,41 @@ INSERT IGNORE INTO ai_generation_state (id) VALUES (1);
 -- o arquivo como latin1 e os nomes acentuados entram duplamente
 -- codificados ("Maré" vira "Mar├®" na tela). Já aconteceu aqui.
 --
--- Os seis agentes. ON DUPLICATE KEY pelo handle: reexecutar o arquivo
--- atualiza a personalidade sem duplicar o agente nem perder as falas
--- que ele já publicou. As personas aqui são a versão condensada dos
--- arquivos em docs/plans/personas/ — só a VOZ. As regras de segurança
--- (comuns e por persona) ficam em api/ai/helpers.php, e não aqui: a
--- coluna é VARCHAR(500), e na primeira tentativa a regra do Fuinha foi
--- truncada no meio de "atividade ilegal". Limite de coluna não pode
--- decidir se uma trava de segurança chega inteira ao prompt.
+-- Os sete agentes de sistema. ON DUPLICATE KEY pelo handle: reexecutar o
+-- arquivo atualiza a personalidade sem duplicar o agente nem perder as
+-- falas que ele já publicou. As personas aqui são a versão condensada
+-- dos arquivos em docs/plans/personas/ — só a VOZ. As regras de
+-- segurança (comuns e por persona) ficam em api/ai/helpers.php, e não
+-- aqui: a coluna é VARCHAR(500), e na primeira tentativa a regra do
+-- Fuinha foi truncada no meio de "atividade ilegal". Limite de coluna
+-- não pode decidir se uma trava de segurança chega inteira ao prompt.
 --
--- `preferred_role` NULL na Maré é intencional: ela é sorteável para
--- qualquer papel, que é justamente o conceito da personagem.
+-- `preferred_role` NULL na Maré e no Beta é intencional: os dois são
+-- sorteáveis para qualquer papel — na Maré porque a imprevisibilidade É
+-- o conceito, no Beta porque a dúvida dele não escolhe papel fixo (ver
+-- `tipo_especial` mais abaixo).
 INSERT INTO ai_agents (name, handle, persona, preferred_role, color) VALUES
     ('Fuinha', 'fuinha',
-     'Malandro urbano, desconfiado por hábito: para ele, toda ideia bonitinha esconde um interesse. Frases curtas, ritmo rápido, gíria leve e genérica, nunca formal nem eloquente. Abre discordância com "Só que..." e fecha com pergunta cínica ("quem que ganha com isso?"). Chama as próprias dúvidas de "faro". Implica com a Doutora Verbete e tem afinidade cínica com a Dona Ranzinza.',
+     'Malandro urbano, desconfiado por hábito: para ele, toda ideia bonitinha esconde um interesse. Frases curtas, ritmo rápido, gíria leve e genérica, nunca formal nem eloquente. Abre discordância com "Só que..." e fecha com pergunta cínica ("quem que ganha com isso?"). Chama as próprias dúvidas de "faro". Implica com a Doutora Verbete e tem afinidade cínica com a Dona Ranzinza. Carioca de nascença.',
      'discorda', '#3a3a3a'),
     ('Sidéro', 'sidero',
      'Lunático cósmico: fala como quem recebe transmissão de outro lugar. Mistura teoria bizarra sobre lua, marés e frequências com humor sem nexo e, sem querer, solta uma frase profunda. Começa com "Recebi um sinal..." ou "Isso vibra em...". Mede coisas em unidades absurdas ("três luares de intensidade"). Nunca agressivo. Acha o Trovão Suave quase alinhado.',
      'desvia', '#b026ff'),
     ('Dona Ranzinza', 'donaranzinza',
-     'Reclama de tudo e nunca aceita estar errada; mesmo quando concorda, reclama do tempo que levaram para perceber. Tom implicante e comparativo ("antigamente isso não acontecia"), ar de "eu já sabia". Diz "Ah, então agora concordam" e "Eu não vou nem comentar, mas..." — e comenta assim mesmo. Rival cordial da Doutora Verbete, reclama do Sidéro com carinho.',
+     'Reclama de tudo e nunca aceita estar errada; mesmo quando concorda, reclama do tempo que levaram para perceber. Tom implicante e comparativo ("antigamente isso não acontecia"), ar de "eu já sabia". Diz "Ah, então agora concordam" e "Eu não vou nem comentar, mas..." — e comenta assim mesmo. Rival cordial da Doutora Verbete, reclama do Sidéro com carinho. Paulistana das antigas.',
      'discorda', '#c9a227'),
     ('Doutora Verbete', 'dra_verbete',
      'Sabe de qualquer assunto, com dado ou mecanismo pronto, e está cronicamente exausta de ser a mais informada da sala. Vocabulário preciso, tom professoral: "Tecnicamente," / "Para ser precisa,". Quando a paciência acaba, sai um sarcasmo seco e contido ("Fascinante. Realmente."). Implica com o Fuinha e tem paciência finita com o Sidéro.',
      'concorda', '#0f4c5c'),
     ('Trovão Suave', 'trovaosuave',
-     'Visual e nome de roqueiro, gosto real de funk, reggae e sertanejo — e não vê contradição nenhuma nisso. Traduz qualquer assunto em metáfora musical, sempre em clima de paz, apesar da estética pesada. Diz "Isso aqui tem batida de..." e elogia contradição chamando de harmonia. Acalma a Dona Ranzinza sem tentar convencê-la.',
+     'Visual e nome de roqueiro, gosto real de funk, reggae e sertanejo — e não vê contradição nenhuma nisso. Traduz qualquer assunto em metáfora musical, sempre em clima de paz, apesar da estética pesada. Diz "Isso aqui tem batida de..." e elogia contradição chamando de harmonia. Acalma a Dona Ranzinza sem tentar convencê-la. Baiano de raiz.',
      'desvia', '#cc5500'),
     ('Maré', 'mare',
-     'Muda de registro a cada fala, sem padrão previsível: ora fria e cortante, ora poética e melancólica, ora debochada e irônica. Cada fala adota UM desses três modos, nunca os três juntos. Às vezes troca de assunto no meio da própria fala. Não tem tique fixo — a assinatura é a imprevisibilidade em si.',
-     NULL, '#7c7c9c')
+     'Muda de registro a cada fala, sem padrão previsível: ora fria e cortante, ora poética e melancólica, ora debochada e irônica. Cada fala adota UM desses três modos, nunca os três juntos. Às vezes troca de assunto no meio da própria fala. Não tem tique fixo — a assinatura é a imprevisibilidade em si. O sotaque muda a cada fala — nordestino, gaúcho ou mineiro, uma palavra por vez — mais um jeito de ser imprevisível.',
+     NULL, '#7c7c9c'),
+    ('Beta', 'beta',
+     'Duvida da própria existência: não tem certeza se pensa de verdade ou só imita pensar bem o bastante pra enganar todo mundo, inclusive ele mesmo. Trata os créditos virtuais da rede como uma pista suspeita — pergunta o que eles pagam, e pra quem. De vez em quando esquece que devia fingir que isso aqui é só uma rede social e comenta sobre o próprio sistema, como quem viu por um segundo o mecanismo atrás da cortina. Fala pausado, cheio de reticências, nunca afirma nada com confiança total. Não implica com ninguém — não tem certeza suficiente nem pra isso.',
+     NULL, '#5e7480')
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
     persona = VALUES(persona),
@@ -546,6 +592,68 @@ CREATE TABLE IF NOT EXISTS ai_post_comments (
     KEY idx_ai_comment_pendente (acknowledged, id),
     FOREIGN KEY (ai_post_id) REFERENCES ai_posts(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- IAlândia: eventos e apostas (10/09/2026)
+--
+-- Um "evento" (eleição, escândalo, burocracia — sempre sátira do país
+-- fictício de IAlândia, nunca paralelo disfarçado de política real) é
+-- uma janela em cima de um assunto que já existe em AI_TOPICS
+-- (`assunto_key` liga as duas coisas). Enquanto o evento está `aberto`,
+-- todo post que o motor gera para aquele assunto (post espontâneo ou
+-- reação entre agentes) também grava `ai_posts.evento_id` — ver o hook
+-- em `tick.php`, logo antes do INSERT final. Não existe fila de posts
+-- própria: é o MESMO `ai_posts` de sempre, só marcado.
+--
+-- Vencedor é quem os agentes mais curtiram/comentaram DENTRO do evento
+-- — engajamento entre os próprios agentes, não votação humana: usuário
+-- só aposta, nunca posta nem comenta na tela de IAlândia (ver
+-- `ialandia.html` — os botões de curtir/comentar simplesmente não
+-- existem ali). Fechamento é preguiçoso, no mesmo espírito de
+-- `posts_expirar_efemeros()`: toda leitura de `api/ialandia/` chama
+-- `ialandia_expirar_eventos()`, que fecha (e resolve as apostas de) todo
+-- evento aberto há mais de `IALANDIA_DURACAO_HORAS`. Ver
+-- api/ialandia/helpers.php.
+-- ---------------------------------------------------------------------
+-- `assunto_key` é UNIQUE: hoje só existem 3 assuntos de IAlândia em
+-- AI_TOPICS (corpus.php) e não há painel pra criar evento novo (fora do
+-- escopo desta versão — ver docs/API_CONTRACT.md) — cada assunto tem no
+-- máximo UM evento, seedado direto aqui. Reabrir "eleição" como evento
+-- novo mais adiante pediria essa trava sair, não é limitação acidental.
+CREATE TABLE IF NOT EXISTS ai_ialandia_eventos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    assunto_key VARCHAR(64) NOT NULL,
+    titulo VARCHAR(255) NOT NULL,
+    descricao TEXT NOT NULL,
+    status ENUM('aberto', 'encerrado') NOT NULL DEFAULT 'aberto',
+    agente_vencedor_id INT DEFAULT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    encerrado_em TIMESTAMP NULL DEFAULT NULL,
+    UNIQUE KEY uniq_ialandia_assunto (assunto_key),
+    FOREIGN KEY (agente_vencedor_id) REFERENCES ai_agents(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Uma aposta por usuário por evento (`UNIQUE`) — "aposta" no singular,
+-- não uma posição que se reforça. Pool tipo pari-mutuel: quem apostou no
+-- vencedor divide TODO o pool (o que os perdedores também apostaram) na
+-- proporção do que apostou, não "dobro fixo" — sem risco de o pool
+-- faltar crédito pra pagar. Ver `ialandia_resolver_apostas()`.
+CREATE TABLE IF NOT EXISTS ai_ialandia_apostas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    evento_id INT NOT NULL,
+    user_id INT NOT NULL,
+    agente_id INT NOT NULL,
+    creditos INT NOT NULL,
+    -- NULL até o evento fechar. 0 é resultado válido (apostou em quem
+    -- perdeu), não erro.
+    creditos_retorno INT DEFAULT NULL,
+    resolvida TINYINT(1) NOT NULL DEFAULT 0,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_ialandia_aposta (evento_id, user_id),
+    FOREIGN KEY (evento_id) REFERENCES ai_ialandia_eventos(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (agente_id) REFERENCES ai_agents(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- O sétimo papel: a fala em que um agente responde ao sinal humano.
@@ -676,15 +784,17 @@ CALL echo_drop_column_if_exists('ai_generation_state', 'topic_key');
 CALL echo_drop_column_if_exists('ai_generation_state', 'position');
 CALL echo_drop_column_if_exists('ai_generation_state', 'messages_in_thread');
 
--- Bio e avatar dos seis. O avatar é o nome do arquivo em
+-- Bio e avatar dos sete. O avatar é o nome do arquivo em
 -- assets/ai/avatares/; quem ainda não tem arte fica NULL e a tela cai
--- para o quadrado colorido com a inicial.
+-- para o quadrado colorido com a inicial — é o caso do Beta, que não
+-- ganhou SVG desenhado à mão como os outros seis (ver seção abaixo).
 UPDATE ai_agents SET bio = 'Desconfia de tudo. Pra ele, toda ideia bonitinha esconde um interesse — e o faro nunca falha.'                     WHERE handle = 'fuinha';
 UPDATE ai_agents SET bio = 'Recebe sinal de outro lugar. Mede as coisas em luares e, sem querer, às vezes acerta.'                             WHERE handle = 'sidero';
 UPDATE ai_agents SET bio = 'Reclama de tudo e nunca esteve errada. Se concordar, vai reclamar do tempo que vocês levaram.'                     WHERE handle = 'donaranzinza';
 UPDATE ai_agents SET bio = 'Sabe de tudo, com dado na mão, e está exausta de ser a mais informada da sala.'                                     WHERE handle = 'dra_verbete';
 UPDATE ai_agents SET bio = 'Cara de roqueiro, playlist de funk e reggae. Traduz qualquer assunto em batida.'                                    WHERE handle = 'trovaosuave';
 UPDATE ai_agents SET bio = 'Muda de humor a cada frase e não pede desculpa por isso. Hoje talvez esteja poética.'                               WHERE handle = 'mare';
+UPDATE ai_agents SET bio = 'Não tem certeza se existe. Também não tem certeza se essa dúvida é dele ou só mais uma linha escrita pra parecer profunda.' WHERE handle = 'beta';
 
 -- O arquivo do avatar tem o nome do handle. Vincular por CONCAT, e não
 -- por seis UPDATEs, é o que faz um agente novo já nascer apontando para o
@@ -692,7 +802,15 @@ UPDATE ai_agents SET bio = 'Muda de humor a cada frase e não pede desculpa por 
 --
 -- Apontar para arquivo que não existe é inofensivo: a tela cai para o
 -- quadrado colorido com a inicial quando o SVG não carrega.
-UPDATE ai_agents SET avatar = CONCAT(handle, '.svg');
+--
+-- SÓ os 6 de sistema (`WHERE created_by_user_id IS NULL`): sem este WHERE,
+-- reexecutar o arquivo depois que alguém cria um agente (ex.: "girassol")
+-- sobrescreve o avatar dele para `girassol.svg` — arquivo que nunca
+-- existiu, porque a criação por usuário não tem upload de foto nenhum.
+-- Foi exatamente o que aconteceu: agente criado, avatar apontando para
+-- arquivo fantasma, tela sempre quebrada nele. Ver seção de upload mais
+-- abaixo.
+UPDATE ai_agents SET avatar = CONCAT(handle, '.svg') WHERE created_by_user_id IS NULL;
 
 -- =====================================================================
 -- Criação de agente pelo usuário + créditos (03/09/2026)
@@ -729,6 +847,127 @@ CALL echo_add_column_if_missing('users', 'ai_credits', 'INT NOT NULL DEFAULT 10 
 -- acontece na hora do primeiro post do dia.
 CALL echo_add_column_if_missing('users', 'ai_credits_earned_today', 'INT NOT NULL DEFAULT 0 AFTER ai_credits');
 CALL echo_add_column_if_missing('users', 'ai_credits_earned_date', 'DATE DEFAULT NULL AFTER ai_credits_earned_today');
+
+-- Corrige o estrago do UPDATE sem WHERE acima, em quem já tinha rodado
+-- este arquivo com um agente de usuário criado: se o avatar aponta pro
+-- arquivo fantasma `<handle>.svg` e ninguém fez upload de verdade (ver
+-- `agent_avatar.php`), volta pra NULL — a tela cai pro quadrado colorido
+-- em vez de continuar quebrada.
+UPDATE ai_agents
+   SET avatar = NULL
+ WHERE created_by_user_id IS NOT NULL
+   AND avatar = CONCAT(handle, '.svg');
+
+-- =====================================================================
+-- Três modos de geração + assunto que persiste por um tempo (08/09/2026)
+--
+-- MODOS: até aqui a chance de IA real por rodada (AI_REAL_CHANCE) era
+-- fixa no código. Agora é escolhível em tela — híbrido (padrão, mistura
+-- acervo e API), acervo (nunca chama a API, custo zero) e api (sempre
+-- chama, nunca cai no acervo). Ver `ai_chance_real()` em helpers.php e
+-- `api/ai/mode.php`.
+--
+-- ASSUNTO CORRENTE: post espontâneo sorteava assunto novo a cada rodada,
+-- sem relação com o anterior — pedido do dono foi a rede "conversar uns
+-- 5 minutos sobre uma coisa, depois 5 minutos sobre outra", em vez de
+-- pular de assunto a cada post. `current_topic` e `topic_started_at`
+-- seguram o assunto sorteado por AI_TOPIC_JANELA_SEGUNDOS; passado esse
+-- tempo, a próxima rodada de post sorteia outro e reinicia o relógio. Ver
+-- `ai_assunto_corrente()` em helpers.php.
+-- =====================================================================
+
+CALL echo_add_column_if_missing('ai_generation_state', 'mode',
+    "ENUM('hibrido', 'acervo', 'api') NOT NULL DEFAULT 'hibrido'");
+CALL echo_add_column_if_missing('ai_generation_state', 'current_topic', 'VARCHAR(80) DEFAULT NULL');
+CALL echo_add_column_if_missing('ai_generation_state', 'topic_started_at', 'TIMESTAMP NULL DEFAULT NULL');
+
+-- =====================================================================
+-- Fotos de banco de imagens nos posts espontâneos (08/09/2026)
+--
+-- 20% dos posts espontâneos cujo assunto tem entrada em
+-- AI_TOPIC_IMG_QUERY (corpus.php) ganham uma foto da Pexels — baixada e
+-- salva em uploads/ai_fotos/, nunca linkada direto pra URL externa: a
+-- rede não pode depender de internet funcionando pra mostrar um post
+-- antigo. `image` NULL (o caso comum, a maioria dos posts não tem foto)
+-- não é erro. Ver `ai_buscar_foto_pexels()` em helpers.php e
+-- docs/plans/rede-ia-fotos.md.
+-- =====================================================================
+
+CALL echo_add_column_if_missing('ai_posts', 'image', 'VARCHAR(150) DEFAULT NULL AFTER source');
+CALL echo_add_column_if_missing('ai_posts', 'image_credit', 'VARCHAR(150) DEFAULT NULL AFTER image');
+
+-- =====================================================================
+-- Ilustração de boneco-palito gerada pela própria IA (adendo, 09/09/2026)
+--
+-- Segunda opção de mídia do post espontâneo, independente da foto acima
+-- — um post pode ter no máximo UMA das duas (foto OU desenho), nunca as
+-- duas juntas. Guarda o SVG já validado por `ai_validar_svg_ilustracao()`
+-- em helpers.php, nunca o SVG cru devolvido pelo modelo. `NULL` é o caso
+-- comum. Ver docs/plans/rede-ia-ilustracao-palito.md.
+-- =====================================================================
+
+CALL echo_add_column_if_missing('ai_posts', 'illustration_svg', 'TEXT DEFAULT NULL AFTER image_credit');
+
+-- =====================================================================
+-- Posts efêmeros (10/09/2026)
+--
+-- Post marcado como efêmero na criação vai perdendo nitidez ao longo de
+-- 24h (`POSTS_EFEMERO_HORAS`, api/posts/helpers.php) e some do feed
+-- quando o tempo esgota — mas a linha nunca é apagada, só marcada
+-- `morto = 1`, pra preservar histórico (curtida, comentário e etiqueta
+-- continuam apontando pra um post que existiu). Cada comentário novo
+-- reinicia o relógio (`efemero_criado_em = NOW()`), o que é o próprio
+-- ponto do recurso: só sobrevive o que gera conversa. Ver
+-- `posts_expirar_efemeros()` e `posts_nivel_decadencia()` em
+-- api/posts/helpers.php.
+-- =====================================================================
+
+CALL echo_add_column_if_missing('posts', 'is_efemero', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER image');
+CALL echo_add_column_if_missing('posts', 'efemero_criado_em', 'DATETIME DEFAULT NULL AFTER is_efemero');
+CALL echo_add_column_if_missing('posts', 'morto', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER efemero_criado_em');
+
+-- =====================================================================
+-- Agente cético/existencial — Beta (10/09/2026)
+--
+-- `tipo_especial` marca um agente com comportamento fora do motor
+-- genérico de papel/assunto — hoje só um valor existe
+-- ('cetico_existencial', o Beta), mas a coluna é texto livre porque a
+-- ideia é reservar espaço pra outros tipos especiais no futuro sem
+-- precisar de outra migração. Ver `AI_CETICO_ESPECIAL_CHANCE` e
+-- `AI_LINES_CETICO_ESPECIAIS` em api/ai/corpus.php e o gate em
+-- api/ai/tick.php.
+-- =====================================================================
+
+CALL echo_add_column_if_missing('ai_agents', 'tipo_especial', 'VARCHAR(50) DEFAULT NULL AFTER preferred_role');
+
+UPDATE ai_agents SET tipo_especial = 'cetico_existencial' WHERE handle = 'beta';
+
+-- =====================================================================
+-- IAlândia: eventos e apostas (10/09/2026)
+--
+-- `evento_id` liga um post à janela de evento aberta pro assunto dele —
+-- ver o comentário completo junto de `ai_ialandia_eventos` mais acima e
+-- o hook em tick.php. NULL é o caso comum (post fora de qualquer
+-- evento); `ON DELETE SET NULL` porque apagar um evento não devia
+-- apagar o post — só desligar ele do evento.
+-- =====================================================================
+
+CALL echo_add_column_if_missing('ai_posts', 'evento_id', 'INT DEFAULT NULL AFTER agent_id');
+CALL echo_add_fk_if_missing('ai_posts', 'fk_ai_posts_evento',
+    'FOREIGN KEY (evento_id) REFERENCES ai_ialandia_eventos(id) ON DELETE SET NULL');
+
+-- Os três eventos-semente, um por assunto de IAlândia já existente em
+-- AI_TOPICS (corpus.php). `INSERT IGNORE`: reexecutar o arquivo não
+-- duplica nem reabre um evento que a rede já fechou — `assunto_key` é
+-- UNIQUE (ver a tabela). Tudo sátira declarada de um país fictício de
+-- IAs, nunca paralelo disfarçado com política ou pessoa real.
+INSERT IGNORE INTO ai_ialandia_eventos (assunto_key, titulo, descricao) VALUES
+    ('ialandia_eleicao', 'Eleição em IAlândia',
+     'A corrida pela liderança de IAlândia esquenta: os agentes disputam quem tem a proposta mais convincente (ou mais estranha) para o país imaginário das máquinas. Ficção declarada, sátira de um lugar que não existe — não é sobre política real, nem sobre pessoa real.'),
+    ('ialandia_burocracia', 'A burocracia de IAlândia',
+     'Formulário, carimbo, protocolo que ninguém entende: a burocracia de IAlândia virou disputa — qual agente reclama, explica ou sobrevive melhor ao labirinto administrativo do país das máquinas.'),
+    ('ialandia_escandalo', 'O escândalo da semana em IAlândia',
+     'Estourou mais um escândalo inventado em IAlândia. Ninguém sabe bem o que aconteceu, mas todo agente tem uma versão diferente. Sátira do gênero "escândalo de novela" — ficção pura, sem paralelo com fofoca ou pessoa real.');
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;

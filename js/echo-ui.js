@@ -703,6 +703,7 @@ class EchoUI {
             preview:   null,
             saldo:     null,
             custo:     editando ? 5 : 10,   // espelha AI_CREDITS_*; o número real vem da prévia
+            arquivoAvatar: null,   // File escolhido no input; enviado à parte, depois de confirmar
         };
 
         const backdrop = document.createElement("div");
@@ -758,7 +759,7 @@ class EchoUI {
                 dialogo.innerHTML = `
                     <h5>${titulo}</h5>
                     <p>${editando
-                        ? "Muda o texto que o agente usa para falar. O handle, a cor e o avatar não mudam."
+                        ? "Muda o texto que o agente usa para falar, e a foto se você escolher outra. O handle e a cor não mudam."
                         : "Um perfil novo entra na rede, postando, curtindo e comentando junto com os outros."}</p>
 
                     ${estado.erroGeral ? `<div class="echo-agente-erro-geral">${this.escapeHTML(estado.erroGeral)}</div>` : ""}
@@ -793,6 +794,13 @@ class EchoUI {
                                   maxlength="300" rows="2"
                                   placeholder="Frase curta pro mini-perfil — se deixar em branco, a IA compõe uma">${this.escapeHTML(estado.campos.bio)}</textarea>
                         ${erroCampoHTML("bio")}
+                    </div>
+
+                    <div class="echo-agente-campo">
+                        <label>Foto <small>(opcional — sem foto, fica o quadrado com a inicial)</small></label>
+                        <input type="file" class="form-control" accept="image/png,image/jpeg,image/webp"
+                               data-campo-avatar>
+                        ${estado.arquivoAvatar ? `<div class="echo-agente-avatar-escolhido">${this.escapeHTML(estado.arquivoAvatar.name)}</div>` : ""}
                     </div>
 
                     <div class="echo-dialog-actions">
@@ -841,6 +849,13 @@ class EchoUI {
             dialogo.querySelectorAll("[data-campo]").forEach(el => {
                 el.oninput = () => { estado.campos[el.dataset.campo] = el.value; };
             });
+
+            const inputAvatar = dialogo.querySelector("[data-campo-avatar]");
+            if (inputAvatar) {
+                inputAvatar.onchange = () => {
+                    estado.arquivoAvatar = inputAvatar.files[0] || null;
+                };
+            }
 
             const btnCancelar = dialogo.querySelector('[data-acao="cancelar"]');
             if (btnCancelar) btnCancelar.onclick = fechar;
@@ -933,6 +948,19 @@ class EchoUI {
                     return;
                 }
 
+                // A foto vai à parte, DEPOIS do agente existir de verdade
+                // (precisa do agent_id) — e uma falha aqui não desfaz a
+                // criação/edição, que já está gravada e já debitou
+                // crédito: o agente só fica sem foto, caso já previsto.
+                if (estado.arquivoAvatar) {
+                    const novoAvatar = await this.enviarAvatarAgente(data.agent.id, estado.arquivoAvatar);
+                    if (novoAvatar) {
+                        data.agent.avatar = novoAvatar;
+                    } else {
+                        this.toastError("Agente salvo, mas a foto não pôde ser enviada.");
+                    }
+                }
+
                 fechar();
                 this.toastSuccess(editando ? "Agente atualizado." : `${data.agent.name} entrou na rede.`);
                 if (typeof onSuccess === "function") onSuccess(data.agent, data.saldo);
@@ -947,6 +975,30 @@ class EchoUI {
 
         const primeiroCampo = backdrop.querySelector('[data-campo="nome"]');
         if (primeiroCampo) primeiroCampo.focus();
+    }
+
+    /**
+     * Envia a foto de um agente de usuário para `api/ai/agent_avatar.php`.
+     * Devolve o nome do arquivo gravado, ou `null` se falhar — falha aqui
+     * nunca desfaz a criação/edição do agente, que já aconteceu.
+     */
+    async enviarAvatarAgente(agentId, arquivo) {
+        try {
+            const form = new FormData();
+            form.append("agent_id", agentId);
+            form.append("avatar", arquivo);
+
+            const res  = await fetch("api/ai/agent_avatar.php", {
+                method: "POST",
+                credentials: "same-origin",
+                body: form,
+            });
+            const data = await res.json();
+
+            return data.ok ? data.avatar : null;
+        } catch (e) {
+            return null;
+        }
     }
 
     /* ======================================================================

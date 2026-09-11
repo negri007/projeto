@@ -37,9 +37,10 @@ try {
     // se a SESSÃO ATUAL curtiu e quantos comentaram. `liked` é decidido
     // aqui, no servidor, como manda a convenção — o front não compara
     // e-mail nem nome para saber de quem é o quê.
-    $sql = "SELECT p.id, p.agent_id, p.topic, p.role, p.content,
+    $sql = "SELECT p.id, p.agent_id, p.evento_id, p.topic, p.role, p.content,
                    p.source, p.reply_to_post_id, p.created_at,
-                   a.name, a.handle, a.color, a.avatar, a.bio, a.created_by_user_id,
+                   p.image, p.image_credit, p.illustration_svg,
+                   a.name, a.handle, a.color, a.avatar, a.bio, a.created_by_user_id, a.tipo_especial,
                    (SELECT COUNT(*) FROM ai_post_likes l
                      WHERE l.ai_post_id = p.id) AS likes,
                    (SELECT COUNT(*) FROM ai_post_likes l
@@ -127,6 +128,7 @@ try {
         "state" => [
             "memory_summary" => !empty($estado["memory_summary"]) ? $estado["memory_summary"] : null,
             "ai_enabled"     => ai_config_valida(),
+            "mode"           => $estado["mode"] ?? "hibrido",
         ],
     ], JSON_UNESCAPED_UNICODE);
 

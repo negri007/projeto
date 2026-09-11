@@ -163,11 +163,12 @@ class EchoFeed {
         const souEuDono = this.me && Number(p.user_id) === Number(this.me.id);
         const curtido   = Number(p.liked_by_me ?? 0) > 0;
         const salvo     = Number(p.saved_by_me ?? 0) > 0;
+        const efemero   = !!p.is_efemero;
         const feed      = this.ref;
 
         return `
-            <div class="post entrando" id="post-${p.id}" data-post-id="${p.id}"
-                 style="--ordem:${Math.min(ordem, 8)}">
+            <div class="post entrando${efemero ? " post-efemero" : ""}" id="post-${p.id}" data-post-id="${p.id}"
+                 style="--ordem:${Math.min(ordem, 8)};${efemero ? `--decadencia:${Math.max(0, Math.min(100, Number(p.decadencia ?? 0))) / 100};` : ""}">
                 ${EchoUIInstance.avatarHTML(p, "md", true)}
                 <div class="post-body">
                     <div class="post-header">
@@ -176,6 +177,9 @@ class EchoFeed {
                         ${souEuDono ? '<span class="badge bg-secondary-subtle text-light">você</span>' : ""}
                         <span class="post-time" title="${EchoUIInstance.escapeHTML(p.created_at)}"> · ${EchoUIInstance.formatTime(p.created_at)}</span>
                         ${p.edited_at ? `<span class="post-edited" title="Editado em ${EchoUIInstance.escapeHTML(p.edited_at)}">· editado</span>` : ""}
+                        ${efemero ? `<span class="post-efemero-badge" title="Um comentário novo reinicia o prazo">
+                                         <i class="fa-solid fa-hourglass-half"></i> ${this.formatarMorreEm(p.morre_em_seg)}
+                                     </span>` : ""}
                     </div>
 
                     <div class="post-content" id="post-content-${p.id}">${EchoUIInstance.richTextHTML(p.content ?? "")}</div>
@@ -190,6 +194,12 @@ class EchoFeed {
                             : `<a class="icon-btn" title="Ver no feed" href="inicio.html?post=${p.id}">
                                    <i class="fa-regular fa-comment"></i><span>${p.comment_count || 0}</span>
                                </a>`}
+
+                        ${p.rumor_id ? `
+                        <button class="icon-btn rumor-btn" type="button" title="Ver como o boato mudou a cada repasse"
+                                onclick="${feed}.toggleRumor(${p.id})">
+                            <i class="fa-solid fa-bullhorn"></i><span>Boato</span>
+                        </button>` : ""}
 
                         <button class="icon-btn" type="button" title="Compartilhar"
                                 onclick="${feed}.share(${p.id})">
@@ -230,9 +240,25 @@ class EchoFeed {
                                     onclick="${feed}.sendComment(${p.id})">Comentar</button>
                         </div>
                     </div>` : ""}
+
+                    ${p.rumor_id ? `
+                    <div class="mt-2" id="rumor-box-${p.id}" style="display:none;"></div>` : ""}
                 </div>
             </div>
         `;
+    }
+
+    /** Texto do selo do post efêmero, a partir de `morre_em_seg`. */
+    formatarMorreEm(segundos) {
+        segundos = Number(segundos ?? 0);
+
+        if (segundos <= 0) return "morrendo";
+
+        const horas = Math.floor(segundos / 3600);
+        if (horas >= 1) return `morre em ${horas}h`;
+
+        const minutos = Math.max(1, Math.floor(segundos / 60));
+        return `morre em ${minutos}min`;
     }
 
     /**
@@ -498,6 +524,14 @@ class EchoFeed {
 
             const conta = document.getElementById("comment-count-" + postId);
             if (conta) conta.textContent = Number(conta.textContent) + 1;
+
+            // Se este post é origem de boato, o comentário que acabou de
+            // sair já virou um repasse no servidor — atualiza a timeline
+            // se ela estiver aberta na tela.
+            const rumorBox = document.getElementById("rumor-box-" + postId);
+            if (rumorBox && rumorBox.style.display === "block") {
+                await this.loadRumor(postId);
+            }
         } catch (e) {
             EchoUIInstance.toastError("Erro de conexão ao comentar.");
         }
@@ -592,6 +626,141 @@ class EchoFeed {
         } catch (e) {
             EchoUIInstance.toastError("Erro de conexão ao apagar o comentário.");
         }
+    }
+
+    /* ==================================================================
+       BOATO (telefone sem fio)
+       ================================================================== */
+
+    async toggleRumor(postId) {
+        const box = document.getElementById("rumor-box-" + postId);
+        if (!box) return;
+
+        const escondida = box.style.display === "none" || box.style.display === "";
+
+        if (!escondida) {
+            box.style.display = "none";
+            return;
+        }
+
+        box.style.display = "block";
+        await this.loadRumor(postId);
+    }
+
+    async loadRumor(postId) {
+        const box = document.getElementById("rumor-box-" + postId);
+        if (!box) return;
+
+        box.innerHTML = '<small class="text-secondary">'
+                       + '<span class="spinner-echo me-1" style="width:12px;height:12px;border-width:2px;"></span>'
+                       + 'Carregando o boato...</small>';
+
+        try {
+            const res  = await fetch("api/rumores/get.php?post_id=" + postId, { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (data.error) {
+                box.innerHTML = '<small class="text-danger">' + EchoUIInstance.escapeHTML(data.error) + '</small>';
+                return;
+            }
+
+            box.innerHTML = this.rumorTimelineHTML(data.rumor);
+        } catch (e) {
+            box.innerHTML = '<small class="text-danger">Erro ao carregar o boato.</small>';
+        }
+    }
+
+    /**
+     * Linha do tempo do boato: o post original, e cada repasse com o
+     * diff em relação ao texto anterior — é o que mostra a informação
+     * mudando aos poucos, sem precisar guardar imagem nenhuma de "antes".
+     */
+    rumorTimelineHTML(rumor) {
+        const itens = [{
+            rotulo: "original",
+            nome:   rumor.autor_original,
+            texto:  rumor.texto_original,
+            quando: rumor.criado_em
+        }].concat(rumor.repasses.map((r, i) => ({
+            rotulo: "repasse " + (i + 1),
+            nome:   r.autor_nome,
+            texto:  r.texto_distorcido,
+            quando: r.criado_em
+        })));
+
+        let anterior = null;
+
+        const linhas = itens.map(item => {
+            const corpo = anterior === null
+                ? EchoUIInstance.escapeHTML(item.texto)
+                : this.diffPalavras(anterior, item.texto);
+            anterior = item.texto;
+
+            return `
+                <div class="rumor-item">
+                    <div class="rumor-item-header">
+                        <span class="rumor-item-rotulo">${EchoUIInstance.escapeHTML(item.rotulo)}</span>
+                        <span class="text-secondary small"> · ${EchoUIInstance.escapeHTML(item.nome)} · ${EchoUIInstance.formatTime(item.quando)}</span>
+                    </div>
+                    <div class="rumor-item-texto">${corpo}</div>
+                </div>
+            `;
+        }).join("");
+
+        return `
+            <div class="rumor-timeline border-start border-secondary ps-2">
+                <div class="rumor-timeline-aviso text-secondary small mb-1">
+                    <i class="fa-solid fa-circle-info"></i> cada repasse distorce o anterior — o que ficou
+                    <mark class="rumor-diff">destacado</mark> é o que mudou de uma versão pra outra.
+                </div>
+                ${linhas}
+            </div>
+        `;
+    }
+
+    /**
+     * Diff simples por palavra: devolve o HTML de `atual` com as palavras
+     * que não vieram de `anterior` destacadas. LCS clássico por token —
+     * os textos são curtos (post/repasse), então o custo não importa.
+     */
+    diffPalavras(anterior, atual) {
+        const tokensAtu = String(atual ?? "").split(/(\s+)/);
+        const a = String(anterior ?? "").split(/(\s+)/).filter(t => t.trim() !== "");
+        const b = tokensAtu.filter(t => t.trim() !== "");
+
+        const dp = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+
+        for (let i = a.length - 1; i >= 0; i--) {
+            for (let j = b.length - 1; j >= 0; j--) {
+                dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+            }
+        }
+
+        // Marca em `comum` quais palavras de `atual` (índice em `b`) já
+        // existiam em `anterior` na mesma sequência — o resto é o que o
+        // repasse mudou.
+        const comum = new Array(b.length).fill(false);
+        let i = 0, j = 0;
+
+        while (i < a.length && j < b.length) {
+            if (a[i] === b[j]) {
+                comum[j] = true;
+                i++; j++;
+            } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+                i++;
+            } else {
+                j++;
+            }
+        }
+
+        let idxPalavra = -1;
+
+        return tokensAtu.map(token => {
+            if (token.trim() === "") return EchoUIInstance.escapeHTML(token);
+            idxPalavra++;
+            const texto = EchoUIInstance.escapeHTML(token);
+            return comum[idxPalavra] ? texto : `<mark class="rumor-diff">${texto}</mark>`;
+        }).join("");
     }
 }
 

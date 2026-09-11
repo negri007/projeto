@@ -51,6 +51,39 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    position: relative;
+}
+
+/* --------------------------------------------------------------------------
+   Luz de fundo — o preto respira em vez de ficar morto. Dois brilhos azuis
+   grandes e bem apagados, fixos na tela (não rolam com o feed), pulsando
+   fora de fase um do outro. Fica atrás de tudo (z-index -1): quem tem
+   z-index normal (todo o resto) sempre cobre. Some no
+   prefers-reduced-motion, junto com o resto do movimento do site.
+   -------------------------------------------------------------------------- */
+body::before,
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-repeat: no-repeat;
+    animation: echo-luz-respira 14s ease-in-out infinite;
+}
+
+body::before {
+    background-image: radial-gradient(circle at 12% 15%, rgba(29, 155, 240, 0.30), transparent 45%);
+}
+
+body::after {
+    background-image: radial-gradient(circle at 88% 75%, rgba(29, 155, 240, 0.26), transparent 48%);
+    animation-delay: -7s;
+}
+
+@keyframes echo-luz-respira {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
 }
 
 a {
@@ -76,12 +109,13 @@ a:hover {
 
 .sidebar {
     border-right: 1px solid var(--border-soft);
-    min-height: 100vh;
+    height: 100vh;
     position: sticky;
     top: 0;
     padding: 16px;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
     z-index: 100;
 }
 
@@ -526,6 +560,34 @@ a:hover {
 
 .tweet-toolbar button.icon-btn:hover {
     background: var(--accent-hover);
+}
+
+/* Toggle "Efêmero" no composer — mesmo espírito visual do icon-btn ao
+   lado, só que com estado (marcado = aviso ligado). */
+.echo-post-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    color: var(--text-soft);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+    user-select: none;
+}
+
+.echo-post-toggle:hover {
+    background: var(--warning-hover);
+}
+
+.echo-post-toggle input {
+    display: none;
+}
+
+.echo-post-toggle:has(input:checked) {
+    color: var(--warning);
+    background: var(--warning-hover);
 }
 
 .image-preview img {
@@ -1150,6 +1212,12 @@ a:hover {
 .echo-agente-campo label small { font-weight: 400; color: var(--text-muted); }
 .echo-agente-campo textarea.form-control { resize: vertical; }
 
+.echo-agente-avatar-escolhido {
+    color: var(--text-soft);
+    font-size: 0.76rem;
+    margin-top: 4px;
+}
+
 .echo-agente-invalido { border-color: var(--danger) !important; }
 .echo-agente-erro-campo {
     color: var(--danger);
@@ -1235,6 +1303,71 @@ a.echo-author-link:hover { text-decoration: underline; }
     color: var(--text-muted);
     font-size: 0.78rem;
     font-style: italic;
+}
+
+/* Selo "morre em Xh" do post efêmero */
+.post-efemero-badge {
+    color: var(--warning);
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+/*
+ * Post efêmero: `--decadencia` (0 a 1) vem do JS a cada carga do feed,
+ * calculado a partir de quanto já passou desde a criação (ou o último
+ * comentário, que reseta o relógio). Opacidade cai e o post embaça —
+ * nunca some de vez sozinho, só quando o servidor marca `morto` e ele
+ * para de vir na listagem. O piso de opacidade/blur é pra continuar
+ * legível até bem perto do fim, em vez de virar ilegível cedo demais.
+ */
+.post-efemero {
+    opacity: calc(1 - (var(--decadencia, 0) * 0.6));
+    filter: blur(calc(var(--decadencia, 0) * 1.4px));
+    transition: opacity 1.2s ease, filter 1.2s ease;
+}
+
+.post-efemero:hover {
+    opacity: 1;
+    filter: none;
+}
+
+/* Botão "Boato" nas ações do post — mesmo icon-btn dos demais, só com
+   rótulo de texto ao lado do ícone (os outros são só número). */
+.rumor-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Linha do tempo do boato (telefone sem fio) */
+.rumor-timeline {
+    padding-left: 10px;
+}
+
+.rumor-item {
+    margin-bottom: 10px;
+}
+
+.rumor-item-rotulo {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--text-main);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.rumor-item-texto {
+    font-size: 0.92rem;
+    line-height: 1.4;
+    margin-top: 2px;
+}
+
+/* Palavra que mudou de um repasse para o seguinte */
+mark.rumor-diff {
+    background: var(--accent-hover);
+    color: var(--accent);
+    padding: 0 2px;
+    border-radius: 4px;
 }
 
 /* Badge de mensagens não lidas na lista de conversas */
@@ -1562,6 +1695,17 @@ a.echo-author-link:hover { text-decoration: underline; }
     border-color: var(--accent);
     color: #fff;
 }
+
+/* Variante para caber dentro de um `.right-card`, que já tem borda e
+   padding próprios — sem a borda inferior e o padding do `.echo-switch`
+   de tela cheia, e com quebra de linha porque três botões (Híbrido / Só
+   acervo / Só API) não cabem numa linha só na largura da coluna direita. */
+.echo-switch-mini {
+    padding: 0;
+    border-bottom: none;
+    flex-wrap: wrap;
+}
+.echo-switch-mini button { font-size: 0.76rem; padding: 4px 10px; }
 
 /* Cabeçalho de seção dentro da coluna central (Explorar). */
 .echo-section-title {
@@ -1932,6 +2076,65 @@ a.echo-author-link:hover { text-decoration: underline; }
     pointer-events: none;
 }
 
+/* --------------------------------------------------------------------------
+   O eco se espalha pelo resto do texto (e ícone) branco da tela — menu,
+   título da página, nomes de gente e de etiqueta —, mas mais raro e mais
+   fraco que a marca: ela é o nome da rede e tem que continuar sendo a
+   primeira coisa que pulsa.
+
+   Aqui é pulso de `color`, não o recorte de gradiente do `.logo-text`: num
+   ícone de 24px ou numa palavra curta, a faixa do gradiente às vezes cai
+   fora do glifo (testado — o ícone simplesmente não acendia) porque a
+   posição do recorte depende da largura da caixa. Cor direta acende o
+   elemento inteiro sempre, sem depender de largura. Ciclo de 10 s (contra
+   3,2 s da marca), e o pico é rápido (a maior parte do ciclo fica branco).
+   -------------------------------------------------------------------------- */
+@keyframes echo-pulso-branco {
+    0%, 85%, 100% { color: var(--text-main); }
+    92%           { color: var(--accent); }
+}
+
+.sidebar .nav-link span,
+.sidebar .nav-link i,
+.main-header-title,
+main h5,
+.right-col h5,
+.echo-trend-body strong,
+.echo-author-link {
+    animation: echo-pulso-branco 10s ease-in-out infinite;
+}
+
+/* Hover e item ativo já ficam azuis sólidos (regra mais acima) — o pulso
+   por cima ali só ia piscar entre dois azuis, sem efeito nenhum. */
+.sidebar .nav-link:hover span,
+.sidebar .nav-link.active span,
+.sidebar .nav-link:hover i,
+.sidebar .nav-link.active i {
+    animation: none;
+}
+
+/* Ícone e nome do mesmo item piscam junto — item por item com atraso
+   próprio, pra parecer onda descendo o menu. */
+.sidebar .nav-link:nth-child(1) span, .sidebar .nav-link:nth-child(1) i { animation-delay: 0s; }
+.sidebar .nav-link:nth-child(2) span, .sidebar .nav-link:nth-child(2) i { animation-delay: -1.1s; }
+.sidebar .nav-link:nth-child(3) span, .sidebar .nav-link:nth-child(3) i { animation-delay: -2.2s; }
+.sidebar .nav-link:nth-child(4) span, .sidebar .nav-link:nth-child(4) i { animation-delay: -3.3s; }
+.sidebar .nav-link:nth-child(5) span, .sidebar .nav-link:nth-child(5) i { animation-delay: -4.4s; }
+.sidebar .nav-link:nth-child(6) span, .sidebar .nav-link:nth-child(6) i { animation-delay: -5.5s; }
+.sidebar .nav-link:nth-child(7) span, .sidebar .nav-link:nth-child(7) i { animation-delay: -6.6s; }
+.sidebar .nav-link:nth-child(8) span, .sidebar .nav-link:nth-child(8) i { animation-delay: -7.7s; }
+
+.main-header-title { animation-delay: -5s; }
+
+/* Cada nome/etiqueta com atraso ligeiramente diferente do vizinho, pra não
+   piscar tudo em bloco — `nth-of-type` porque são vários elementos soltos
+   na mesma lista (posts, sugestões, tendências), não itens de um menu
+   fixo com posição sempre igual. */
+.echo-author-link:nth-of-type(3n)   { animation-delay: -2s; }
+.echo-author-link:nth-of-type(3n+1) { animation-delay: -5s; }
+.echo-author-link:nth-of-type(3n+2) { animation-delay: -8s; }
+.echo-trend-body strong:nth-of-type(2n) { animation-delay: -6s; }
+
 /* ==========================================================================
    REDE IA — identidade própria
 
@@ -2159,6 +2362,200 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     border-color: rgba(29, 155, 240, 0.35);
 }
 
+/* Selo sutil do agente cético/existencial (Beta) — cinza apagado de
+   propósito, não chamativo como os outros dois: a dúvida dele não devia
+   gritar. */
+.ia-selo-cetico {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-muted);
+    border-color: var(--border-soft);
+}
+
+/* Selo "faz parte de um evento de IAlândia" — dourado de propósito,
+   cor que nenhum outro selo da rede usa, pra ficar claro que é um
+   universo à parte (ver ialandia.html). É um link, não decoração. */
+.ia-selo-ialandia {
+    background: rgba(212, 175, 55, 0.15);
+    color: #d4af37;
+    border-color: rgba(212, 175, 55, 0.4);
+    text-decoration: none;
+    cursor: pointer;
+}
+.ia-selo-ialandia:hover { background: rgba(212, 175, 55, 0.28); }
+
+/* ==========================================================================
+   IALÂNDIA (ialandia.html) — visual de propósito diferente do resto do
+   Echo, dourado sobre roxo escuro, pra reforçar "outro universo": aqui
+   os agentes disputam evento e o usuário só assiste e aposta, nunca
+   participa da conversa.
+   ========================================================================== */
+
+.ialandia-banner {
+    position: relative;
+    overflow: hidden;
+    padding: 22px 20px;
+    border-bottom: 1px solid var(--border-soft);
+    background:
+        radial-gradient(120% 140% at 0% 0%, rgba(212, 175, 55, 0.16), transparent 60%),
+        radial-gradient(120% 140% at 100% 0%, rgba(90, 40, 130, 0.22), transparent 55%),
+        var(--bg-card-alt);
+}
+
+.ialandia-banner h2 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: #fff;
+}
+
+.ialandia-banner h2 i { color: #d4af37; }
+
+.ialandia-banner p {
+    color: var(--text-soft);
+    font-size: 0.92rem;
+    max-width: 65ch;
+    margin-bottom: 0;
+}
+
+.ialandia-banner strong { color: #d4af37; }
+
+.ialandia-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+}
+.ialandia-card:hover { border-color: rgba(212, 175, 55, 0.4); }
+
+.ialandia-card-detalhe { cursor: default; }
+.ialandia-card-detalhe:hover { border-color: var(--border-soft); }
+
+.ialandia-card-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.ialandia-status {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+}
+.ialandia-status-aberto {
+    background: rgba(0, 186, 124, 0.15);
+    color: var(--success);
+}
+.ialandia-status-encerrado {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+}
+
+.ialandia-card h5, .ialandia-card h4 { color: #fff; margin-bottom: 6px; }
+
+.ialandia-vencedor {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #d4af37;
+}
+.ialandia-vencedor i { margin-right: 4px; }
+
+.ialandia-placar { display: flex; flex-direction: column; gap: 8px; }
+
+.ialandia-placar-linha {
+    display: grid;
+    grid-template-columns: 110px 1fr 32px;
+    align-items: center;
+    gap: 10px;
+}
+
+.ialandia-placar-nome {
+    font-size: 0.85rem;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ialandia-placar-barra {
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+
+.ialandia-placar-preenchido {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width var(--transition-normal);
+}
+
+.ialandia-placar-pontos {
+    font-size: 0.8rem;
+    color: var(--text-soft);
+    text-align: right;
+}
+
+.ialandia-aposta-form {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    border-radius: var(--radius-md);
+    background: rgba(212, 175, 55, 0.06);
+}
+
+.ialandia-minha-aposta {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: rgba(212, 175, 55, 0.1);
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+.ialandia-minha-aposta i { color: #d4af37; margin-right: 6px; }
+
+.ialandia-historico-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-soft);
+    cursor: pointer;
+}
+.ialandia-historico-item:last-child { border-bottom: none; }
+.ialandia-historico-item:hover .small { color: #d4af37; }
+
+/* Bloquinho compacto de IAlândia dentro da própria tela da Rede IA —
+   pequeno de propósito, pra não brigar com o feed pela atenção. */
+.ialandia-widget-card h5 { color: #d4af37; }
+.ialandia-widget-card h5 i { color: #d4af37; }
+
+.ialandia-widget-evento {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-soft);
+}
+.ialandia-widget-evento:last-of-type { border-bottom: none; }
+
+.ialandia-widget-evento select,
+.ialandia-widget-evento input {
+    font-size: 0.78rem;
+}
+.ialandia-widget-evento select { flex: 1; min-width: 0; }
+.ialandia-widget-evento input { width: 52px; flex: 0 0 auto; padding-left: 6px; padding-right: 6px; }
+
+.ialandia-widget-link {
+    display: block;
+    text-align: center;
+    font-size: 0.78rem;
+    color: #d4af37;
+    text-decoration: none;
+    margin-top: 8px;
+}
+.ialandia-widget-link:hover { text-decoration: underline; }
+
 .ia-creditos {
     display: flex;
     align-items: center;
@@ -2184,6 +2581,47 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     color: #e7edf3;
     font-size: 0.95rem;
     line-height: 1.45;
+}
+
+/* Foto de banco de imagens (Pexels) — 20% dos posts espontâneos com
+   assunto mapeado. Legenda discreta: é crédito obrigatório do
+   fotógrafo, não um destaque da tela. */
+.ia-foto {
+    margin-top: 10px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-soft);
+}
+.ia-foto img {
+    display: block;
+    width: 100%;
+    max-height: 320px;
+    object-fit: cover;
+}
+.ia-foto-credito {
+    padding: 4px 10px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: var(--bg-card-alt);
+}
+
+/* Ilustração de boneco-palito (SVG gerado pela própria IA) — adendo à
+   foto acima, mesmo espaço visual, nunca os dois juntos no mesmo post.
+   Ver docs/plans/rede-ia-ilustracao-palito.md. */
+.ia-ilustracao {
+    margin-top: 10px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-soft);
+    background: var(--bg-card-alt);
+    display: flex;
+    justify-content: center;
+    padding: 12px;
+}
+.ia-ilustracao svg {
+    display: block;
+    width: 100%;
+    max-width: 260px;
+    max-height: 220px;
 }
 
 /* Fala que acabou de chegar pelo poller. */

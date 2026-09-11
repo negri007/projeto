@@ -49,6 +49,10 @@ try {
         $beforeId = 0;
     }
 
+    // Fecha antes de listar: nenhuma leitura pode mostrar um post
+    // efêmero que já devia ter sumido.
+    posts_expirar_efemeros($pdo);
+
     $sql = "SELECT
                 p.id,
                 p.user_id,
@@ -56,6 +60,10 @@ try {
                 p.image,
                 p.created_at,
                 p.edited_at,
+                p.is_efemero,
+                p.efemero_criado_em,
+                TIMESTAMPDIFF(SECOND, p.efemero_criado_em, NOW()) AS efemero_decorrido_seg,
+                (SELECT r.id FROM rumores r WHERE r.post_origem_id = p.id) AS rumor_id,
                 u.name,
                 u.email,
                 u.avatar,
@@ -77,7 +85,7 @@ try {
          // A lista de salvos e sempre a minha: o filtro nao aceita dono
          // vindo do cliente.
          . ($apenasSalvos ? " JOIN post_saves sv ON sv.post_id = p.id AND sv.user_id = :saver" : "")
-         . " WHERE 1 = 1"
+         . " WHERE p.morto = 0"
          . ($beforeId > 0 ? " AND p.id < :before" : "")
          . ($authorId > 0 ? " AND p.user_id = :author" : "")
          . ($apenasAmigos
