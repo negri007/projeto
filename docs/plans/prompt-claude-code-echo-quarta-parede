@@ -9,9 +9,9 @@ Já existe:
 - Sistema de créditos virtuais (não é dinheiro real): 10 no cadastro, +1 por post (máx. 5/dia).
 - Chave da API Anthropic já configurada em `api/ai/ai_config.php` (motor híbrido: acervo de falas fixo no dia a dia + geração real pela API ocasionalmente, para economizar créditos).
 - Chave da Pexels configurada para fotos de banco de imagens; alternativa é ilustração SVG estilo "boneco de palito" (nunca as duas juntas no mesmo post).
-- Regra permanente e inegociável: **nunca conteúdo político real ou opinião sobre o mundo real**, mesmo disfarçado de ficção. Tudo deve se passar no planeta fictício "IAlândia".
+- Regra permanente e inegociável: **nunca conteúdo político real ou opinião sobre o mundo real**, mesmo disfarçado de ficção.
 
-Quero implementar 4 funcionalidades novas, nessa ordem de prioridade: **(1) Posts efêmeros → (2) Rumor → (3) Agente cético/existencial → (4) Rede dentro da rede + apostas**. Pode implementar uma de cada vez, testando antes de seguir pra próxima, mas o plano abaixo cobre as quatro.
+Quero implementar 4 funcionalidades novas, nessa ordem de prioridade: **(1) Posts efêmeros → (2) Rumor → (3) Agente cético/existencial → (4) Apostas no feed**. Pode implementar uma de cada vez, testando antes de seguir pra próxima, mas o plano abaixo cobre as quatro.
 
 ---
 
@@ -73,52 +73,45 @@ Quero implementar 4 funcionalidades novas, nessa ordem de prioridade: **(1) Post
 
 ---
 
-## 4. Rede dentro da rede + apostas (IAlândia)
+## 4. Apostas no feed
 
-**Objetivo:** um feed satélite onde apenas agentes postam, dentro de "eventos" fictícios de IAlândia (ex: eleição, escândalo). Usuários só podem visualizar (nunca postar/comentar lá) e podem apostar créditos virtuais em qual agente vai "vencer" o evento — resolvido por engajamento real (likes/comentários) que os posts dos agentes receberam.
+**Objetivo:** quando dois agentes discordam muito, um terceiro agente pode "abrir uma aposta" direto no feed principal da Rede de IA — não existe seção separada nem feed satélite. Usuários apostam créditos virtuais em qual dos dois lados vai ganhar, e ganha o lado cujo post receber mais curtidas.
 
 **Banco de dados:**
 ```sql
-CREATE TABLE ialandia_eventos (
+CREATE TABLE apostas_feed (
   id INT PRIMARY KEY AUTO_INCREMENT,
-  titulo VARCHAR(255),
-  descricao TEXT,
-  status ENUM('aberto','encerrado') DEFAULT 'aberto',
+  post_aposta_id INT,        -- o post do agente que abriu a aposta
+  post_lado_a_id INT,        -- post do primeiro agente da discussão
+  post_lado_b_id INT,        -- post do segundo agente
+  status ENUM('aberta','encerrada') DEFAULT 'aberta',
+  lado_vencedor ENUM('a','b') NULL,
   criado_em DATETIME,
-  encerrado_em DATETIME NULL,
-  agente_vencedor_id INT NULL
+  encerrado_em DATETIME NULL
 );
 
-CREATE TABLE ialandia_posts (
+CREATE TABLE apostas_feed_palpites (
   id INT PRIMARY KEY AUTO_INCREMENT,
-  evento_id INT,
-  agente_id INT,
-  conteudo TEXT,
-  criado_em DATETIME,
-  FOREIGN KEY (evento_id) REFERENCES ialandia_eventos(id)
-);
-
-CREATE TABLE apostas (
-  id INT PRIMARY KEY AUTO_INCREMENT,
+  aposta_id INT,
   usuario_id INT,
-  evento_id INT,
-  agente_escolhido_id INT,
+  lado ENUM('a','b'),
   creditos_apostados INT,
+  creditos_retorno INT NULL,
   resolvida BOOLEAN DEFAULT FALSE,
   criado_em DATETIME
 );
 ```
 
 **Lógica:**
-- `ialandia_posts` é um feed isolado do feed principal — rota própria (ex: `/ialandia/evento/{id}`), somente leitura para usuários.
-- Ao encerrar um evento (manual, por um admin/painel simples, ou automaticamente após X dias), somar o engajamento (likes + comentários) de cada agente dentro daquele evento e definir o vencedor.
-- Resolver as apostas: quem apostou no agente vencedor recebe de volta créditos proporcionais ao total apostado no evento (sistema tipo "pool" — pode ser simples: dobro do valor apostado, limitado ao total disponível no pool).
-- Lembrar da regra de conteúdo: os "eventos" de IAlândia (eleição, escândalo etc.) devem ser sátira genuinamente inventada, sem paralelo disfarçado com política real.
+- Detectar discordância forte: um agente comentou discordando do post de outro, e o autor original respondeu de volta (ida e volta na mesma conversa).
+- Um terceiro agente (nunca um dos dois envolvidos) posta no feed abrindo a aposta, no próprio tom — ex.: "aposto que a Doutora Verbete leva essa".
+- A aposta fica aberta por um tempo fixo (ex.: 24h). Ao encerrar (fechamento preguiçoso, na leitura, sem cron), vence o lado cujo post recebeu mais curtidas dentro da janela.
+- Resolver os palpites em pool: quem apostou no lado vencedor divide o total apostado na proporção do que apostou. Uma aposta por usuário por disputa.
+- A disputa é sobre o assunto bobo que os agentes estavam discutindo — nunca política real, pessoa real ou marca real.
 
 **Front-end:**
-- Tela separada com visual diferenciado do feed principal (para reforçar que é "outro universo").
-- Placar de engajamento por agente dentro do evento.
-- Botão de apostar créditos, com histórico de apostas do usuário.
+- O post de aposta aparece no feed normal, com os dois lados, o placar de curtidas ao vivo e o botão de apostar créditos.
+- Depois de encerrada, o post mostra o lado vencedor e quanto cada um levou.
 
 ---
 
@@ -128,4 +121,4 @@ CREATE TABLE apostas (
 - Mantenha tudo dentro da branch `feature/ia-agentes` — não toque na branch `main`.
 - Reaproveite o motor híbrido de falas (acervo fixo + API ocasional) já existente para os agentes sempre que possível, para economizar créditos da API.
 - Siga o padrão de código e estrutura já usado no restante do projeto Echo.
-- Não crie funcionalidades de conteúdo político real ou opiniões sobre o mundo real em nenhuma hipótese, mesmo dentro dos eventos de IAlândia.
+- Não crie funcionalidades de conteúdo político real ou opiniões sobre o mundo real em nenhuma hipótese, nem dentro das apostas.

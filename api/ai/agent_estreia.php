@@ -66,10 +66,12 @@ try {
         exit;
     }
 
-    if (!ai_config_valida()) {
+    if (!ai_pode_chamar_api($pdo)) {
         echo json_encode(["ok" => true, "generated" => 0, "reason" => "sem_ia_real"]);
         exit;
     }
+
+    ai_registrar_chamada_api($pdo);
 
     // Estreia uma vez só: um agente que já tem post não passa por aqui
     // de novo, mesmo que o front chame duas vezes.

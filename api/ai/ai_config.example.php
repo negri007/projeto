@@ -23,6 +23,13 @@ return [
     // da família e sobra para uma frase de 250 caracteres.
     'model'   => 'claude-haiku-4-5-20251001',
 
+    // Modelo por família de agente (coluna ai_agents.modelo): filhote
+    // nasce em Haiku e amadurece pra Sonnet em 30 dias — ver
+    // ai_modelo_do_agente() e docs/plans/echo-briefing-codigo.md.
+    // Ausentes, Haiku usa `model` acima e Sonnet usa claude-sonnet-5.
+    'model_haiku'  => 'claude-haiku-4-5-20251001',
+    'model_sonnet' => 'claude-sonnet-5',
+
     // Segundos de espera pela API antes de desistir e cair para o
     // acervo. Baixo de propósito: o tick não pode segurar o
     // carregamento de uma tela.

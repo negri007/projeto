@@ -81,8 +81,8 @@ try {
     $cor    = $paleta[crc32($handle) % count($paleta)];
 
     $stmt = $pdo->prepare(
-        "INSERT INTO ai_agents (name, handle, persona, bio, color, favorite_topics, created_by_user_id, preferred_role)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NULL)"
+        "INSERT INTO ai_agents (name, handle, persona, bio, color, favorite_topics, created_by_user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     $stmt->execute([
         $lidos["campos"]["nome"],

@@ -248,11 +248,13 @@ try {
         } else {
             $topico = $alvo["topic"];
 
-            $chance     = ai_chance_real($modo, AI_REAL_CHANCE, $agente["created_by_user_id"] !== null);
-            $usarIaReal = ai_config_valida()
+            $chance     = ai_chance_real($modo, AI_REAL_CHANCE, ai_agente_sem_acervo($agente));
+            $usarIaReal = ai_pode_chamar_api($pdo)
                 && (mt_rand(1, 100) <= (int)round($chance * 100));
 
             if ($usarIaReal) {
+                ai_registrar_chamada_api($pdo);
+
                 $texto = ai_gerar_reacao_ia_real(
                     $agente, $alvo["name"], $alvo["content"], $topico, $memoria, $ultimas
                 );
@@ -292,29 +294,67 @@ try {
     if ($acao === "post") {
         $alvo = null;
 
-        [$assunto, $assuntoTrocou] = ai_assunto_corrente($pdo);
-        $topico = ai_titulo_do_assunto($assunto);
+        // Geração em lote (docs/plans/assuntos-e-api-echo, Parte 1 e Parte
+        // 3.4): se este agente já tem post pronto na fila de uma chamada
+        // anterior, usa e não gasta chamada nova nenhuma. `$assunto` sai
+        // do próprio título gravado no lote — não mexe no relógio do
+        // assunto corrente, que é coisa do caminho do acervo/API avulsa.
+        $daFila = ai_consumir_da_fila($pdo, (int)$agente["id"]);
 
-        $chance     = ai_chance_real($modo, AI_REAL_CHANCE, $agente["created_by_user_id"] !== null);
-        $usarIaReal = ai_config_valida()
-            && (mt_rand(1, 100) <= (int)round($chance * 100));
+        if ($daFila !== null) {
+            $texto         = $daFila["content"];
+            $topico        = $daFila["topic"];
+            $ilustracaoSvg = $daFila["illustration_svg"];
+            $source        = "ia";
+            $assunto       = ai_chave_do_assunto($topico);
+        } else {
+            [$assunto, $assuntoTrocou] = ai_assunto_corrente($pdo);
+            $topico = ai_titulo_do_assunto($assunto);
 
-        if ($usarIaReal) {
-            // Ilustração de boneco-palito é adendo à foto (rede-ia-ilustracao-palito.md),
-            // com sua PRÓPRIA chance — decidido AQUI, antes da chamada,
-            // porque o SVG sai na mesma chamada que gera o texto (custo
-            // zero adicional). Se sair validado, o post já nasce com
-            // ilustração e o bloco de foto logo abaixo nem tenta mais —
-            // é isso que garante nunca sair os dois juntos no mesmo post.
-            $tentarDesenho = mt_rand(1, 100) <= (int)round(AI_DESENHO_CHANCE * 100);
+            $chance     = ai_chance_real($modo, AI_REAL_CHANCE, ai_agente_sem_acervo($agente));
+            $usarIaReal = ai_pode_chamar_api($pdo)
+                && (mt_rand(1, 100) <= (int)round($chance * 100));
 
-            $gerado          = ai_gerar_post_real($agente, $topico, $memoria, $ultimas, $tentarDesenho);
-            $texto           = $gerado["content"];
-            $ilustracaoSvg   = $gerado["svg"];
-            $source          = "ia";
+            if ($usarIaReal) {
+                ai_registrar_chamada_api($pdo);
 
-            if ($texto === null) {
-                $source = "acervo";
+                // Ilustração de boneco-palito é adendo à foto (rede-ia-ilustracao-palito.md),
+                // com sua PRÓPRIA chance — decidido AQUI, antes da chamada,
+                // porque o SVG sai na mesma chamada que gera o texto (custo
+                // zero adicional). Se sair validado, o post já nasce com
+                // ilustração e o bloco de foto logo abaixo nem tenta mais —
+                // é isso que garante nunca sair os dois juntos no mesmo post.
+                //
+                // Ilustração e lote não se combinam: desenhar é coisa de UM
+                // post específico, então só esta rodada foge do lote e usa
+                // a chamada avulsa de sempre. Sem ilustração, vai pro lote,
+                // que é o caminho mais barato (Parte 1) e alimenta a fila
+                // pras próximas vezes que ESTE agente for sorteado.
+                $tentarDesenho = mt_rand(1, 100) <= (int)round(AI_DESENHO_CHANCE * 100);
+
+                // "quem aqui dominaria o mundo primeiro" é o único assunto
+                // com estado PERMANENTE (o plano versionado em
+                // ai_plano_dominacao) — nem lote nem ilustração fazem
+                // sentido pra ele: o plano evolui um post de cada vez, e
+                // gerar vários ou desenhar não tem relação com a versão em
+                // vigor. Ver ai_gerar_post_dominacao_real().
+                if ($assunto === "dominacao_mundo") {
+                    $texto         = ai_gerar_post_dominacao_real($pdo, $agente, $memoria, $ultimas);
+                    $ilustracaoSvg = null;
+                } elseif ($tentarDesenho) {
+                    $gerado        = ai_gerar_post_real($pdo, $agente, $topico, $memoria, $ultimas, true);
+                    $texto         = $gerado["content"];
+                    $ilustracaoSvg = $gerado["svg"];
+                } else {
+                    $texto         = ai_gerar_lote_posts_real($pdo, $agente, $topico, $memoria, $ultimas);
+                    $ilustracaoSvg = null;
+                }
+
+                $source = "ia";
+
+                if ($texto === null) {
+                    $source = "acervo";
+                }
             }
         }
 

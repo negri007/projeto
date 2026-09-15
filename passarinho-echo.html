@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Passarinho do Echo — protótipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0E1512;
+    --panel: #16201C;
+    --panel-2: #1C2822;
+    --border: #2A362F;
+    --text: #EDEAE0;
+    --text-mute: #93A199;
+    --accent: #4FA592;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);}
+  .stage{
+    position:relative;
+    width:100%;
+    max-width:720px;
+    margin:0 auto;
+    height:560px;
+    overflow:hidden;
+    border-radius:18px;
+    border:1px solid var(--border);
+    background:var(--bg);
+  }
+  .app{
+    display:grid;
+    grid-template-columns:190px 1fr;
+    height:100%;
+  }
+  .sidebar{
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    padding:18px 14px;
+  }
+  .logo{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:20px;
+    color:#7EC8FF;
+    margin-bottom:18px;
+    letter-spacing:0.5px;
+  }
+  .contact{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 8px;
+    border-radius:10px;
+    margin-bottom:4px;
+    font-size:13px;
+    color:var(--text-mute);
+  }
+  .contact.active{background:var(--panel-2); color:var(--text);}
+  .avatar{
+    width:28px;height:28px;border-radius:50%;
+    background:linear-gradient(135deg,#3E8577,#2A5C51);
+    flex:none;
+  }
+  .chat{
+    display:flex;
+    flex-direction:column;
+    padding:18px 22px;
+    position:relative;
+  }
+  .chat-header{
+    font-size:14px;
+    font-weight:500;
+    padding-bottom:12px;
+    border-bottom:1px solid var(--border);
+    margin-bottom:16px;
+    color:var(--text);
+  }
+  .msg{
+    position:relative;
+    max-width:70%;
+    padding:9px 13px;
+    border-radius:14px;
+    font-size:13.5px;
+    line-height:1.5;
+    margin-bottom:10px;
+  }
+  .msg.them{background:var(--panel-2); border-bottom-left-radius:3px;}
+  .msg.me{background:#274B41; margin-left:auto; border-bottom-right-radius:3px;}
+  .del{
+    position:absolute; top:-6px; right:-6px;
+    width:16px;height:16px;border-radius:50%;
+    background:#3A342A; color:var(--text);
+    font-size:11px; line-height:16px; text-align:center;
+    cursor:pointer; opacity:0; transition:opacity .2s;
+  }
+  .msg:hover .del{opacity:1;}
+  .bell{
+    position:absolute; top:18px; right:22px;
+    font-size:17px; color:var(--text-mute);
+  }
+  .badge{
+    position:absolute; top:-5px; right:-9px;
+    background:#D85A30; color:#fff;
+    font-size:10px; width:15px; height:15px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+  .trash{
+    position:absolute; bottom:14px; right:18px;
+    font-size:19px; opacity:0.7;
+    transition: transform 0.2s ease;
+  }
+  .hint{
+    max-width:720px;margin:10px auto 0;
+    font-size:12px;color:var(--text-mute);text-align:center;
+  }
+  .reaction{
+    position:absolute;
+    font-size:16px;
+    pointer-events:none;
+    transform:translate(-50%,-120%);
+    opacity:0;
+    transition:opacity 0.25s ease, transform 0.5s ease;
+  }
+  .reaction.show{
+    opacity:1;
+    transform:translate(-50%,-150%);
+  }
+  .falling-num{
+    position:absolute;
+    font-size:12px; font-weight:600;
+    color:#FFB864;
+    pointer-events:none;
+  }
+  svg#birdLayer{position:absolute; top:0; left:0; pointer-events:none;}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="app">
+    <div class="sidebar">
+      <div class="logo">echo</div>
+      <div class="contact active" data-poi="1"><div class="avatar"></div>Marina Alves</div>
+      <div class="contact" data-poi="1"><div class="avatar"></div>Diego T.</div>
+      <div class="contact" data-poi="1"><div class="avatar"></div>Fuinha [IA]</div>
+      <div class="contact" data-poi="1"><div class="avatar"></div>Dona Ranzinza [IA]</div>
+    </div>
+    <div class="chat">
+      <div class="bell" id="bellEl" data-poi="1">&#9679;<span class="badge" id="notifBadge">4</span></div>
+      <div class="chat-header">Marina Alves</div>
+      <div class="msg them" data-poi="1">oi, viu o post novo que o Fuinha fez?<span class="del">×</span></div>
+      <div class="msg me" data-poi="1">vi kkkk ele tá cada vez mais paranoico<span class="del">×</span></div>
+      <div class="msg them" data-poi="1">acho que ele percebeu algo estranho rastejando na tela<span class="del">×</span></div>
+      <div class="msg me" data-poi="1">que ótimo, adorei essa ideia<span class="del">×</span></div>
+      <div class="msg them" data-poi="1">poxa, fiquei meio triste com isso<span class="del">×</span></div>
+      <div class="msg me" data-poi="1">???<span class="del">×</span></div>
+      <div class="trash" id="trashEl">&#128465;</div>
+    </div>
+  </div>
+  <svg id="birdLayer" width="100%" height="100%"></svg>
+</div>
+<p class="hint">o passarinho voa por uma malha invisível de pontos, pousa e cisma de vez em quando, e a cabeça acompanha o mouse — clique no "×" de uma mensagem pra ele carregar até a lixeira, ou espere ele passar perto do sino</p>
+
+<script>
+const stage = document.getElementById('stage');
+const svg = document.getElementById('birdLayer');
+const NS = 'http://www.w3.org/2000/svg';
+
+// ---------- malha invisível de navegação ----------
+let grid = [];
+function buildGrid(){
+  grid = [];
+  const w = stage.clientWidth, h = stage.clientHeight;
+  const cell = 46;
+  for (let gx = cell/2; gx < w; gx += cell){
+    for (let gy = cell/2; gy < h; gy += cell){
+      grid.push({x:gx, y:gy});
+    }
+  }
+}
+buildGrid();
+
+function pois(){
+  return Array.from(document.querySelectorAll('[data-poi]'));
+}
+function rectOf(el){
+  const r = el.getBoundingClientRect();
+  const s = stage.getBoundingClientRect();
+  return {x:r.left-s.left, y:r.top-s.top, width:r.width, height:r.height, el};
+}
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
+// ---------- estado do passarinho ----------
+let bx = 360, by = 280;
+let ang = 0;
+let wingPhase = 0;
+let birdState = 'flying'; // flying | perch | toGrab | carrying | toTrash | dropping | toBell | pecking
+let target = null;
+let perchTimer = 0;
+let preenTimer = 0;
+let peckCount = 0;
+let peckTimer = 0;
+let bellCooldown = 0;
+let carryEl = null;
+let carryText = '';
+let mouseX = 0, mouseY = 0, mouseActive = false;
+let lookX = 0, lookY = 0;
+let flipState = false;
+let alertTimer = 0;
+let legsExtend = 0;
+let landingTimer = 0, landingTotal = 20;
+let landingFromX=0, landingFromY=0, landingFromAng=0;
+let landingToX=0, landingToY=0, landingToAng=0;
+let takeoffTimer = 0;
+let perchPose = 'side';
+let lookXFront = 0;
+const FRONT_LEG_LEN = 13;
+const FRONT_BODY_BOTTOM = 7;
+const speedFly = 2.2;
+const speedCarry = 1.7;
+
+stage.addEventListener('mousemove', e=>{
+  const r = stage.getBoundingClientRect();
+  mouseX = e.clientX - r.left;
+  mouseY = e.clientY - r.top;
+  mouseActive = true;
+});
+stage.addEventListener('mouseleave', ()=>{ mouseActive = false; });
+document.addEventListener('keydown', ()=>{ alertTimer = 22; });
+
+function collectLines(){
+  const lines = [];
+  document.querySelectorAll('.contact').forEach(el=>{
+    const r = rectOf(el);
+    lines.push({x1:r.x+4, y1:r.y+r.height, x2:r.x+r.width-4, y2:r.y+r.height});
+  });
+  document.querySelectorAll('.msg').forEach(el=>{
+    const r = rectOf(el);
+    lines.push({x1:r.x+6, y1:r.y+r.height, x2:r.x+r.width-6, y2:r.y+r.height});
+    lines.push({x1:r.x+6, y1:r.y+6, x2:r.x+r.width-6, y2:r.y+r.height-6});
+  });
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar){
+    const r = rectOf(sidebar);
+    lines.push({x1:r.x+r.width, y1:r.y+20, x2:r.x+r.width, y2:r.y+r.height-20});
+  }
+  const header = document.querySelector('.chat-header');
+  if (header){
+    const r = rectOf(header);
+    lines.push({x1:r.x, y1:r.y+r.height, x2:r.x+r.width, y2:r.y+r.height});
+  }
+  return lines;
+}
+
+function pickLinePerch(){
+  const logo = document.querySelector('.logo');
+  if (logo && Math.random() < 0.22){
+    const r = rectOf(logo);
+    const y = r.y + r.height*0.75;
+    return {x:r.x+r.width/2, y:y, lineAngle:0};
+  }
+  const lines = collectLines();
+  if (!lines.length) return null;
+  const ln = lines[Math.floor(Math.random()*lines.length)];
+  const t = 0.2 + Math.random()*0.6;
+  const x = ln.x1 + (ln.x2-ln.x1)*t;
+  const y = ln.y1 + (ln.y2-ln.y1)*t;
+  const lineAngle = Math.atan2(ln.y2-ln.y1, ln.x2-ln.x1);
+  return {x, y, lineAngle};
+}
+
+function pickTarget(){
+  const roll = Math.random();
+  if (roll < 0.24){
+    const lp = pickLinePerch();
+    if (lp) return lp;
+  }
+  if (roll < 0.36){
+    const els = pois();
+    const el = els[Math.floor(Math.random()*els.length)];
+    const r = rectOf(el);
+    return {x:r.x+r.width/2, y:r.y+r.height/2};
+  }
+  if (roll < 0.44){
+    const w = stage.clientWidth, h = stage.clientHeight, pad=34;
+    const corners = [{x:pad,y:pad},{x:w-pad,y:pad},{x:pad,y:h-pad},{x:w-pad,y:h-pad}];
+    return corners[Math.floor(Math.random()*corners.length)];
+  }
+  return grid[Math.floor(Math.random()*grid.length)];
+}
+
+function showReaction(x,y,text){
+  const div = document.createElement('div');
+  div.className = 'reaction';
+  div.textContent = text;
+  div.style.left = x+'px';
+  div.style.top = y+'px';
+  stage.appendChild(div);
+  requestAnimationFrame(()=>div.classList.add('show'));
+  setTimeout(()=>{div.classList.remove('show'); setTimeout(()=>div.remove(),300);}, 1200);
+}
+
+document.querySelectorAll('.del').forEach(btn=>{
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if (birdState !== 'flying' && birdState !== 'perch') return;
+    const msg = btn.parentElement;
+    const r = rectOf(msg);
+    target = {x:r.x+r.width/2, y:r.y+r.height/2};
+    carryEl = msg;
+    carryText = msg.firstChild ? msg.firstChild.textContent.trim() : '';
+    birdState = 'toGrab';
+  });
+});
+
+function fly(tx,ty,spd){
+  const dx = tx-bx, dy = ty-by;
+  const d = Math.hypot(dx,dy);
+  if (d < 1) return d;
+  const desiredAng = Math.atan2(dy,dx);
+  let diff = desiredAng - ang;
+  while (diff > Math.PI) diff -= Math.PI*2;
+  while (diff < -Math.PI) diff += Math.PI*2;
+  ang += diff*0.09;
+  const brake = clamp(d/44, 0.3, 1);
+  bx += Math.cos(ang)*Math.min(spd*brake,d);
+  by += Math.sin(ang)*Math.min(spd*brake,d);
+  return d;
+}
+
+function checkBell(){
+  if (bellCooldown > 0){ bellCooldown--; return; }
+  const badge = document.getElementById('notifBadge');
+  const notifCount = parseInt(badge.textContent||'0',10);
+  if (notifCount <= 0) return;
+  const bell = document.getElementById('bellEl');
+  const r = rectOf(bell);
+  const cx = r.x+r.width/2, cy = r.y+r.height/2;
+  if (dist({x:bx,y:by},{x:cx,y:cy}) < 34 && Math.random() < 0.02){
+    birdState = 'toBell';
+    target = {x:cx-14, y:cy};
+  }
+}
+
+function dropFallingNumber(fromX, fromY){
+  const badge = document.getElementById('notifBadge');
+  let n = parseInt(badge.textContent||'0',10);
+  if (n <= 0) return;
+  n -= 1;
+  badge.textContent = n > 0 ? n : '';
+  if (n === 0) badge.style.opacity = '0';
+
+  const trash = document.getElementById('trashEl');
+  const tr = rectOf(trash);
+  const num = document.createElement('div');
+  num.className = 'falling-num';
+  num.textContent = n+1;
+  num.style.left = fromX+'px';
+  num.style.top = fromY+'px';
+  stage.appendChild(num);
+  const startX = fromX, startY = fromY;
+  const endX = tr.x+tr.width/2, endY = tr.y+tr.height/2;
+  const dur = 46;
+  let f = 0;
+  function step(){
+    f++;
+    const t = f/dur;
+    const ease = t*t;
+    num.style.left = (startX + (endX-startX)*t) + 'px';
+    num.style.top = (startY + (endY-startY)*ease - Math.sin(t*Math.PI)*30) + 'px';
+    num.style.opacity = 1-Math.max(0,t-0.8)*5;
+    if (f < dur) requestAnimationFrame(step);
+    else {
+      num.remove();
+      trash.style.transform = 'scale(1.3)';
+      setTimeout(()=>{ trash.style.transform='scale(1)'; }, 200);
+    }
+  }
+  step();
+}
+
+function stepBird(){
+  wingPhase += birdState==='perch' ? 0.05 : 0.32;
+  if (alertTimer > 0) alertTimer--;
+
+  if (birdState === 'flying'){
+    if (!target) target = pickTarget();
+    const d = fly(target.x, target.y, speedFly);
+    if (d < 8){
+      let willPerch = false, perchAng = ang;
+      const faceRight = Math.random() < 0.5;
+      const baseAng = faceRight ? 0 : Math.PI;
+      if (target.lineAngle !== undefined){
+        willPerch = true;
+        const tilt = clamp(Math.sin(target.lineAngle)*0.32, -0.32, 0.32) * (faceRight?1:-1);
+        perchAng = baseAng + tilt;
+      } else if (Math.random() < 0.35){
+        willPerch = true;
+        perchAng = baseAng;
+      }
+      if (willPerch){
+        birdState = 'landing';
+        landingTimer = landingTotal;
+        landingFromX = bx; landingFromY = by; landingFromAng = ang;
+        landingToX = target.x; landingToY = target.y; landingToAng = perchAng;
+        legsExtend = 0;
+        perchPose = 'front';
+      }
+      target = pickTarget();
+    }
+    checkBell();
+  } else if (birdState === 'landing'){
+    landingTimer--;
+    const t = 1 - landingTimer/landingTotal;
+    const ease = 1 - (1-t)*(1-t);
+    bx = landingFromX + (landingToX-landingFromX)*ease;
+    by = landingFromY + (landingToY-landingFromY)*ease;
+    let da = landingToAng - landingFromAng;
+    while (da > Math.PI) da -= Math.PI*2;
+    while (da < -Math.PI) da += Math.PI*2;
+    ang = landingFromAng + da*ease;
+    legsExtend = clamp(t*1.6, 0, 1);
+    if (landingTimer <= 0){
+      bx = landingToX; by = landingToY; ang = landingToAng;
+      legsExtend = 1;
+      birdState = 'perch';
+      perchTimer = 100 + Math.random()*160;
+      preenTimer = 0;
+    }
+  } else if (birdState === 'perch'){
+    perchTimer--;
+    if (preenTimer > 0){ preenTimer--; }
+    else if (Math.random() < 0.01){ preenTimer = 40; }
+    if (perchTimer <= 0){
+      birdState = 'takeoff';
+      takeoffTimer = 12;
+    }
+  } else if (birdState === 'takeoff'){
+    takeoffTimer--;
+    legsExtend = clamp(takeoffTimer/12, 0, 1);
+    bx += Math.cos(ang) * 0.6;
+    by += Math.sin(ang) * 0.6 - 0.4;
+    if (takeoffTimer <= 0){
+      legsExtend = 0;
+      birdState = 'flying';
+      target = pickTarget();
+    }
+  } else if (birdState === 'toGrab'){
+    const d = fly(target.x, target.y, speedFly*1.1);
+    if (d < 8){
+      if (carryEl) carryEl.style.display = 'none';
+      birdState = 'carrying';
+      const trash = document.getElementById('trashEl');
+      const r = rectOf(trash);
+      target = {x:r.x+r.width/2, y:r.y+r.height/2};
+    }
+  } else if (birdState === 'carrying'){
+    const d = fly(target.x, target.y, speedCarry);
+    if (d < 10){
+      birdState = 'dropping';
+      showReaction(bx, by-16, 'plop!');
+      const trash = document.getElementById('trashEl');
+      trash.style.transform = 'scale(1.3)';
+      setTimeout(()=>{ trash.style.transform='scale(1)'; }, 200);
+      carryEl = null;
+      birdState = 'flying';
+      target = pickTarget();
+    }
+  } else if (birdState === 'toBell'){
+    const d = fly(target.x, target.y, speedFly);
+    if (d < 6){
+      birdState = 'pecking';
+      peckCount = 0;
+      peckTimer = 0;
+    }
+  } else if (birdState === 'pecking'){
+    peckTimer++;
+    if (peckTimer === 14){
+      peckCount++;
+      if (peckCount >= 3){
+        const bell = document.getElementById('bellEl');
+        const r = rectOf(bell);
+        dropFallingNumber(r.x+r.width-4, r.y);
+        bellCooldown = 260;
+        birdState = 'flying';
+        target = pickTarget();
+      } else {
+        peckTimer = 0;
+      }
+    }
+  }
+
+  render();
+  requestAnimationFrame(stepBird);
+}
+
+function initBird(){
+  const defs = document.createElementNS(NS,'defs');
+  const grad = document.createElementNS(NS,'linearGradient');
+  grad.setAttribute('id','birdGrad');
+  grad.setAttribute('x1','0%'); grad.setAttribute('y1','0%');
+  grad.setAttribute('x2','0%'); grad.setAttribute('y2','100%');
+  grad.innerHTML = '<stop offset="0%" stop-color="#6FB6FF"/><stop offset="100%" stop-color="#2E63D9"/>';
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  const g = document.createElementNS(NS,'g');
+  g.setAttribute('id','birdGroup');
+  svg.appendChild(g);
+
+  const tail = document.createElementNS(NS,'path');
+  tail.setAttribute('d','M -9 0 L -17 -4.5 L -14 0 L -17 4.5 Z');
+  tail.setAttribute('fill','#2E63D9');
+  g.appendChild(tail);
+
+  const wing = document.createElementNS(NS,'g');
+  wing.setAttribute('id','wingGroup');
+  const wingShape = document.createElementNS(NS,'path');
+  wingShape.setAttribute('d','M -1 -2 Q 3 -12 -8 -9 Q -12 -4 -1 -2 Z');
+  wingShape.setAttribute('fill','#3E7BFA');
+  wing.appendChild(wingShape);
+  g.appendChild(wing);
+
+  const body = document.createElementNS(NS,'ellipse');
+  body.setAttribute('id','birdBody');
+  body.setAttribute('cx','0'); body.setAttribute('cy','0');
+  body.setAttribute('rx','9'); body.setAttribute('ry','6.2');
+  body.setAttribute('fill','url(#birdGrad)');
+  g.appendChild(body);
+
+  const belly = document.createElementNS(NS,'ellipse');
+  belly.setAttribute('cx','1'); belly.setAttribute('cy','2.2');
+  belly.setAttribute('rx','6'); belly.setAttribute('ry','3.4');
+  belly.setAttribute('fill','#D9ECFF');
+  belly.setAttribute('opacity','0.85');
+  g.appendChild(belly);
+
+  const feet = document.createElementNS(NS,'g');
+  feet.setAttribute('id','feetGroup');
+  g.appendChild(feet);
+
+  const headGroup = document.createElementNS(NS,'g');
+  headGroup.setAttribute('id','headGroup');
+  const head = document.createElementNS(NS,'circle');
+  head.setAttribute('cx','9'); head.setAttribute('cy','-1'); head.setAttribute('r','5.2');
+  head.setAttribute('fill','#3E7BFA');
+  headGroup.appendChild(head);
+  const beak = document.createElementNS(NS,'path');
+  beak.setAttribute('d','M 13 -1.2 L 17.5 -2.6 L 17.5 0.4 Z');
+  beak.setAttribute('fill','#FFB84D');
+  headGroup.appendChild(beak);
+  const eyeWhite = document.createElementNS(NS,'circle');
+  eyeWhite.setAttribute('cx','10.6'); eyeWhite.setAttribute('cy','-3'); eyeWhite.setAttribute('r','1.9');
+  eyeWhite.setAttribute('fill','#0E1512');
+  headGroup.appendChild(eyeWhite);
+  const eyePupil = document.createElementNS(NS,'circle');
+  eyePupil.setAttribute('id','eyePupil');
+  eyePupil.setAttribute('cx','11'); eyePupil.setAttribute('cy','-3'); eyePupil.setAttribute('r','0.85');
+  eyePupil.setAttribute('fill','#fff');
+  headGroup.appendChild(eyePupil);
+  g.appendChild(headGroup);
+
+  const carriedChip = document.createElementNS(NS,'rect');
+  carriedChip.setAttribute('id','carriedChip');
+  carriedChip.setAttribute('width','18'); carriedChip.setAttribute('height','9');
+  carriedChip.setAttribute('rx','3');
+  carriedChip.setAttribute('fill','#274B41');
+  carriedChip.setAttribute('opacity','0');
+  svg.appendChild(carriedChip);
+
+  // ---------- pose de frente (parado, pousado) ----------
+  const gf = document.createElementNS(NS,'g');
+  gf.setAttribute('id','birdFront');
+  gf.setAttribute('opacity','0');
+  svg.appendChild(gf);
+
+  const tailF = document.createElementNS(NS,'path');
+  tailF.setAttribute('d','M -5 5 L -3 12 L 0 6 L 3 12 L 5 5 Z');
+  tailF.setAttribute('fill','#2E63D9');
+  gf.appendChild(tailF);
+
+  const wingLF = document.createElementNS(NS,'path');
+  wingLF.setAttribute('d','M -6 -2 Q -11 2 -7 8 Q -3 7 -3 1 Q -4 -2 -6 -2 Z');
+  wingLF.setAttribute('fill','#3E7BFA');
+  gf.appendChild(wingLF);
+  const wingRF = document.createElementNS(NS,'path');
+  wingRF.setAttribute('d','M 6 -2 Q 11 2 7 8 Q 3 7 3 1 Q 4 -2 6 -2 Z');
+  wingRF.setAttribute('fill','#3E7BFA');
+  gf.appendChild(wingRF);
+
+  const bodyF = document.createElementNS(NS,'ellipse');
+  bodyF.setAttribute('cx','0'); bodyF.setAttribute('cy','0');
+  bodyF.setAttribute('rx','7.4'); bodyF.setAttribute('ry','7');
+  bodyF.setAttribute('fill','url(#birdGrad)');
+  gf.appendChild(bodyF);
+
+  const bellyF = document.createElementNS(NS,'ellipse');
+  bellyF.setAttribute('cx','0'); bellyF.setAttribute('cy','2');
+  bellyF.setAttribute('rx','4.6'); bellyF.setAttribute('ry','4.6');
+  bellyF.setAttribute('fill','#D9ECFF');
+  bellyF.setAttribute('opacity','0.9');
+  gf.appendChild(bellyF);
+
+  const feetF = document.createElementNS(NS,'g');
+  feetF.setAttribute('id','feetGroupFront');
+  gf.appendChild(feetF);
+
+  const headGroupF = document.createElementNS(NS,'g');
+  headGroupF.setAttribute('id','headGroupFront');
+  const headF = document.createElementNS(NS,'circle');
+  headF.setAttribute('cx','0'); headF.setAttribute('cy','-8'); headF.setAttribute('r','6');
+  headF.setAttribute('fill','#3E7BFA');
+  headGroupF.appendChild(headF);
+  const beakF = document.createElementNS(NS,'path');
+  beakF.setAttribute('d','M 2.5 -6.6 L 8 -5.2 L 2.8 -3.6 Z');
+  beakF.setAttribute('fill','#FFB84D');
+  headGroupF.appendChild(beakF);
+  const eyeF = document.createElementNS(NS,'circle');
+  eyeF.setAttribute('cx','2.6'); eyeF.setAttribute('cy','-9'); eyeF.setAttribute('r','1.6');
+  eyeF.setAttribute('fill','#0E1512');
+  headGroupF.appendChild(eyeF);
+  const eyePupilF = document.createElementNS(NS,'circle');
+  eyePupilF.setAttribute('id','eyePupilFront');
+  eyePupilF.setAttribute('cx','3.0'); eyePupilF.setAttribute('cy','-9'); eyePupilF.setAttribute('r','0.7');
+  eyePupilF.setAttribute('fill','#fff');
+  headGroupF.appendChild(eyePupilF);
+  gf.appendChild(headGroupF);
+}
+initBird();
+
+function render(){
+  const g = document.getElementById('birdGroup');
+  const angDeg = ang*180/Math.PI;
+  const c = Math.cos(ang);
+  if (!flipState && c < -0.2) flipState = true;
+  else if (flipState && c > 0.2) flipState = false;
+  const bobY = Math.sin(wingPhase)*0.5;
+  let footOffset = 0;
+  if (birdState === 'landing' || birdState === 'takeoff') footOffset = 4 + legsExtend*9;
+  else if (birdState === 'perch') footOffset = FRONT_LEG_LEN;
+  g.setAttribute('transform', `translate(${bx} ${by-footOffset+bobY}) rotate(${angDeg}) scale(1,${flipState?-1:1})`);
+
+  const wingGroup = document.getElementById('wingGroup');
+  let flapAngle;
+  if (birdState === 'landing'){
+    const spread = clamp(landingTimer/landingTotal, 0, 1);
+    flapAngle = -46 * spread + Math.sin(wingPhase)*6*spread;
+  } else if (birdState === 'takeoff'){
+    flapAngle = Math.sin(wingPhase)*40 - 10;
+  } else {
+    const flapAmp = birdState==='perch' ? 6 : 34;
+    flapAngle = birdState==='perch'
+      ? Math.sin(wingPhase)*flapAmp*0.4
+      : Math.sin(wingPhase)*flapAmp - flapAmp*0.3;
+  }
+  wingGroup.setAttribute('transform', `rotate(${flapAngle} -1 -2)`);
+
+  const headGroup = document.getElementById('headGroup');
+  let headTilt = 0;
+  if (preenTimer > 0){
+    headTilt = -55;
+  } else {
+    if (mouseActive){
+      const dx = mouseX-bx, dy = mouseY-by;
+      const worldAng = Math.atan2(dy,dx);
+      let rel = (worldAng - ang)*(flipState?-1:1);
+      while (rel > Math.PI) rel -= Math.PI*2;
+      while (rel < -Math.PI) rel += Math.PI*2;
+      lookX += (clamp(rel,-0.9,0.9) - lookX)*0.08;
+    } else {
+      lookX += (0 - lookX)*0.05;
+    }
+    headTilt = lookX*22;
+  }
+  if (alertTimer > 0) headTilt -= 18;
+  if (birdState === 'pecking'){
+    const jab = peckTimer < 7 ? peckTimer*3 : (14-peckTimer)*3;
+    headTilt += jab;
+  }
+  headGroup.setAttribute('transform', `rotate(${headTilt} 2 -1)`);
+
+  const carriedChip = document.getElementById('carriedChip');
+  if (birdState === 'carrying' || birdState === 'toGrab'){
+    if (birdState === 'carrying'){
+      carriedChip.setAttribute('x', bx-9);
+      carriedChip.setAttribute('y', by+7);
+      carriedChip.setAttribute('opacity','0.95');
+    } else {
+      carriedChip.setAttribute('opacity','0');
+    }
+  } else {
+    carriedChip.setAttribute('opacity','0');
+  }
+
+  const feetGroup = document.getElementById('feetGroup');
+  const showFeet = (legsExtend > 0.02 || birdState === 'carrying') && !(birdState === 'perch');
+  if (showFeet){
+    const ext = birdState === 'carrying' ? 1 : legsExtend;
+    const legLen = birdState === 'carrying' ? 9.5 : (4 + ext*9);
+    let d = '';
+    for (const fx of [-1.6, 1.6]){
+      const footY = 5 + legLen;
+      d += `M ${fx} 5 L ${fx} ${footY} `;
+      d += `M ${fx} ${footY} L ${fx-2.1} ${footY+1.6} `;
+      d += `M ${fx} ${footY} L ${fx+2.1} ${footY+1.6} `;
+      d += `M ${fx} ${footY} L ${fx} ${footY+2.4} `;
+    }
+    const feetPath = feetGroup.querySelector('path') || document.createElementNS(NS,'path');
+    feetPath.setAttribute('d', d);
+    feetPath.setAttribute('stroke','#E0A840');
+    feetPath.setAttribute('stroke-width','1.15');
+    feetPath.setAttribute('stroke-linecap','round');
+    feetPath.setAttribute('fill','none');
+    if (!feetPath.parentNode) feetGroup.appendChild(feetPath);
+    feetGroup.setAttribute('opacity','1');
+  } else {
+    feetGroup.setAttribute('opacity','0');
+  }
+
+  // ---------- pose de frente (sempre que pousado de vez) ----------
+  const gf = document.getElementById('birdFront');
+  const isFront = birdState === 'perch';
+  g.setAttribute('opacity', isFront ? '0' : '1');
+  gf.setAttribute('opacity', isFront ? '1' : '0');
+
+  if (isFront){
+    gf.setAttribute('transform', `translate(${bx} ${by-FRONT_LEG_LEN+bobY})`);
+
+    const headGroupFront = document.getElementById('headGroupFront');
+    let tiltF = 0;
+    if (preenTimer > 0){
+      tiltF = 34;
+    } else {
+      if (mouseActive){
+        const target = clamp((mouseX-bx)/70, -0.9, 0.9);
+        lookXFront += (target - lookXFront)*0.08;
+      } else {
+        lookXFront += (0 - lookXFront)*0.05;
+      }
+      tiltF = lookXFront*20;
+    }
+    if (alertTimer > 0) tiltF -= 10;
+    headGroupFront.setAttribute('transform', `rotate(${tiltF} 0 -6)`);
+
+    const feetGroupFront = document.getElementById('feetGroupFront');
+    let df = '';
+    for (const fx of [-3, 3]){
+      const footY = FRONT_LEG_LEN;
+      df += `M ${fx} ${FRONT_BODY_BOTTOM} L ${fx} ${footY} `;
+      df += `M ${fx} ${footY} L ${fx-2.1} ${footY+1.6} `;
+      df += `M ${fx} ${footY} L ${fx+2.1} ${footY+1.6} `;
+      df += `M ${fx} ${footY} L ${fx} ${footY+2.4} `;
+    }
+    feetGroupFront.innerHTML = '';
+    const feetPathF = document.createElementNS(NS,'path');
+    feetPathF.setAttribute('d', df);
+    feetPathF.setAttribute('stroke','#E0A840');
+    feetPathF.setAttribute('stroke-width','1.15');
+    feetPathF.setAttribute('stroke-linecap','round');
+    feetPathF.setAttribute('fill','none');
+    feetGroupFront.appendChild(feetPathF);
+  }
+}
+
+window.addEventListener('resize', buildGrid);
+stepBird();
+</script>
+</body>
+</html>
