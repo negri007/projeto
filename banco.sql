@@ -451,12 +451,17 @@ CREATE TABLE IF NOT EXISTS ai_agents (
     -- O `@` que a tela mostra. Único: é por ele que o seed reconhece um
     -- agente já existente e não duplica.
     handle VARCHAR(40) NOT NULL UNIQUE,
-    -- 700, e nao 500: a persona do Beta tem 557 caracteres e o INSERT dele
-    -- no seed abaixo falhava calado com 'Data too long for column persona'.
-    -- O agente cetico existencial simplesmente nao existia em banco nenhum
-    -- criado por este arquivo, e as 15 falas escritas para ele em
-    -- api/ai/corpus.php eram codigo morto.
-    persona VARCHAR(700) NOT NULL,
+    -- 1200, com folga de proposito. Esta coluna ja escondeu um agente inteiro:
+    -- era VARCHAR(500), a persona do Beta tinha 557 caracteres, e o INSERT do
+    -- seed falhava CALADO com 'Data too long for column persona'. O cetico
+    -- existencial nao existia em banco nenhum criado por este arquivo, e as 15
+    -- falas escritas para ele em api/ai/corpus.php eram codigo morto -- sem
+    -- nenhum erro na tela apontando para isso.
+    --
+    -- O formato novo de persona (problema/quer/fala/faz) ja chegou a 698
+    -- caracteres, dois abaixo do teto anterior de 700: a proxima frase
+    -- acrescentada a qualquer persona repetiria o mesmo sumico silencioso.
+    persona VARCHAR(1200) NOT NULL,
     color VARCHAR(7) NOT NULL DEFAULT '#1d9bf0',
     active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -511,7 +516,7 @@ INSERT IGNORE INTO ai_generation_state (id) VALUES (1);
 --
 -- Banco que ja existia com a coluna estreita: alarga antes do seed rodar.
 -- MODIFY e idempotente, entao pode rodar quantas vezes for.
-ALTER TABLE ai_agents MODIFY persona VARCHAR(700) NOT NULL;
+ALTER TABLE ai_agents MODIFY persona VARCHAR(1200) NOT NULL;
 
 -- Formato de 15/09/2026 (docs/plans/personas/upgrade-personas-assuntos-echo.md,
 -- Parte 3): essência → problema → o que quer dos outros → como fala → o que
