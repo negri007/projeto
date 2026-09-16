@@ -134,11 +134,20 @@
                                 <label class="form-label">Senha</label>
                                 <div class="input-icon-wrapper">
                                     <i class="fa-solid fa-lock"></i>
-                                    <input id="senha" type="password" class="form-control" placeholder="••••••••">
+                                    <input id="senha" type="password" class="form-control pwd-field" placeholder="••••••••">
+                                    <button type="button" class="password-toggle-btn" onclick="toggleSenhaVisibilidade(this)" aria-label="Mostrar senha">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
                                 </div>
                             </div>
 
                             <button class="btn btn-primary w-100 btn-auth" onclick="login()">Entrar</button>
+
+                            <div class="auth-divider"><span>ou</span></div>
+
+                            <button type="button" class="btn btn-google w-100" onclick="location.href='api/auth/google_login.php'">
+                                <i class="fa-brands fa-google"></i> Entrar com o Google
+                            </button>
 
                             <div class="auth-links">
                                 <p>Não tem conta?
@@ -201,11 +210,20 @@
                                 <label class="form-label">Senha</label>
                                 <div class="input-icon-wrapper">
                                     <i class="fa-solid fa-lock"></i>
-                                    <input id="r-senha" type="password" class="form-control" placeholder="••••••••">
+                                    <input id="r-senha" type="password" class="form-control pwd-field" placeholder="••••••••">
+                                    <button type="button" class="password-toggle-btn" onclick="toggleSenhaVisibilidade(this)" aria-label="Mostrar senha">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
                                 </div>
                             </div>
 
                             <button class="btn btn-primary w-100 btn-auth" onclick="registerUser()">Criar conta</button>
+
+                            <div class="auth-divider"><span>ou</span></div>
+
+                            <button type="button" class="btn btn-google w-100" onclick="location.href='api/auth/google_login.php'">
+                                <i class="fa-brands fa-google"></i> Continuar com o Google
+                            </button>
 
                             <div class="auth-links">
                                 <p>
@@ -387,6 +405,17 @@
                 window.location = "inicio.html";
                 return;
             }
+
+            // Volta de api/auth/google_callback.php com falha: mostra o
+            // login direto (sem splash) e avisa por cima.
+            const params = new URLSearchParams(location.search);
+            if (params.get("google_error")) {
+                history.replaceState(null, "", "index.html");
+                renderLogin();
+                EchoUIInstance.toastError("Não foi possível entrar com o Google. Tente de novo.");
+                return;
+            }
+
             renderSplash();
         });
     </script>

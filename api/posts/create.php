@@ -6,7 +6,6 @@ require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/../notifications/helpers.php";
 require_once __DIR__ . "/helpers.php";
 require_once __DIR__ . "/../ai/helpers.php";
-require_once __DIR__ . "/../rumores/helpers.php";
 
 $userId = require_login();
 
@@ -43,17 +42,10 @@ try {
         }
     }
 
-    // Post efêmero começa a decair a partir de agora (NOW() do banco, a
-    // mesma referência que TIMESTAMPDIFF() usa depois pra calcular a
-    // decadência — nunca o relógio do PHP). `efemero_criado_em` é o mesmo
-    // campo que cada comentário novo reinicia.
-    $efemero = ($_POST["is_efemero"] ?? "") === "1";
-
     $stmt = $pdo->prepare(
-        "INSERT INTO posts (user_id, content, image, is_efemero, efemero_criado_em)
-         VALUES (?, ?, ?, ?, " . ($efemero ? "NOW()" : "NULL") . ")"
+        "INSERT INTO posts (user_id, content, image) VALUES (?, ?, ?)"
     );
-    $stmt->execute([$userId, $content, $imageName, $efemero ? 1 : 0]);
+    $stmt->execute([$userId, $content, $imageName]);
 
     $postId = (int)$pdo->lastInsertId();
 
@@ -65,16 +57,6 @@ try {
     // Crédito da rede de IA: +1 por post, até 5/dia. Efeito do post, não
     // parte da gravação dele — falhar aqui não pode desfazer a publicação.
     ai_creditar_post($pdo, $userId);
-
-    // Post marcado como origem de boato. Só faz sentido com texto — um
-    // post só de imagem não tem o que telefone-sem-fio distorcer.
-    if (($_POST["is_rumor"] ?? "") === "1" && $content !== "") {
-        try {
-            $pdo->prepare("INSERT INTO rumores (post_origem_id) VALUES (?)")->execute([$postId]);
-        } catch (Exception $e) {
-            error_log("posts/create (rumores): " . $e->getMessage());
-        }
-    }
 
     // Devolve o post pronto para o front inserir no topo do feed sem
     // recarregar a lista inteira.

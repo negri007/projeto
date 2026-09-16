@@ -294,6 +294,7 @@ var olhos = [
    ======================================================================= */
 
 var MIN_LARGURA = 54;
+var MIN_ALTURA = 54;   // mesmo piso, pro escaneamento de arestas verticais
 
 /* Ele pousa em qualquer linha que o layout realmente desenhe, em qualquer
    página — não há lista de classes para manter. A varredura olha o que está
@@ -334,22 +335,31 @@ function fundoAtras(el) {
 
 /* Cor e espessura da linha, para repintá-la por cima da garra — e, de quebra,
    o teste de "isto é mesmo uma linha". Devolve null quando não é. */
+// "topo"/"base" = arestas horizontais; "esquerda"/"direita" = verticais
+// (divisor de coluna, borda de sidebar). Mesma regra das duas, só troca
+// qual propriedade CSS e qual dimensão (largura vs altura) o teste usa.
 function estiloDaAresta(el, borda) {
-  var chave = borda === "base" ? "_base" : "_topo";
+  var vertical = borda === "esquerda" || borda === "direita";
+  var chave = "_" + borda;
   var cache = estilos.get(el);
   if (cache && cache[chave] !== undefined) return cache[chave];
   if (!cache) { cache = {}; estilos.set(el, cache); }
 
   var cs = getComputedStyle(el), r = el.getBoundingClientRect();
-  var lb = parseFloat(borda === "base" ? cs.borderBottomWidth : cs.borderTopWidth) || 0;
-  var cb = borda === "base" ? cs.borderBottomColor : cs.borderTopColor;
+  var propLarg = { topo: "borderTopWidth", base: "borderBottomWidth",
+                    esquerda: "borderLeftWidth", direita: "borderRightWidth" }[borda];
+  var propCor = { topo: "borderTopColor", base: "borderBottomColor",
+                   esquerda: "borderLeftColor", direita: "borderRightColor" }[borda];
+  var lb = parseFloat(cs[propLarg]) || 0;
+  var cb = cs[propCor];
   var res = null;
+  var fina = vertical ? r.width <= 3 : r.height <= 3;
 
   if (lb > 0 && opaca(cb)) {
     res = { cor: cb, esp: Math.max(1, lb),
             cor2: opaca(cs.backgroundColor) ? cs.backgroundColor : null, esp2: 3 };
-  } else if (r.height <= 3 && opaca(cs.backgroundColor)) {
-    res = { cor: cs.backgroundColor, esp: Math.max(1, r.height), cor2: null, esp2: 0 };
+  } else if (fina && opaca(cs.backgroundColor)) {
+    res = { cor: cs.backgroundColor, esp: Math.max(1, vertical ? r.width : r.height), cor2: null, esp2: 0 };
   } else if (opaca(cs.backgroundColor) && cs.backgroundColor !== fundoAtras(el)) {
     res = { cor: cs.backgroundColor, esp: 3.5, cor2: null, esp2: 0 };
   }
@@ -381,20 +391,34 @@ function listarPoleiros() {
     if (e === ceu || ceu.contains(e) || e.closest(FORA)) continue;
 
     var r = e.getBoundingClientRect();
-    if (r.width < MIN_LARGURA || r.width > vw + 80) continue;
-    if (r.height < 8) continue;
-    if (r.right < 24 || r.left > vw - 24) continue;
-
     var manual = e.hasAttribute("data-poleiro");
 
-    for (var b = 0; b < 2; b++) {
-      var borda = b ? "base" : "topo";
-      var y = b ? r.bottom : r.top;
-      if (y < 56 || y > vh - 40) continue;
-      // marcado à mão dispensa o teste de linha; o resto precisa passar
-      if (!manual && !estiloDaAresta(e, borda)) continue;
-      if (!descoberto(e, r.left + r.width / 2, y + (b ? -4 : 4))) continue;
-      saida.push({ el: e, borda: borda, area: r.width * r.height, y: y });
+    // arestas horizontais: topo e base do elemento
+    if (r.width >= MIN_LARGURA && r.width <= vw + 80 && r.height >= 8
+        && r.right >= 24 && r.left <= vw - 24) {
+      for (var b = 0; b < 2; b++) {
+        var borda = b ? "base" : "topo";
+        var y = b ? r.bottom : r.top;
+        if (y < 56 || y > vh - 40) continue;
+        // marcado à mão dispensa o teste de linha; o resto precisa passar
+        if (!manual && !estiloDaAresta(e, borda)) continue;
+        if (!descoberto(e, r.left + r.width / 2, y + (b ? -4 : 4))) continue;
+        saida.push({ el: e, borda: borda, eixo: "h", area: r.width * r.height, pos: y });
+      }
+    }
+
+    // arestas verticais: esquerda e direita do elemento — mesmo teste,
+    // largura/altura e x/y trocados (ver docs/plans, "pouso vertical").
+    if (r.height >= MIN_ALTURA && r.height <= vh + 80 && r.width >= 8
+        && r.bottom >= 56 && r.top <= vh - 40) {
+      for (var bv = 0; bv < 2; bv++) {
+        var bordaV = bv ? "direita" : "esquerda";
+        var x = bv ? r.right : r.left;
+        if (x < 24 || x > vw - 24) continue;
+        if (!manual && !estiloDaAresta(e, bordaV)) continue;
+        if (!descoberto(e, x + (bv ? -4 : 4), r.top + r.height / 2)) continue;
+        saida.push({ el: e, borda: bordaV, eixo: "v", area: r.width * r.height, pos: x });
+      }
     }
   }
 
@@ -406,23 +430,41 @@ function listarPoleiros() {
   for (var j = 0; j < saida.length; j++) {
     var c = saida[j], repetido = false;
     for (var k = 0; k < limpos.length; k++) {
-      if (Math.abs(limpos[k].y - c.y) <= 3 && limpos[k].el.contains(c.el)) { repetido = true; break; }
-      if (Math.abs(limpos[k].y - c.y) <= 3 && c.el.contains(limpos[k].el)) { repetido = true; break; }
+      if (limpos[k].eixo !== c.eixo) continue;
+      if (Math.abs(limpos[k].pos - c.pos) <= 3 && limpos[k].el.contains(c.el)) { repetido = true; break; }
+      if (Math.abs(limpos[k].pos - c.pos) <= 3 && c.el.contains(limpos[k].el)) { repetido = true; break; }
     }
     if (!repetido) limpos.push(c);
   }
   return limpos;
 }
 
+// Devolve a linha num formato uniforme por eixo: horizontal tem x0/x1
+// (extensão) e y (posição fixa); vertical tem y0/y1 e x. `eixo` diz qual.
 function linhaDo(p) {
   var r = p.el.getBoundingClientRect();
+  if (p.eixo === "v") {
+    var x = p.borda === "direita" ? r.right : r.left;
+    var recV = Math.min(16, r.height * 0.2);
+    return { eixo: "v", x: x, y0: r.top + recV, y1: r.bottom - recV, alt: r.height };
+  }
   var y = p.borda === "base" ? r.bottom : r.top;
   var rec = Math.min(16, r.width * 0.2);
-  return { x0: r.left + rec, x1: r.right - rec, y: y, larg: r.width };
+  return { eixo: "h", x0: r.left + rec, x1: r.right - rec, y: y, larg: r.width };
 }
 function pontoDoPoleiro(p) {
   var l = linhaDo(p);
+  if (l.eixo === "v") return { x: l.x, y: lerp(l.y0, l.y1, p.frac), l: l };
   return { x: lerp(l.x0, l.x1, p.frac), y: l.y, l: l };
+}
+// Extremos "ao longo da linha", nos dois eixos: [x0,x1] pra horizontal,
+// [y0,y1] pra vertical — é o que os gestos (andar, pular) andam dentro.
+function limitesDaLinha(l) {
+  return l.eixo === "v" ? [l.y0, l.y1] : [l.x0, l.x1];
+}
+function comprimentoDaLinha(l) {
+  var lim = limitesDaLinha(l);
+  return lim[1] - lim[0];
 }
 
 /* =========================================================================
@@ -461,7 +503,7 @@ var B = {
   tarefa: null,
   susto: 0,
   freadaDe: null,
-  _largou: 0, _pousouPulo: 0, _rumoEsc: 0
+  _largou: 0, _pousouPulo: 0, _rumoEsc: 0, _escorrega: null
 };
 
 var mouse = { x: innerWidth / 2, y: innerHeight / 2, vivo: false };
@@ -578,9 +620,14 @@ var impacto = 0;   // 1 -> 0: a linha do layout verga sob o peso e volta
 function desenhaVergadura(x, y, l) {
   if (impacto <= 0.002) { el.verga.setAttribute("opacity", 0); el.verga2.setAttribute("opacity", 0); return; }
   var amp = impacto * 4.6 * Math.cos((1 - impacto) * 15);
-  var meia = 48;
-  var a = clamp(x - meia, l.x0 - 18, x - 6), b = clamp(x + meia, x + 6, l.x1 + 18);
-  var d = "M " + a.toFixed(1) + "," + y.toFixed(1) + " Q " + x.toFixed(1) + "," + (y + amp * 2.2).toFixed(1) + " " + b.toFixed(1) + "," + y.toFixed(1);
+  var meia = 48, d;
+  if (l.eixo === "v") {
+    var av = clamp(y - meia, l.y0 - 18, y - 6), bv = clamp(y + meia, y + 6, l.y1 + 18);
+    d = "M " + x.toFixed(1) + "," + av.toFixed(1) + " Q " + (x + amp * 2.2).toFixed(1) + "," + y.toFixed(1) + " " + x.toFixed(1) + "," + bv.toFixed(1);
+  } else {
+    var a = clamp(x - meia, l.x0 - 18, x - 6), b = clamp(x + meia, x + 6, l.x1 + 18);
+    d = "M " + a.toFixed(1) + "," + y.toFixed(1) + " Q " + x.toFixed(1) + "," + (y + amp * 2.2).toFixed(1) + " " + b.toFixed(1) + "," + y.toFixed(1);
+  }
   el.verga.setAttribute("d", d);
   el.verga.setAttribute("opacity", clamp(impacto * 0.9, 0, 0.9).toFixed(2));
   el.verga2.setAttribute("d", d);
@@ -623,7 +670,7 @@ function escolhePoleiro(evitar) {
     // linha desenhada de verdade (borda de card, divisor) vale mais que a
     // aresta invisivel de uma caixa qualquer
     // linha estreita é mais difícil de acertar e mais bonita de ver: peso extra
-    var l = linhaDo(p), estreita = (l.x1 - l.x0) < 260 ? 1.3 : 1;
+    var l = linhaDo(p), estreita = comprimentoDaLinha(l) < 260 ? 1.3 : 1;
     return { p: p, peso: d * estreita * rnd(0.6, 1.5) };
   }).sort(function (a, b) { return b.peso - a.peso; });
   var topo = cand.slice(0, Math.max(3, (cand.length / 2) | 0));
@@ -642,8 +689,16 @@ function mandaPousar(p) {
   if (B.destino.frac == null) { B.destino.frac = rnd(0.2, 0.8); B.destino.ang = rnd(-1.6, 1.6); }
   B.poleiro = null;
   var alvo = pontoDoPoleiro(B.destino);
-  var lado = alvo.x > innerWidth / 2 ? 1 : -1;
-  B.alvo = { x: alvo.x + lado * rnd(90, 155), y: alvo.y - rnd(70, 120) };
+  if (B.destino.eixo === "v") {
+    // linha vertical: "fora" é o lado sem o elemento — esquerda pra borda
+    // direita, direita pra borda esquerda — e a espera fica na altura dela,
+    // não acima (não existe "acima de uma linha vertical").
+    var fora = B.destino.borda === "direita" ? 1 : -1;
+    B.alvo = { x: alvo.x + fora * rnd(90, 155), y: alvo.y + rnd(-60, 60) };
+  } else {
+    var lado = alvo.x > innerWidth / 2 ? 1 : -1;
+    B.alvo = { x: alvo.x + lado * rnd(90, 155), y: alvo.y - rnd(70, 120) };
+  }
   troca("voo");
 }
 
@@ -673,26 +728,26 @@ function novoGesto() {
   if (g === "andar") {
     // passinhos ao longo da própria linha. Quantos cabem depende do que sobra
     // de linha para aquele lado — ele não anda para fora do poleiro.
-    var la = linhaDo(B.poleiro);
-    var atual = lerp(la.x0, la.x1, B.poleiro.frac);
-    var sobra = B.gestoSinal > 0 ? la.x1 - atual : atual - la.x0;
+    var la = linhaDo(B.poleiro), limA = limitesDaLinha(la);
+    var atual = lerp(limA[0], limA[1], B.poleiro.frac);
+    var sobra = B.gestoSinal > 0 ? limA[1] - atual : atual - limA[0];
     var passos = clamp(Math.floor(sobra / 13), 0, 5);
     if (passos < 2) { B.gestoSinal = -B.gestoSinal;
-      sobra = B.gestoSinal > 0 ? la.x1 - atual : atual - la.x0;
+      sobra = B.gestoSinal > 0 ? limA[1] - atual : atual - limA[0];
       passos = clamp(Math.floor(sobra / 13), 0, 5);
     }
     if (passos < 2) { B.gesto = "ajeitar"; B.gestoDur = 0.7; return; }
-    B.andar = { passos: passos, dir: B.gestoSinal, passo: 12.5, de: B.poleiro.frac, larg: Math.max(1, la.x1 - la.x0) };
+    B.andar = { passos: passos, dir: B.gestoSinal, passo: 12.5, de: B.poleiro.frac, larg: Math.max(1, limA[1] - limA[0]) };
     B.gestoDur = passos * 0.42;
     return;
   }
 
   if (g === "pular") {
-    var l = linhaDo(B.poleiro);
+    var l = linhaDo(B.poleiro), limP = limitesDaLinha(l);
     var passo = rnd(26, 64) * B.gestoSinal;
-    var fx = clamp(lerp(l.x0, l.x1, B.poleiro.frac) + passo, l.x0, l.x1);
+    var fx = clamp(lerp(limP[0], limP[1], B.poleiro.frac) + passo, limP[0], limP[1]);
     B.poleiro.fracDe = B.poleiro.frac;
-    B.poleiro.fracAlvo = (fx - l.x0) / Math.max(1, l.x1 - l.x0);
+    B.poleiro.fracAlvo = (fx - limP[0]) / Math.max(1, limP[1] - limP[0]);
   }
   if (g === "cantar") ecoNoPeito();
 }
@@ -845,6 +900,16 @@ function passo(dt) {
       B.poleiro = B.destino;
       impacto = 1;
       solta(pt.x, pt.y, 6, 95, "#7fc2ea");
+      // Pouso vertical não é "freia e trava" como o horizontal — é agarrar
+      // de raspão e escorregar um pouco antes de segurar de vez. O sentido
+      // segue a velocidade vertical que ele já trazia (quem vinha descendo
+      // continua descendo um tico). Some sozinho dentro da janela do
+      // "impacto" — ver abaixo.
+      B._escorrega = B.poleiro.eixo === "v"
+        ? { de: B.poleiro.frac,
+            ate: clamp(B.poleiro.frac + (B.vy >= 0 ? 1 : -1) * rnd(0.07, 0.16), 0.04, 0.96),
+            dur: rnd(0.22, 0.4) }
+        : null;
       troca("impacto");
     }
     return;
@@ -852,10 +917,16 @@ function passo(dt) {
 
   /* ------------------------------------------------------------ impacto
      O peso cai em cima da linha: corpo afunda, garra trava, asas dão dois
-     tremidos pra recuperar o equilíbrio, cauda bombeia. */
+     tremidos pra recuperar o equilíbrio, cauda bombeia. Em linha vertical,
+     a garra também escorrega um pouco antes de segurar (B._escorrega). */
   if (f === "impacto") {
     if (!B.poleiro || !B.poleiro.el.isConnected) { mandaPousar(null); return; }
     var DI = 0.55, ki = clamp(B.t / DI, 0, 1);
+    if (B._escorrega) {
+      var ke = clamp(B.t / B._escorrega.dur, 0, 1);
+      B.poleiro.frac = lerp(B._escorrega.de, B._escorrega.ate, easeOut(ke));
+      if (ke >= 1) B._escorrega = null;
+    }
     var pi = pontoDoPoleiro(B.poleiro);
     B.x = pi.x; B.y = pi.y; B.peY = 0;
     B.aperto = clamp(B.t / 0.09, 0, 1);
@@ -1031,8 +1102,11 @@ function passo(dt) {
     // poleiro saiu da tela com o scroll
     B.trocaEm -= dt * (1 - B.sono * 0.65);   // de madrugada ele fica mais no lugar
     var lp = linhaDo(B.poleiro);
+    var saiuDaTela = lp.eixo === "v"
+      ? (lp.x < 24 || lp.x > innerWidth - 24)
+      : (lp.y < 48 || lp.y > innerHeight - 30);
     if (B.trocaEm <= 0 && !B.gesto) { B.destinoFuturo = escolhePoleiro(B.poleiro); levanta(); }
-    else if (B.susto > 0.9 || lp.y < 48 || lp.y > innerHeight - 30) { B.susto = 0; levanta(); }
+    else if (B.susto > 0.9 || saiuDaTela) { B.susto = 0; levanta(); }
     return;
   }
 
@@ -1221,7 +1295,16 @@ function desenha(dt) {
   var voando = !!FASES_VOO[B.fase];
 
   // raiz: leva o bicho até o ponto de contato, inclina com o poleiro, espelha
-  var angPol = B.poleiro && !voando ? (B.poleiro.ang || 0) : 0;
+  //
+  // Linha vertical: gira o bicho inteiro 90° pra ele ficar "deitado" contra
+  // a borda — corpo apontando pro lado aberto (longe do elemento), como um
+  // pica-pau agarrado num tronco. Sinal do giro depende de qual lado é o
+  // vazio: borda direita, corpo pro +x; borda esquerda, corpo pro -x.
+  var angPol = 0;
+  if (B.poleiro && !voando) {
+    angPol = B.poleiro.ang || 0;
+    if (B.poleiro.eixo === "v") angPol += B.poleiro.borda === "direita" ? 90 : -90;
+  }
   el.passaro.setAttribute("transform",
     "translate(" + B.x.toFixed(2) + "," + B.y.toFixed(2) + ") rotate(" + angPol.toFixed(2) + ")" +
     " scale(" + (B.rumo * esc * B.escX).toFixed(3) + "," + (esc * B.escY).toFixed(3) + ")");
@@ -1339,42 +1422,80 @@ function desenha(dt) {
     olhos[o][1].setAttribute("opacity", abertura > 0.4 ? 1 : 0);
   }
 
-  // contato com a superfície: sombra de pressão + a linha vergando
+  // contato com a superfície: sombra de pressão + a linha vergando.
+  // Vertical é a mesma marca girada 90° — sombra fica alta em vez de larga,
+  // o risco de pressão vertical em vez de horizontal, e a tira que repinta
+  // a linha por cima da garra cresce em altura em vez de largura.
   if (B.poleiro && !voando) {
     var l = linhaDo(B.poleiro);
     el.contato.setAttribute("opacity", 1);
     var ap = clamp(1 - Math.abs(B.peY) / 12, 0.12, 1);
-    el.sombra.setAttribute("cx", B.x.toFixed(1));
-    el.sombra.setAttribute("cy", (l.y + 1.6).toFixed(1));
-    el.sombra.setAttribute("rx", (15 * esc * lerp(0.72, 1, ap)).toFixed(2));
+    var vertical = l.eixo === "v";
+    var paraDentro = vertical ? (B.poleiro.borda === "direita" ? -1 : 1) : 1;
+
+    if (vertical) {
+      el.sombra.setAttribute("cx", (l.x + paraDentro * 1.6).toFixed(1));
+      el.sombra.setAttribute("cy", B.y.toFixed(1));
+      el.sombra.setAttribute("rx", (2.6 * esc).toFixed(2));
+      el.sombra.setAttribute("ry", (15 * esc * lerp(0.72, 1, ap)).toFixed(2));
+    } else {
+      el.sombra.setAttribute("cx", B.x.toFixed(1));
+      el.sombra.setAttribute("cy", (l.y + 1.6).toFixed(1));
+      el.sombra.setAttribute("rx", (15 * esc * lerp(0.72, 1, ap)).toFixed(2));
+      el.sombra.setAttribute("ry", (2.6 * esc).toFixed(2));
+    }
     el.sombra.setAttribute("opacity", (0.5 * ap).toFixed(2));
+
     // risco claro sob as garras: em fundo escuro a sombra some, e sem nada
     // ali o pé parece flutuar rente à borda
-    el.pressao.setAttribute("d",
-      "M " + (B.x - 11 * esc).toFixed(1) + "," + (l.y + 0.5).toFixed(1) +
-      " L " + (B.x + 11 * esc).toFixed(1) + "," + (l.y + 0.5).toFixed(1));
+    if (vertical) {
+      el.pressao.setAttribute("d",
+        "M " + (l.x + 0.5).toFixed(1) + "," + (B.y - 11 * esc).toFixed(1) +
+        " L " + (l.x + 0.5).toFixed(1) + "," + (B.y + 11 * esc).toFixed(1));
+    } else {
+      el.pressao.setAttribute("d",
+        "M " + (B.x - 11 * esc).toFixed(1) + "," + (l.y + 0.5).toFixed(1) +
+        " L " + (B.x + 11 * esc).toFixed(1) + "," + (l.y + 0.5).toFixed(1));
+    }
     el.pressao.setAttribute("opacity", (0.34 * ap * B.aperto).toFixed(2));
 
     var est = estiloPoleiro(B.poleiro);
     if (est && B.aperto > 0.3) {
       var larg = 30 * esc;
-      el.tira.setAttribute("x", clamp(B.x - larg / 2, l.x0 - 22, l.x1 + 22 - larg).toFixed(1));
-      el.tira.setAttribute("y", l.y.toFixed(1));
-      el.tira.setAttribute("width", larg.toFixed(1));
-      el.tira.setAttribute("height", est.esp.toFixed(2));
-      el.tira.setAttribute("fill", est.cor);
-      if (est.cor2) {
-        el.tira2.setAttribute("x", el.tira.getAttribute("x"));
-        el.tira2.setAttribute("y", (l.y + est.esp).toFixed(1));
-        el.tira2.setAttribute("width", larg.toFixed(1));
-        el.tira2.setAttribute("height", est.esp2);
-        el.tira2.setAttribute("fill", est.cor2);
-        el.tira2.setAttribute("opacity", 1);
-      } else el.tira2.setAttribute("opacity", 0);
+      if (vertical) {
+        var yTira = clamp(B.y - larg / 2, l.y0 - 22, l.y1 + 22 - larg);
+        el.tira.setAttribute("x", l.x.toFixed(1));
+        el.tira.setAttribute("y", yTira.toFixed(1));
+        el.tira.setAttribute("width", est.esp.toFixed(2));
+        el.tira.setAttribute("height", larg.toFixed(1));
+        el.tira.setAttribute("fill", est.cor);
+        if (est.cor2) {
+          el.tira2.setAttribute("x", (l.x + paraDentro * est.esp).toFixed(1));
+          el.tira2.setAttribute("y", yTira.toFixed(1));
+          el.tira2.setAttribute("width", est.esp2);
+          el.tira2.setAttribute("height", larg.toFixed(1));
+          el.tira2.setAttribute("fill", est.cor2);
+          el.tira2.setAttribute("opacity", 1);
+        } else el.tira2.setAttribute("opacity", 0);
+      } else {
+        el.tira.setAttribute("x", clamp(B.x - larg / 2, l.x0 - 22, l.x1 + 22 - larg).toFixed(1));
+        el.tira.setAttribute("y", l.y.toFixed(1));
+        el.tira.setAttribute("width", larg.toFixed(1));
+        el.tira.setAttribute("height", est.esp.toFixed(2));
+        el.tira.setAttribute("fill", est.cor);
+        if (est.cor2) {
+          el.tira2.setAttribute("x", el.tira.getAttribute("x"));
+          el.tira2.setAttribute("y", (l.y + est.esp).toFixed(1));
+          el.tira2.setAttribute("width", larg.toFixed(1));
+          el.tira2.setAttribute("height", est.esp2);
+          el.tira2.setAttribute("fill", est.cor2);
+          el.tira2.setAttribute("opacity", 1);
+        } else el.tira2.setAttribute("opacity", 0);
+      }
       el.tiras.setAttribute("opacity", 1);
     } else el.tiras.setAttribute("opacity", 0);
 
-    desenhaVergadura(B.x, l.y, l);
+    desenhaVergadura(vertical ? l.x : B.x, vertical ? B.y : l.y, l);
   } else {
     el.contato.setAttribute("opacity", 0);
     el.tiras.setAttribute("opacity", 0);
@@ -1454,7 +1575,10 @@ function entrarEmCena(estilo) {
    olha em volta e então desliza para dentro e se agarra na linha mais próxima
    daquele lado. Só depois disso volta a voar pelo layout. */
 function prepararEspiada() {
-  var lista = listarPoleiros();
+  // Espiar-e-escalar é uma mecânica só de linha horizontal (entra pela
+  // borda da tela e desliza pra baixo/lado até a linha) — linha vertical
+  // fica de fora por enquanto, ela pousa pelo caminho normal de voo.
+  var lista = listarPoleiros().filter(function (p) { return p.eixo !== "v"; });
   if (!lista.length) return false;
 
   var vh = innerHeight, vw = innerWidth;
@@ -1673,7 +1797,7 @@ addEventListener("keydown", function () {
 
    Para ligar qualquer outro elemento: data-bit-susto ou data-bit-olhar. */
 var ESPANTAM = "#btnPostar,[data-bit-susto]";
-var CHAMAM_ATENCAO = ".icon-btn,.echo-post-toggle,[data-bit-olhar]";
+var CHAMAM_ATENCAO = ".icon-btn,[data-bit-olhar]";
 
 document.addEventListener("click", function (ev) {
   if (!rodando) return;
@@ -1721,9 +1845,12 @@ function pintaDebug() {
   listarPoleiros().forEach(function (p) {
     var l = linhaDo(p);
     var n = document.createElement("div");
-    n.style.cssText = "position:fixed;height:2px;background:#ff2d95;opacity:.75;" +
-                      "z-index:899;pointer-events:none;left:" + l.x0 + "px;top:" +
-                      l.y + "px;width:" + (l.x1 - l.x0) + "px";
+    var css = "position:fixed;background:" + (l.eixo === "v" ? "#2dff95" : "#ff2d95") +
+              ";opacity:.75;z-index:899;pointer-events:none;";
+    css += l.eixo === "v"
+      ? "left:" + l.x + "px;top:" + l.y0 + "px;width:2px;height:" + (l.y1 - l.y0) + "px"
+      : "left:" + l.x0 + "px;top:" + l.y + "px;width:" + (l.x1 - l.x0) + "px;height:2px";
+    n.style.cssText = css;
     document.body.appendChild(n); linhasDebug.push(n);
   });
 }

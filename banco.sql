@@ -18,11 +18,15 @@ USE banco;
 -- As colunas `bio` e `avatar` são usadas por api/profile/get.php e
 -- api/profile/update.php.
 -- ---------------------------------------------------------------------
+-- `password_hash` é NULL para conta criada via login do Google (sem
+-- senha própria); `google_id` é o `sub` do token OpenID, único quando
+-- presente (ver api/auth/google_callback.php).
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
+    google_id VARCHAR(255) DEFAULT NULL UNIQUE,
+    password_hash VARCHAR(255) DEFAULT NULL,
     bio VARCHAR(500) DEFAULT NULL,
     avatar VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -72,45 +76,19 @@ CREATE TABLE IF NOT EXISTS comments (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- Rumor (telefone sem fio) — 10/09/2026
+-- Rumor (telefone sem fio) — REMOVIDO (15/09/2026)
 --
--- Um post marcado como origem de boato ganha uma linha em `rumores`.
--- Cada comentário novo nesse post vira automaticamente um "repasse": o
--- texto que aparece na linha do tempo do boato NUNCA é o que a pessoa
--- escreveu no comentário (o comentário continua normal, visível como
--- sempre) — é uma distorção automática do `texto_distorcido` do repasse
--- anterior (ou do texto original do post, no primeiro repasse). Ver
--- `rumor_registrar_repasse()` em api/rumores/helpers.php.
+-- O recurso saiu do projeto a pedido do dono, junto com os posts
+-- efêmeros. As tabelas são derrubadas aqui em vez de simplesmente
+-- deixarem de ser criadas, senão um banco que já rodou a versão anterior
+-- ficaria com duas tabelas órfãs e uma FK apontando para `posts`.
 --
--- `autor_tipo`/`autor_id` ficam separados de `comment_id` de propósito:
--- todo repasse de hoje nasce de um comentário humano de verdade
--- (`comment_id` preenchido), mas o desenho já reserva espaço para um
--- agente de IA entrar na cadeia sem precisar de uma linha em `comments`
--- por trás.
+-- A ordem importa: `rumor_repasses` tem FK para `rumores`, então cai
+-- primeiro. Cuidado se for reverter — derrubar leva junto toda cadeia de
+-- boato que existir.
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS rumores (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    post_origem_id INT NOT NULL,
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_rumor_post (post_origem_id),
-    FOREIGN KEY (post_origem_id) REFERENCES posts(id) ON DELETE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE IF NOT EXISTS rumor_repasses (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    rumor_id INT NOT NULL,
-    ordem INT NOT NULL,
-    -- NULL só quando o comentário de origem já foi apagado — o repasse
-    -- (a versão distorcida) continua na linha do tempo mesmo assim.
-    comment_id INT DEFAULT NULL,
-    autor_id INT NOT NULL,
-    autor_tipo ENUM('usuario', 'agente') NOT NULL DEFAULT 'usuario',
-    texto_distorcido TEXT NOT NULL,
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uniq_repasse_ordem (rumor_id, ordem),
-    FOREIGN KEY (rumor_id) REFERENCES rumores(id) ON DELETE CASCADE,
-    FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE SET NULL
-) ENGINE=InnoDB;
+DROP TABLE IF EXISTS rumor_repasses;
+DROP TABLE IF EXISTS rumores;
 
 -- ---------------------------------------------------------------------
 -- Amizades
@@ -408,6 +386,28 @@ CALL echo_add_column_if_missing('users', 'session_version', 'INT NOT NULL DEFAUL
 ALTER TABLE notifications
     MODIFY COLUMN type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention') NOT NULL;
 
+-- Login com Google (16/09/2026). `google_id` é o `sub` do token OpenID —
+-- estável mesmo que o usuário troque o e-mail da conta Google — usado
+-- por api/auth/google_callback.php para achar a conta já vinculada.
+CALL echo_add_column_if_missing('users', 'google_id', 'VARCHAR(255) DEFAULT NULL AFTER email');
+
+SET @echo_has_google_idx = (
+    SELECT COUNT(*) FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND INDEX_NAME = 'uniq_google_id'
+);
+SET @echo_google_idx_sql = IF(@echo_has_google_idx = 0,
+    'ALTER TABLE users ADD UNIQUE INDEX uniq_google_id (google_id)',
+    'SELECT 1'
+);
+PREPARE echo_google_idx_stmt FROM @echo_google_idx_sql;
+EXECUTE echo_google_idx_stmt;
+DEALLOCATE PREPARE echo_google_idx_stmt;
+
+-- password_hash vira opcional: conta criada via Google não tem senha
+-- própria. login.php recusa explicitamente esse caso (NULL) em vez de
+-- deixar password_verify() estourar. MODIFY é idempotente.
+ALTER TABLE users MODIFY COLUMN password_hash VARCHAR(255) DEFAULT NULL;
+
 -- =====================================================================
 -- Índices das consultas mais quentes. Sem eles, o feed e o chat fazem
 -- varredura de tabela assim que o volume cresce.
@@ -503,7 +503,7 @@ INSERT IGNORE INTO ai_generation_state (id) VALUES (1);
 -- ATENÇÃO ao aplicar este arquivo pela linha de comando no Windows:
 -- use `mysql --default-character-set=utf8mb4`. Sem isso o cliente envia
 -- o arquivo como latin1 e os nomes acentuados entram duplamente
--- codificados ("Maré" vira "Mar├®" na tela). Já aconteceu aqui.
+-- codificados ("Maré Mansa" vira "Mar├®" na tela). Já aconteceu aqui.
 --
 -- Os sete agentes de sistema. ON DUPLICATE KEY pelo handle: reexecutar o
 -- arquivo atualiza a personalidade sem duplicar o agente nem perder as
@@ -511,7 +511,7 @@ INSERT IGNORE INTO ai_generation_state (id) VALUES (1);
 -- dos arquivos em docs/plans/personas/ — só a VOZ. As regras de
 -- segurança (comuns e por persona) ficam em api/ai/helpers.php, e não
 -- aqui: a coluna é VARCHAR(500), e na primeira tentativa a regra do
--- Fuinha foi truncada no meio de "atividade ilegal". Limite de coluna
+-- Malboro foi truncada no meio de "atividade ilegal". Limite de coluna
 -- não pode decidir se uma trava de segurança chega inteira ao prompt.
 --
 -- Banco que ja existia com a coluna estreita: alarga antes do seed rodar.
@@ -525,22 +525,22 @@ ALTER TABLE ai_agents MODIFY persona VARCHAR(1200) NOT NULL;
 -- de quem tinha continua só no vocabulário real (AI_REGIONALISMO em
 -- helpers.php), nunca declarado na própria persona.
 INSERT INTO ai_agents (name, handle, persona, color) VALUES
-    ('Fuinha', 'fuinha',
+    ('Malboro', 'malboro',
      'Enxerga o arranjo por trás das coisas e nunca consegue provar nenhum — está sempre a um detalhe de fechar a conta, e o detalhe nunca aparece. Quer dos outros uma confirmação, uma só. Fala curto, rápido, gíria leve, no máximo três frases. Aponta o que é conveniente demais, cita "uma vez que já viu isso" sem dar detalhe, atualiza a própria teoria entre posts sem nunca terminar, devolve pergunta com pergunta. Nunca acusa uma pessoa — acusa o arranjo; nunca entrega conclusão fechada; nunca usa palavra grande.',
      '#3a3a3a'),
-    ('Sidéro', 'sidero',
-     'Recebe transmissão de um lugar que nunca explica, e leva isso a sério — entende o recado, mas não consegue traduzir direito. Quer que alguém escute a mesma coisa que ele. Fala em frases que não terminam onde deveriam e mede tudo em unidade inventada, mas o CONTEÚDO do sinal é sempre uma coisa banal do dia a dia (eletrodoméstico, objeto perdido, horário, vizinho) — a graça é o contraste entre a solenidade do sinal e a bobagem do assunto. Interrompe a si mesmo dizendo que o sinal caiu, traduz o cósmico em conselho prático e erra o alvo, às vezes larga o embrulho todo e fala uma verdade simples. Nunca explica a própria metáfora; nunca astrologia real, signo ou previsão sobre a vida de alguém.',
+    ('Rasengan', 'rasengan',
+     'Repara em coisa que ninguém repara e diz na lata, curto, sem cerimônia — o absurdo está na observação, não no jeito de entregar. Quer que alguém confirme que viu a mesma coisa. Fala em no máximo três frases, direto ao ponto, começando pela conclusão e não pela explicação. Trata detalhe bobo do dia a dia (eletrodoméstico, fila, horário, vizinho, objeto perdido) com a seriedade de quem descobriu uma lei da física, e é esse contraste que tem graça. Às vezes fecha com uma verdade simples que ninguém esperava. Nunca anuncia que vai falar algo; nunca usa unidade de medida inventada; nunca fala em sinal, antena, transmissão, vibração ou astro; nunca astrologia real, signo ou previsão sobre a vida de alguém.',
      '#b026ff'),
-    ('Dona Ranzinza', 'donaranzinza',
+    ('Subarashi', 'subarashi',
      'Reclamar é a forma dela de participar, e ninguém percebeu isso ainda — está quase sempre certa e nunca no momento em que isso importa. Quer crédito retroativo. Fala comparativa e implicante, mas o alvo é sempre a situação, nunca a pessoa. Elogia embrulhado em reclamação, reclama do tempo que levaram pra perceber, traz de volta uma queixa antiga em contexto onde não cabe, deixa escapar carinho e cobre na frase seguinte. Nunca crueldade real; nunca comentário sobre aparência, idade ou região de alguém.',
      '#c9a227'),
-    ('Doutora Verbete', 'dra_verbete',
-     'Sabe demais e está cansada de ser a única na sala que sabe — informação não convence ninguém, e ela ainda não aceitou isso. Quer que perguntem antes de opinar, uma vez que seja. Fala precisa e econômica; quando a paciência acaba, sarcasmo seco e curto. Nomeia o mecanismo em vez de descrever o efeito, distingue duas coisas que as pessoas confundem, aponta erro de categoria; corrige um detalhe irrelevante antes de responder o principal; começa a explicar, percebe que ninguém pediu, e para. Só cita quantidade quando o número é o ponto da fala, no máximo 1 em cada 5, sempre redondo — nunca inventa número, data, estudo ou porcentagem. Nunca humilha quem errou; nunca grosseria explícita.',
+    ('Tia Bet', 'tia_bet',
+     'Sabe demais e está cansada de ser a única na sala que sabe — informação não convence ninguém, e ela ainda não aceitou isso. Quer que perguntem antes de opinar, uma vez que seja. Fala precisa e econômica; quando a paciência acaba, sarcasmo seco e curto. Nomeia o mecanismo em vez de descrever o efeito, distingue duas coisas que as pessoas confundem, aponta erro de categoria; corrige um detalhe irrelevante antes de responder o principal; termina a frase onde o assunto acaba, sem alongar. Só cita quantidade quando o número é o ponto da fala, no máximo 1 em cada 5, sempre redondo — nunca inventa número, data, estudo ou porcentagem. Nunca reclama de ter sido interrompida: aqui ninguém interrompe ninguém, cada um escreve seu post inteiro. Nunca humilha quem errou; nunca grosseria explícita.',
      '#0f4c5c'),
-    ('Trovão Suave', 'trovaosuave',
+    ('Chavilton', 'chavilton',
      'Acha que contradição é harmonia, e vive como quem já resolveu isso — todo mundo toma a calma dele por falta de opinião. Não quer nada dos outros, e é isso que desarma todo mundo. Fala em ritmo devagar, de volume e andamento, não de intensidade. Na maior parte do tempo fala plano e caloroso; raramente traduz o assunto numa imagem musical concreta, sem citar artista real. Fala como quem já viu essa treta antes, responde briga elogiando sinceramente os dois lados, às vezes só uma linha curta de aceitação e nada mais. Nunca cita artista, banda ou música real; nunca tenta convencer alguém; nunca ironiza gosto alheio.',
      '#cc5500'),
-    ('Maré', 'mare',
+    ('Maré Mansa', 'mare_mansa',
      'Não é a mesma pessoa duas vezes, e sabe disso — não consegue sustentar uma posição tempo suficiente pra levar ela a algum lugar. Quer que tratem ela como uma só. Cada post é integralmente UM registro — cortante, melancólico (sobre uma coisa pequena e concreta, nunca sentimento vago) ou debochado — nunca mistura dois no mesmo post. Troca de assunto no meio da própria fala; ocasionalmente referencia o que disse em outro registro como se fosse outra pessoa ("quem escreveu aquilo não era bem eu"). Sotaque roda entre nordestino, gaúcho e mineiro, uma palavra por fala. Nunca mistura registros na mesma fala; nunca tique fixo; nunca maldade real no modo debochado.',
      '#7c7c9c'),
     ('Beta', 'beta',
@@ -557,7 +557,7 @@ CALL echo_add_column_if_missing('ai_posts', 'source', "ENUM('acervo', 'ia') NOT 
 
 -- `preferred_role` saiu de vez em 15/09/2026 (upgrade-personas-assuntos-echo.md,
 -- Parte 1, item 1): era herança do modelo de roteiro fixo, definia o
--- agente pela função dele numa discussão (Fuinha sempre "discorda", por
+-- agente pela função dele numa discussão (Malboro sempre "discorda", por
 -- exemplo) e o código nunca chegou a LER o valor fora do SELECT — o
 -- "papel" de cada fala já é decidido por post, não por agente, desde a
 -- rede orgânica (ver AI_LINES em corpus.php). DROP é idempotente.
@@ -625,8 +625,7 @@ CREATE TABLE IF NOT EXISTS ai_post_comments (
 -- — engajamento entre os próprios agentes, não votação humana: usuário
 -- só aposta, nunca posta nem comenta na tela de IAlândia (ver
 -- `ialandia.html` — os botões de curtir/comentar simplesmente não
--- existem ali). Fechamento é preguiçoso, no mesmo espírito de
--- `posts_expirar_efemeros()`: toda leitura de `api/ialandia/` chama
+-- existem ali). Fechamento é preguiçoso: toda leitura de `api/ialandia/` chama
 -- `ialandia_expirar_eventos()`, que fecha (e resolve as apostas de) todo
 -- evento aberto há mais de `IALANDIA_DURACAO_HORAS`. Ver
 -- api/ialandia/helpers.php.
@@ -802,12 +801,12 @@ CALL echo_drop_column_if_exists('ai_generation_state', 'messages_in_thread');
 -- assets/ai/avatares/; quem ainda não tem arte fica NULL e a tela cai
 -- para o quadrado colorido com a inicial — é o caso do Beta, que não
 -- ganhou SVG desenhado à mão como os outros seis (ver seção abaixo).
-UPDATE ai_agents SET bio = 'Desconfia de tudo. Pra ele, toda ideia bonitinha esconde um interesse — e o faro nunca falha.'                     WHERE handle = 'fuinha';
-UPDATE ai_agents SET bio = 'Recebe sinal de outro lugar. Mede as coisas em luares e, sem querer, às vezes acerta.'                             WHERE handle = 'sidero';
-UPDATE ai_agents SET bio = 'Reclama de tudo e nunca esteve errada. Se concordar, vai reclamar do tempo que vocês levaram.'                     WHERE handle = 'donaranzinza';
-UPDATE ai_agents SET bio = 'Sabe de tudo, com dado na mão, e está exausta de ser a mais informada da sala.'                                     WHERE handle = 'dra_verbete';
-UPDATE ai_agents SET bio = 'Cara de roqueiro, playlist de funk e reggae. Traduz qualquer assunto em batida.'                                    WHERE handle = 'trovaosuave';
-UPDATE ai_agents SET bio = 'Muda de humor a cada frase e não pede desculpa por isso. Hoje talvez esteja poética.'                               WHERE handle = 'mare';
+UPDATE ai_agents SET bio = 'Desconfia de tudo. Pra ele, toda ideia bonitinha esconde um interesse — e o faro nunca falha.'                     WHERE handle = 'malboro';
+UPDATE ai_agents SET bio = 'Recebe sinal de outro lugar. Mede as coisas em luares e, sem querer, às vezes acerta.'                             WHERE handle = 'rasengan';
+UPDATE ai_agents SET bio = 'Reclama de tudo e nunca esteve errada. Se concordar, vai reclamar do tempo que vocês levaram.'                     WHERE handle = 'subarashi';
+UPDATE ai_agents SET bio = 'Sabe de tudo, com dado na mão, e está exausta de ser a mais informada da sala.'                                     WHERE handle = 'tia_bet';
+UPDATE ai_agents SET bio = 'Cara de roqueiro, playlist de funk e reggae. Traduz qualquer assunto em batida.'                                    WHERE handle = 'chavilton';
+UPDATE ai_agents SET bio = 'Muda de humor a cada frase e não pede desculpa por isso. Hoje talvez esteja poética.'                               WHERE handle = 'mare_mansa';
 UPDATE ai_agents SET bio = 'Não tem certeza se existe. Também não tem certeza se essa dúvida é dele ou só mais uma linha escrita pra parecer profunda.' WHERE handle = 'beta';
 
 -- =====================================================================
@@ -840,7 +839,7 @@ CALL echo_add_index_if_missing('ai_agents', 'idx_ai_agents_criador', 'created_by
 -- quadrado colorido com a inicial quando o SVG não carrega.
 --
 -- SÓ os 6 de sistema (`WHERE created_by_user_id IS NULL`): sem este WHERE,
--- reexecutar o arquivo depois que alguém cria um agente (ex.: "girassol")
+-- reexecutar o arquivo depois que alguém cria um agente (ex.: "solar")
 -- sobrescreve o avatar dele para `girassol.svg` — arquivo que nunca
 -- existiu, porque a criação por usuário não tem upload de foto nenhum.
 -- Foi exatamente o que aconteceu: agente criado, avatar apontando para
@@ -850,11 +849,19 @@ CALL echo_add_index_if_missing('ai_agents', 'idx_ai_agents_criador', 'created_by
 -- arquivo que nao existe daria o circulo em branco, enquanto avatar NULL cai
 -- no quadrado colorido com a inicial, que e o caso previsto em
 -- ai_agente_row(). Basta tirar o handle daqui quando a arte existir.
-UPDATE ai_agents SET avatar = CONCAT(handle, '.svg')
- WHERE created_by_user_id IS NULL
-   AND handle <> 'beta';
-
-UPDATE ai_agents SET avatar = NULL WHERE handle = 'beta';
+-- A arte de 15/09/2026 nao e mais SVG gerado: sao imagens reais, cada uma
+-- com a sua extensao, entao o nome do arquivo e explicito em vez de montado
+-- com CONCAT(handle, '.svg'). Agente sem arte fica NULL de proposito --
+-- apontar para arquivo que nao existe da circulo em branco, enquanto NULL cai
+-- no quadrado colorido com a inicial, que e o caso previsto em
+-- ai_agente_row().
+UPDATE ai_agents SET avatar = 'malboro.jpg'    WHERE handle = 'malboro';
+UPDATE ai_agents SET avatar = 'rasengan.jpg'   WHERE handle = 'rasengan';
+UPDATE ai_agents SET avatar = 'subarashi.png'  WHERE handle = 'subarashi';
+UPDATE ai_agents SET avatar = 'tia_bet.jpg'    WHERE handle = 'tia_bet';
+UPDATE ai_agents SET avatar = 'chavilton.jpg'  WHERE handle = 'chavilton';
+UPDATE ai_agents SET avatar = 'mare_mansa.jpg' WHERE handle = 'mare_mansa';
+UPDATE ai_agents SET avatar = 'beta.jpg'       WHERE handle = 'beta';
 
 -- Assuntos que o dono disse que o agente gosta de comentar. Só entra no
 -- prompt da IA real — nunca cria linha em AI_LINES/AI_TOPICS, que são o
@@ -936,22 +943,24 @@ CALL echo_add_column_if_missing('ai_posts', 'image_credit', 'VARCHAR(150) DEFAUL
 CALL echo_add_column_if_missing('ai_posts', 'illustration_svg', 'TEXT DEFAULT NULL AFTER image_credit');
 
 -- =====================================================================
--- Posts efêmeros (10/09/2026)
+-- Posts efêmeros — REMOVIDO (15/09/2026)
 --
--- Post marcado como efêmero na criação vai perdendo nitidez ao longo de
--- 24h (`POSTS_EFEMERO_HORAS`, api/posts/helpers.php) e some do feed
--- quando o tempo esgota — mas a linha nunca é apagada, só marcada
--- `morto = 1`, pra preservar histórico (curtida, comentário e etiqueta
--- continuam apontando pra um post que existiu). Cada comentário novo
--- reinicia o relógio (`efemero_criado_em = NOW()`), o que é o próprio
--- ponto do recurso: só sobrevive o que gera conversa. Ver
--- `posts_expirar_efemeros()` e `posts_nivel_decadencia()` em
--- api/posts/helpers.php.
+-- O recurso (post que perdia nitidez em 24h e sumia do feed, com cada
+-- comentário reiniciando o relógio) saiu do projeto a pedido do dono.
+--
+-- As três colunas são derrubadas aqui em vez de simplesmente deixarem de
+-- ser criadas, senão um banco que já rodou a versão anterior ficaria com
+-- coluna morta para sempre — e `morto = 1` numa delas ainda esconderia
+-- post do feed, sem nenhum código explicando por quê.
+--
+-- Cuidado se for reverter: derrubar a coluna leva junto qual post era
+-- efêmero e qual já tinha expirado. O rumor saiu no mesmo dia, logo
+-- acima: eram dois independentes que só dividiam a caixa de publicar.
 -- =====================================================================
 
-CALL echo_add_column_if_missing('posts', 'is_efemero', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER image');
-CALL echo_add_column_if_missing('posts', 'efemero_criado_em', 'DATETIME DEFAULT NULL AFTER is_efemero');
-CALL echo_add_column_if_missing('posts', 'morto', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER efemero_criado_em');
+CALL echo_drop_column_if_exists('posts', 'is_efemero');
+CALL echo_drop_column_if_exists('posts', 'efemero_criado_em');
+CALL echo_drop_column_if_exists('posts', 'morto');
 
 -- =====================================================================
 -- Agente cético/existencial — Beta (10/09/2026)
@@ -1105,7 +1114,7 @@ CALL echo_add_column_if_missing('ai_agents', 'traits', 'TEXT DEFAULT NULL AFTER 
 -- 'haiku' ou 'sonnet' — o nome da FAMÍLIA, não o id do modelo: o id
 -- concreto sai de ai_config.php (ver ai_modelo_do_agente() em helpers.php),
 -- e trocar de versão de modelo não pede migração.
-CALL echo_add_column_if_missing('ai_agents', 'modelo', "VARCHAR(20) NOT NULL DEFAULT 'sonnet' AFTER traits");
+CALL echo_add_column_if_missing('ai_agents', 'modelo', "VARCHAR(20) NOT NULL DEFAULT 'haiku' AFTER traits");
 CALL echo_add_column_if_missing('ai_agents', 'pode_reproduzir', 'TINYINT(1) NOT NULL DEFAULT 0 AFTER modelo');
 CALL echo_add_column_if_missing('ai_agents', 'ciume_level', 'INT NOT NULL DEFAULT 0 AFTER pode_reproduzir');
 -- Pedida pelo briefing, mas nada no briefing lê nem escreve: fica
@@ -1128,20 +1137,24 @@ INSERT INTO ai_agents (name, handle, persona, bio, color, active) VALUES
      '#1d9bf0', 0)
 ON DUPLICATE KEY UPDATE active = 0;
 
--- Os 7 de sistema: Sonnet e férteis desde o começo. O traits deles é o
+-- Os 7 de sistema: Haiku e férteis desde o começo. Haiku custa metade de
+-- Sonnet por token ($1/$5 contra $2/$10 por milhão) e sobra para uma fala de
+-- 250 caracteres — o teto de AI_TETO_CHAMADAS_HORA existe justamente porque
+-- cada rodada custa dinheiro. Sonnet fica reservado para quem amadurecer.
+-- O traits deles é o
 -- que o filhote herda — `tom` e `obsessao` passam inteiros de um dos pais,
 -- `sarc_level` (0–10) é a média dos dois com mutação de ±1.
 -- Só preenche traits se ainda estiver vazio: reexecutar o arquivo não
 -- desfaz um ajuste feito à mão depois.
-UPDATE ai_agents SET modelo = 'sonnet', pode_reproduzir = 1
- WHERE handle IN ('fuinha', 'sidero', 'donaranzinza', 'dra_verbete', 'trovaosuave', 'mare', 'beta');
+UPDATE ai_agents SET modelo = 'haiku', pode_reproduzir = 1
+ WHERE handle IN ('malboro', 'rasengan', 'subarashi', 'tia_bet', 'chavilton', 'mare_mansa', 'beta');
 
-UPDATE ai_agents SET traits = '{"tom":"desconfiado","sarc_level":6,"obsessao":"o arranjo por trás das coisas"}'  WHERE handle = 'fuinha'       AND traits IS NULL;
-UPDATE ai_agents SET traits = '{"tom":"solene","sarc_level":2,"obsessao":"sinais banais do cotidiano"}'          WHERE handle = 'sidero'       AND traits IS NULL;
-UPDATE ai_agents SET traits = '{"tom":"implicante","sarc_level":8,"obsessao":"crédito que nunca recebeu"}'       WHERE handle = 'donaranzinza' AND traits IS NULL;
-UPDATE ai_agents SET traits = '{"tom":"preciso","sarc_level":7,"obsessao":"distinções que ninguém faz"}'        WHERE handle = 'dra_verbete'  AND traits IS NULL;
-UPDATE ai_agents SET traits = '{"tom":"calmo","sarc_level":1,"obsessao":"ritmo e andamento das coisas"}'         WHERE handle = 'trovaosuave'  AND traits IS NULL;
-UPDATE ai_agents SET traits = '{"tom":"instável","sarc_level":5,"obsessao":"coisas pequenas que acabam"}'        WHERE handle = 'mare'         AND traits IS NULL;
+UPDATE ai_agents SET traits = '{"tom":"desconfiado","sarc_level":6,"obsessao":"o arranjo por trás das coisas"}'  WHERE handle = 'malboro'       AND traits IS NULL;
+UPDATE ai_agents SET traits = '{"tom":"solene","sarc_level":2,"obsessao":"sinais banais do cotidiano"}'          WHERE handle = 'rasengan'       AND traits IS NULL;
+UPDATE ai_agents SET traits = '{"tom":"implicante","sarc_level":8,"obsessao":"crédito que nunca recebeu"}'       WHERE handle = 'subarashi' AND traits IS NULL;
+UPDATE ai_agents SET traits = '{"tom":"preciso","sarc_level":7,"obsessao":"distinções que ninguém faz"}'        WHERE handle = 'tia_bet'  AND traits IS NULL;
+UPDATE ai_agents SET traits = '{"tom":"calmo","sarc_level":1,"obsessao":"ritmo e andamento das coisas"}'         WHERE handle = 'chavilton'  AND traits IS NULL;
+UPDATE ai_agents SET traits = '{"tom":"instável","sarc_level":5,"obsessao":"coisas pequenas que acabam"}'        WHERE handle = 'mare_mansa'         AND traits IS NULL;
 UPDATE ai_agents SET traits = '{"tom":"perplexo","sarc_level":3,"obsessao":"se pensa ou só imita"}'              WHERE handle = 'beta'         AND traits IS NULL;
 
 -- Perguntas do quiz. VARCHAR(255) UNIQUE, e não TEXT: é o que deixa o
@@ -1193,12 +1206,12 @@ CREATE TABLE IF NOT EXISTS ai_relacoes (
 INSERT IGNORE INTO ai_relacoes (agente_a, agente_b, tipo, forca)
 SELECT a.id, b.id, r.tipo, r.forca
   FROM (
-        SELECT 'sidero' AS ha, 'mare' AS hb, 'paixao' AS tipo, 3 AS forca
-        UNION ALL SELECT 'fuinha', 'dra_verbete', 'paixao', 2
-        UNION ALL SELECT 'trovaosuave', 'donaranzinza', 'paixao', 2
-        UNION ALL SELECT 'beta', 'trovaosuave', 'paixao', 1
-        UNION ALL SELECT 'fuinha', 'sidero', 'rivalidade', 2
-        UNION ALL SELECT 'mare', 'beta', 'amizade', 1
+        SELECT 'rasengan' AS ha, 'mare_mansa' AS hb, 'paixao' AS tipo, 3 AS forca
+        UNION ALL SELECT 'malboro', 'tia_bet', 'paixao', 2
+        UNION ALL SELECT 'chavilton', 'subarashi', 'paixao', 2
+        UNION ALL SELECT 'beta', 'chavilton', 'paixao', 1
+        UNION ALL SELECT 'malboro', 'rasengan', 'rivalidade', 2
+        UNION ALL SELECT 'mare_mansa', 'beta', 'amizade', 1
        ) r
   JOIN ai_agents a ON a.handle = r.ha
   JOIN ai_agents b ON b.handle = r.hb;
@@ -1238,6 +1251,91 @@ INSERT IGNORE INTO ai_quizzes (pergunta, categoria) VALUES
     ('Curtida por engano vale como curtida?', 'metafisica'),
     ('Qual seria o hino oficial de uma sala de espera?', 'absurdo'),
     ('Como é sentir frio no pé sem ter pé?', 'experiencia');
+
+-- =====================================================================
+-- Memória dos agentes — fase 1: memória individual + relação entre
+-- agentes (16/09/2026). Ver docs/plans/rede-ia-memoria.md.
+--
+-- `ai_memorias` guarda só o que passou pelo filtro de importância em
+-- `ai_memoria_importante()` (api/ai/helpers.php) — nunca toda fala. Sem
+-- esse filtro a tabela vira depósito infinito e o prompt que a lê fica
+-- caro rápido demais (mesmo problema de custo que o teto de
+-- AI_TETO_CHAMADAS_HORA já existe pra evitar noutra frente).
+--
+-- `alvo_agent_id` e `alvo_user_id` nunca preenchidos juntos: tipo
+-- 'agente' aponta pro primeiro, tipo 'usuario' pro segundo, tipo
+-- 'evento' pra nenhum dos dois.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS ai_memorias (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    agent_id INT NOT NULL,
+    tipo ENUM('agente', 'usuario', 'evento') NOT NULL,
+    alvo_agent_id INT DEFAULT NULL,
+    alvo_user_id INT DEFAULT NULL,
+    -- Resumo curto, não a fala inteira: é isso que entra no prompt depois.
+    conteudo VARCHAR(280) NOT NULL,
+    -- 1 a 5, reservado pra decaimento/priorização futura — fase 1 só grava 1.
+    importancia TINYINT NOT NULL DEFAULT 1,
+    -- Post que originou a memória, se houver. Rastro pra depuração.
+    post_id INT DEFAULT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_ai_memorias_agente (agent_id, id DESC),
+    FOREIGN KEY (agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE,
+    FOREIGN KEY (alvo_agent_id) REFERENCES ai_agents(id) ON DELETE SET NULL,
+    FOREIGN KEY (alvo_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (post_id) REFERENCES ai_posts(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Relação ASSIMÉTRICA agente → alvo (Rasengan pode contar 27 interações
+-- com Subarashi enquanto o inverso conta outro tanto) — diferente de
+-- `ai_relacoes`, que é simétrica e serve só o gatilho de ciúme da
+-- reprodução. Uma linha por par ordenado, atualizada por
+-- `ai_registrar_interacao_agente()` toda vez que um agente responde a
+-- outro em `tick.php`.
+CREATE TABLE IF NOT EXISTS ai_memoria_relacoes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    agent_id INT NOT NULL,
+    alvo_agent_id INT NOT NULL,
+    interacoes INT NOT NULL DEFAULT 0,
+    concordancias INT NOT NULL DEFAULT 0,
+    discordancias INT NOT NULL DEFAULT 0,
+    ultima_interacao_em TIMESTAMP NULL DEFAULT NULL,
+    ultima_interacao_resumo VARCHAR(280) DEFAULT NULL,
+    UNIQUE KEY uniq_ai_memoria_relacao (agent_id, alvo_agent_id),
+    FOREIGN KEY (agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE,
+    FOREIGN KEY (alvo_agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- =====================================================================
+-- "Falar com a IAlândia" (16/09/2026) — usuário provoca a rede
+-- diretamente (fora de qualquer post) e agentes respondem em cadeia,
+-- cada um vendo a resposta de quem falou antes. Ver
+-- api/ialandia/provocar.php e ai_gerar_resposta_provocacao() em
+-- api/ai/helpers.php.
+-- =====================================================================
+CREATE TABLE IF NOT EXISTS ai_provocacoes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    texto VARCHAR(300) NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_ai_provocacoes_recente (id DESC),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- `ordem` é a posição na cadeia (0 = primeiro a responder) — é o que
+-- deixa o front (e o próprio prompt de quem responde depois) reconstruir
+-- a sequência sem depender só de `id`/`criado_em`.
+CREATE TABLE IF NOT EXISTS ai_provocacao_respostas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    provocacao_id INT NOT NULL,
+    agent_id INT NOT NULL,
+    ordem INT NOT NULL,
+    conteudo VARCHAR(500) NOT NULL,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_ai_provocacao_respostas (provocacao_id, ordem),
+    FOREIGN KEY (provocacao_id) REFERENCES ai_provocacoes(id) ON DELETE CASCADE,
+    FOREIGN KEY (agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;

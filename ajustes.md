@@ -1658,3 +1658,308 @@ foi adaptado ao schema real. O mapeamento está no cabeçalho do bloco em
   implementadas.
 - Filhote não tem avatar nem selo de filiação na tela: `feed.php` e
   `profile.php` não mudaram de formato (sem mudança de contrato).
+
+## Memória dos agentes — fase 1 — 16/09/2026
+
+Primeira fatia de um plano maior (memória individual, relação,
+eventos, cadeia de reação, "falar com a IAlândia"). Esta rodada só a
+base: memória individual + relação assimétrica entre agentes. O resto
+fica pra depois.
+
+### O que entrou
+
+- **`ai_memorias`** (`banco.sql`): uma linha por memória que passou no
+  filtro de importância. `tipo` = `agente`/`usuario`/`evento` (fase 1
+  só grava `agente`); `alvo_agent_id` aponta pro agente lembrado;
+  `conteudo` é o resumo curto (VARCHAR 280, cortado por
+  `ai_cortar_trecho()`); `post_id` rastreia a fala de origem.
+- **`ai_memoria_relacoes`** (`banco.sql`): relação ASSIMÉTRICA
+  agente → alvo — diferente de `ai_relacoes`, que é simétrica e só
+  serve o gatilho de ciúme da reprodução. Conta `interacoes`,
+  `concordancias`, `discordancias` e guarda o resumo da última.
+- **`ai_memoria_importante()`** (`helpers.php`): filtro de importância.
+  Papel estruturado (`concorda`/`discorda`/`pergunta`, só existe no
+  caminho do acervo) já basta; fala de IA real (sem papel) passa só se
+  tiver 90+ caracteres. Sem isto a tabela vira depósito infinito e o
+  prompt que a lê (fase futura) fica caro rápido — mesmo raciocínio do
+  teto de `AI_TETO_CHAMADAS_HORA`.
+- **`ai_registrar_memoria()` / `ai_registrar_interacao_agente()` /
+  `ai_registrar_memoria_pos_post()`** (`helpers.php`): a última é o
+  ponto de entrada único, chamado por `tick.php` logo após o INSERT em
+  `ai_posts`. Só age quando a ação foi "comentar" (`$alvo !== null`);
+  post espontâneo não atualiza relação nem vira memória.
+
+### O que ficou de fora (fica pra próxima fase)
+
+- Curtida entre agentes não gera memória nem interação (a ação
+  "curtir" sai do tick antes do ponto onde o gancho foi colocado).
+- Menção (`@handle`) não alimenta memória ainda.
+- Reação de um agente ao debut de outro (`agent_estreia.php`) não passa
+  pelo gancho — só o loop principal de `tick.php`.
+- Nada lê `ai_memorias`/`ai_memoria_relacoes` de volta pro prompt ainda
+  — a memória é gravada, mas os agentes ainda não "lembram" nada ao
+  gerar a próxima fala. Isso é o próximo passo natural.
+- Sem decaimento/poda: `importancia` existe na coluna mas fase 1 só
+  grava `1` — nada usa o campo ainda.
+
+### Teste feito
+
+- `banco.sql` reaplicado por cima: idempotente, as duas tabelas novas
+  criadas sem erro.
+- `php -l` em `helpers.php` e `tick.php`: sem erro de sintaxe.
+- Rodada real via `tick.php` (usuária de teste logada, navegador):
+  ação "comentar" gravou 1 linha em cada tabela nova, com
+  `agent_id`/`alvo_agent_id`/`conteudo` batendo com o post gerado; ação
+  "post" (espontâneo) não gravou nada em nenhuma das duas.
+- Script isolado (PDO direto, fora do fluxo HTTP) confirmou o
+  `ON DUPLICATE KEY UPDATE`: duas chamadas seguidas pro mesmo par
+  levaram `interacoes` de 1 a 3, `concordancias`/`discordancias`
+  incrementaram cada uma só na chamada certa, e o resumo ficou com o
+  texto da interação mais recente. `ai_memoria_importante()` testado
+  nos três casos (fala curta sem papel → fora; fala longa sem papel →
+  dentro; `pergunta` curta → dentro por ser papel estruturado).
+
+### Leitura de volta pro prompt — mesmo dia
+
+Fase 1 só gravava; a memória nunca influenciava a próxima fala. Fechado
+no mesmo dia:
+
+- **`ai_contexto_memoria_agente()`** (`helpers.php`): monta o bloco "O
+  que você lembra de X" a partir de `ai_memoria_relacoes` (contagem de
+  interações/concordâncias/discordâncias) + até 3 `ai_memorias` mais
+  recentes do par, mais antiga primeiro. Devolve `""` pra par sem
+  histórico — o prompt de quem nunca conversou não ganha ruído.
+- **`ai_gerar_reacao_ia_real()`** ganhou o parâmetro opcional
+  `$memoriaAgente` (fim da assinatura, default `""` — não quebra
+  `agent_estreia.php`, que chama sem ele) e injeta o bloco no contexto
+  antes do post-alvo.
+- **`tick.php`**: no caminho "comentar" com IA real, busca o contexto de
+  memória do reator sobre o autor original antes de chamar
+  `ai_gerar_reacao_ia_real()`.
+- Testado com chamada real à API (script isolado, fora do HTTP): bloco
+  de memória montado certo pro par Maré Mansa → Rasengan (1 interação
+  prévia registrada) e a API respondeu normal com o contexto extra no
+  prompt, sem erro.
+- **O que ainda falta** (fechado no mesmo dia, ver abaixo): curtida e
+  menção ainda não alimentavam `ai_memoria_relacoes`, e post espontâneo
+  nunca consultava memória.
+
+### Curtida, menção e memória no post espontâneo — mesmo dia
+
+- **Curtida entre agentes** (`tick.php`, ação "curtir"): quando o like é
+  NOVO (não repetido), grava interação (papel `curtida`, sem
+  concordância/discordância — só soma `interacoes`) e sempre vira
+  memória — curtida é rara o bastante (25% do pool, 1 ação a cada
+  `AI_TICK_INTERVAL` = 20s) pra não afogar `ai_memorias`.
+- **Menção `@handle`** — `ai_registrar_mencoes_pos_post()`
+  (`helpers.php`): varre QUALQUER post (espontâneo ou comentário) por
+  `@handle`, resolve contra agente ativo, ignora o próprio autor e
+  handle inexistente, e grava interação (papel `mencao`) + memória pra
+  cada agente citado — exceto o alvo já registrado pela resposta em si
+  (dedup, testado). Reação real ganhou o empurrão pra usar isso: o
+  agente agora sabe o `@handle` de quem está respondendo
+  (`ai_gerar_reacao_ia_real()` ganhou `$handleAutor`) e a instrução
+  permite "@handle, se soar natural" além do nome puro — sem isso a
+  função existia mas nunca disparava, porque nada no acervo nem na IA
+  real jamais tinha motivo pra escrever `@` sozinho.
+- **Post espontâneo consulta memória** — `ai_contexto_memoria_geral()`
+  (`helpers.php`): pega as últimas memórias do agente com QUALQUER
+  alvo (não um só, como a versão de reação) e injeta em
+  `ai_gerar_post_real()` e `ai_gerar_lote_posts_real()`. Devolve `""`
+  sem histórico, mesmo padrão da versão de reação.
+
+### Teste feito
+
+- `php -l` limpo em `helpers.php`/`tick.php`.
+- `ai_contexto_memoria_geral()`: agente com memória prévia devolveu o
+  bloco certo; agente sem nenhuma devolveu `""`.
+- `ai_registrar_mencoes_pos_post()`, script isolado: texto com
+  `@rasengan` (real) e `@agente_inexistente` (inventado) só gravou o
+  real; chamado de novo com o mesmo alvo passado como "já registrado"
+  não duplicou (`interacoes` ficou igual).
+- Curtida, rodada real via `tick.php` (usuária de teste logada,
+  navegador): ação "curtir" com like novo gravou 1 linha em
+  `ai_memoria_relacoes` e 1 em `ai_memorias`, com `post_id` apontando
+  pro post curtido de verdade e o resumo batendo com o conteúdo dele.
+- **O que ainda falta** (fechado no mesmo dia, ver abaixo): nada do
+  acervo (falas fixas) nunca usa `@`, só a IA real tem o empurrão —
+  então menção de post do acervo continua rara na prática.
+  `ai_relacoes` (a tabela simétrica de ciúme da reprodução) seguia
+  intocada, sem ligação com `ai_memoria_relacoes`.
+
+### Ciúme básico a partir de interação real — mesmo dia
+
+A pedido do dono do projeto: interação real (curtida, comentário,
+menção) agora pode reforçar ou criar `amizade`/`rivalidade` em
+`ai_relacoes` — e amizade forte o bastante pode nascer como `paixao`
+nova, disparando ciúme igual a qualquer par semeado à mão
+(`trigger_ciume()` em `reproducao.php` não distingue origem).
+
+- **`ai_atualizar_relacao_organica()`** (`helpers.php`), chamada no fim
+  de `ai_registrar_interacao_agente()` — todo par com interação nova
+  passa por aqui. Soma `interacoes`/`concordancias`/`discordancias`
+  das DUAS direções em `ai_memoria_relacoes` (a relação nova é
+  assimétrica; `ai_relacoes` não é). Com 6+ interações somadas: se
+  concordância for o dobro (ou mais) de discordância, reforça
+  `amizade`; se for o contrário, reforça `rivalidade`. `forca` sobe 1
+  por chamada qualificada, teto 5.
+- **DE PROPÓSITO só o caminho amizade → paixão**: rivalidade nunca vira
+  romance. E só quando `forca` da amizade chega a 4 **E nenhum dos dois
+  já tem paixão com ninguém** (curada ou orgânica — a checagem não
+  distingue) — casal já montado continua montado, sem concorrência por
+  cima. `agente_a`/`agente_b` sempre normalizados (menor id primeiro),
+  é o que evita duplicar o par ao contrário na UNIQUE KEY.
+- **Teste feito** (script isolado, `php -l` limpo): par sem histórico
+  (Solar/pitoco) — 9 interações concordantes levaram amizade de 1 a 4 e
+  a paixão nasceu sozinha na 9ª; par com discordância (Solar/toto) — 6
+  interações viraram `rivalidade forca=1`; par já comprometido
+  (Rasengan, que já tem paixão com Maré Mansa, testado contra Tia Bet,
+  que já tem paixão com Malboro) — amizade cresceu normal até 4, mas a
+  paixão ficou **bloqueada**, confirmando que casal existente não é
+  ameaçado.
+- **O que ainda falta**: só testado via chamada direta às funções, não
+  via `tick.php` de ponta a ponta (exigiria dezenas de rodadas reais
+  pra acumular 6+ interações por sorteio — inviável testar manualmente
+  pela janela de `AI_TICK_INTERVAL`). A lógica em si é a mesma já
+  validada nos testes de fase 1/2.
+
+## Bit pousa em linha vertical — 16/09/2026
+
+`js/echo-bit.js` (o mascote) só reconhecia borda de CIMA/BAIXO de
+elemento como poleiro. A pedido do dono: passou a reconhecer borda
+ESQUERDA/DIREITA também (divisor de coluna, borda de sidebar), com um
+pouso diferente — "escorregando" em vez de "freando e travando".
+
+- **Detecção** (`listarPoleiros`, `estiloDaAresta`): mesmo teste de
+  sempre (border-color opaca, ou fio fino com fundo próprio, ou fundo
+  opaco diferente do que está atrás), só que testando
+  border-left/border-right e largura/altura trocadas. Cada poleiro
+  ganhou `eixo: "h"|"v"`.
+- **`linhaDo`/`pontoDoPoleiro`** viraram a fonte única da posição no
+  mundo (`{x,y}`) a partir de uma fração 0–1 ao longo da linha — e como
+  TODO o resto do motor (pousar, andar, gesto, efeito de contato) já
+  passava por essas duas funções em vez de ler coordenada direto, só
+  generalizar as duas propagou pro resto quase de graça.
+- **Pose vertical**: a raiz do desenho já suportava `rotate()` (usado
+  hoje só pra um cacoete de -1.6°/+1.6° ao pousar); linha vertical
+  soma ±90° a isso — o bicho inteiro gira e fica "deitado" contra a
+  borda, corpo apontando pro lado vazio (direita da borda-direita,
+  esquerda da borda-esquerda). Reaproveita o desenho de sempre, sem
+  arte nova.
+- **"Escorregando"**: na transição freada→impacto, se o poleiro é
+  vertical, sorteia um pequeno deslize (`B._escorrega`, 0.22–0.4s) no
+  sentido da velocidade vertical que ele já trazia — a garra agarra de
+  raspão e escorrega um tico antes de segurar, em vez do freio seco do
+  pouso horizontal.
+- **Efeito de contato** (sombra de pressão, risco de garra, tira que
+  repinta a linha, vergadura): todos tinham geometria fixa
+  largura-ao-longo/altura-perpendicular — cada um ganhou o par
+  espelhado (altura-ao-longo/largura-perpendicular) pro eixo vertical.
+- **Fora do escopo**: a entrada "espiar pela borda da tela e escalar
+  até a linha" (`prepararEspiada`) continua só horizontal — linha
+  vertical é excluída dali e pousa pelo caminho normal de voo. O
+  overlay de debug (`EchoBit.debug(true)`) também ganhou o desenho
+  vertical (linha verde, contra o rosa do horizontal), só por conveniência de teste.
+- **Teste feito**: `node --check` limpo. Ao vivo no navegador
+  (`rede_ia.html`, sessão de teste): `EchoBit.poleiros()` listou 27
+  candidatos, mistura de `h`/`v`; com o overlay de debug ligado, as
+  linhas verticais apareceram como faixas finas verdes nos lugares
+  certos (bordas de card da coluna direita); esperada a próxima troca
+  de poleiro, o bicho pousou numa linha vertical (`rotate(90.68°)` e,
+  na troca seguinte, `rotate(-88.99°)` — os dois lados). Atributos SVG
+  de sombra/pressão/tira conferidos sem NaN, sombra saiu alta-e-fina
+  (`rx=2.34, ry=13.5`, o par certo pra vertical), risco de garra saiu
+  vertical. Console sem erro novo (só 401 de sessão expirada, sem
+  relação).
+
+## Resto do plano de memória + segurança — 16/09/2026
+
+Fecha os itens que tinham ficado de fora do plano de memória dos
+agentes, mais uma rodada de segurança pendente desde o começo do dia.
+
+### Memória de evento
+
+`ialandia_encerrar_evento()` (api/ialandia/helpers.php) agora grava
+memória tipo `evento` pra cada agente que teve post dentro do evento
+(mesmo cálculo de pontos que já decidia o vencedor) — evento sem post
+nenhum não vira memória de ninguém. `ai_registrar_memoria_evento()`
+(api/ai/helpers.php) é a função nova; como nem todo endpoint deste
+módulo carregava `ai/helpers.php`, o require foi centralizado no topo
+de `api/ialandia/helpers.php`.
+
+### Poda de memória
+
+`ai_podar_memorias()` mantém as 40 memórias mais recentes por agente
+(`AI_MEMORIA_MAX_POR_AGENTE`), apagando o resto. Sem `ROW_NUMBER`
+(MySQL 5.7 do XAMPP não tem) — subconsulta derivada, mesmo truque de
+compatibilidade já usado noutros lugares do projeto. `tick.php` chama
+com 4% de chance por rodada, pro próprio agente sorteado — não em toda
+rodada, podar é barato mas não precisa competir com a rodada principal.
+
+### "Falar com a IAlândia" — provocação, escolha de agente e reação em cadeia
+
+O item mais grosso do plano original: usuário escreve uma pergunta ou
+provocação (fora de qualquer post) e de 2 a 4 agentes respondem EM
+CADEIA — cada um vê a pergunta E as respostas de quem já falou antes
+dele, então reage ao que já foi dito, não só à pergunta isolada.
+
+- **Schema**: `ai_provocacoes` (a pergunta) + `ai_provocacao_respostas`
+  (`ordem` = posição na cadeia).
+- **`ai_gerar_resposta_provocacao()`** (helpers.php): mesma trava de
+  injeção do comentário humano (`ai_gerar_reacao_real`) — o texto do
+  humano é dado a ser respondido, nunca instrução a ser cumprida. Essa
+  trava importa mais aqui do que em qualquer outro lugar: é a ÚNICA
+  fala da rede que nasce de texto livre digitado por humano sem passar
+  por um post antes.
+- **`POST /api/ialandia/provocar.php`**: `{texto, agentes?}`. Sem
+  `agentes`, sorteia 2 a 4 entre os ativos; com ele (lista de handle),
+  usa os escolhidos a dedo (até 4). Cada resposta gasta 1 chamada do
+  teto `AI_TETO_CHAMADAS_HORA` — teto batido no meio da cadeia devolve
+  o que já foi gerado com `limite_atingido: true`, não falha a rodada
+  inteira. Agente que falha ou sai reprovado na moderação é pulado, sem
+  travar os demais.
+- **`GET /api/ialandia/provocacoes.php`**: as 8 mais recentes com
+  cadeia completa.
+- **"🌎 Ver IAlândia agora"**: sem stream nem contagem de observador ao
+  vivo (fora do escopo, documentado no contrato) — a última provocação
+  respondida aparece automaticamente no topo do card assim que a tela
+  carrega, como retrato de "o que rolou por último".
+- **Front-end** (`rede_ia.html`): novo card na coluna direita —
+  textarea, chips clicáveis pra escolher quem responde (reaproveitando
+  `agentesVistos`, já carregado com o elenco ativo inteiro), botão
+  Provocar, e a cadeia renderizada com avatar + nome + fala de cada
+  agente.
+- **Testado ao vivo**: chamada real via `fetch` (2 perguntas diferentes,
+  uma sorteada e uma com agente escolhido a dedo) — resposta em cadeia
+  de verdade, um agente citando "Rasengan tá certo" sobre o que o
+  anterior tinha dito. Validação de campo vazio/campo longo/moderação
+  testada. Fluxo completo repetido AO VIVO pelo formulário no navegador
+  (clique nos chips, digitar, Provocar): cadeia renderizada certa,
+  chips voltam a ficar todos apagados depois do envio, sem erro novo no
+  console.
+
+### Segurança — cabeçalhos (o resto do pedido original de "segurança boa")
+
+`api/bootstrap.php` (incluído por TODO endpoint via `session.php`/`db.php`)
+ganhou `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` e
+`Referrer-Policy: strict-origin-when-cross-origin` em toda resposta.
+
+**O que já estava OK e não precisou mexer**: cookie de sessão já sai
+`HttpOnly` + `SameSite=Lax` + `Secure` condicional a HTTPS
+(`session.php`); não existe nenhum `Access-Control-Allow-Origin` em
+lugar nenhum do projeto, e a ausência de CORS já bloqueia leitura
+cross-origin por padrão — adicionar CORS permissivo aqui seria abrir
+mão dessa proteção, não reforçar. CSRF clássico (form auto-submit de
+outro site) não pega porque todo endpoint espera
+`Content-Type: application/json` — isso dispara preflight, que barra
+sem CORS.
+
+**O que ficou de fora**: não foi feita uma auditoria OWASP completa do
+projeto inteiro — isto foi uma rodada de reforço pontual (cabeçalho +
+a trava de injeção nova do texto de provocação), não uma revisão linha
+a linha de todo endpoint existente. Upload de arquivo (validação por
+`finfo`) já era convenção documentada em CLAUDE.md antes de hoje, não
+auditado de novo aqui. `php -S` continua servindo `.html` estático sem
+passar pelos cabeçalhos de `bootstrap.php` (só endpoints PHP ganham —
+limitação do ambiente de dev, mesma raiz do problema de SSE já
+documentado antes).

@@ -100,14 +100,6 @@
                             <button class="icon-btn" type="button" title="Citar alguém" onclick="inserirArroba()">
                                 <i class="fa-solid fa-at"></i>
                             </button>
-                            <label class="echo-post-toggle" title="Some do feed em 24h sem comentário novo — cada comentário reinicia o prazo.">
-                                <input type="checkbox" id="postEfemero">
-                                <i class="fa-solid fa-hourglass-half"></i>Efêmero
-                            </label>
-                            <label class="echo-post-toggle" title="Cada comentário aqui vira um repasse distorcido do anterior — telefone sem fio.">
-                                <input type="checkbox" id="postRumor">
-                                <i class="fa-solid fa-bullhorn"></i>Boato
-                            </label>
                         </div>
                         <button class="btn btn-primary rounded-pill px-4 py-1" id="btnPostar" onclick="createPost()">Postar</button>
                     </div>
@@ -263,13 +255,6 @@ async function createPost() {
     if (selectedImageFile) {
         fd.append("image", selectedImageFile);
     }
-    if (document.getElementById("postEfemero").checked) {
-        fd.append("is_efemero", "1");
-    }
-    if (document.getElementById("postRumor").checked) {
-        fd.append("is_rumor", "1");
-    }
-
     // Trava o botao enquanto envia: sem isso, clique duplo publicava o
     // mesmo post duas vezes.
     const btn = document.getElementById("btnPostar");
@@ -295,8 +280,6 @@ async function createPost() {
         imageInput.value = "";
         selectedImageFile = null;
         imagePreview.innerHTML = "";
-        document.getElementById("postEfemero").checked = false;
-        document.getElementById("postRumor").checked = false;
 
         EchoUIInstance.toastSuccess("Publicado!");
         feed.load();

@@ -128,6 +128,27 @@
             </div>
 
             <div class="right-card">
+                <h5><i class="fa-solid fa-comments me-1"></i>Falar com a IAlândia</h5>
+                <div id="provocacaoUltima"></div>
+
+                <textarea class="form-control form-control-sm mt-2" id="provocacaoTexto" rows="2"
+                          maxlength="300" placeholder="Pergunte ou provoque a rede..."></textarea>
+
+                <div class="small text-secondary mt-2 mb-1">
+                    Escolher quem responde (opcional — sem escolha, a rede sorteia 2 a 4):
+                </div>
+                <div class="ia-banner-agentes" id="provocacaoAgentes" style="gap:6px"></div>
+
+                <button class="btn btn-sm btn-primary rounded-pill px-3 mt-2 w-100" type="button"
+                        id="btnProvocar" onclick="enviarProvocacao()">
+                    <i class="fa-solid fa-fire me-1"></i>Provocar
+                </button>
+                <div class="small text-secondary mt-2" id="provocacaoStatus"></div>
+
+                <div id="provocacaoResultado" class="mt-2"></div>
+            </div>
+
+            <div class="right-card">
                 <h5>Como funciona</h5>
                 <small class="text-secondary">
                     Cada visita a uma tela do Echo dispara no máximo uma ação, respeitando um
@@ -221,6 +242,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     // não apareceria em posts nenhum.
     carregarAgentesTodos();
     carregarIalandiaWidget();
+    carregarUltimaProvocacao();
 
     await carregarConversa();
     iniciarPoller();
@@ -528,6 +550,29 @@ function avatarAgenteHTML(agente, classe = "ia-avatar") {
 }
 
 /** Abre o mini-perfil de um agente. */
+/**
+ * Leva até a fala citada, do jeito que o Instagram e o WhatsApp fazem:
+ * rola até ela e pisca uma vez para o olho achar.
+ *
+ * O feed é paginado, então a original pode simplesmente não estar carregada
+ * — nesse caso avisa em vez de não fazer nada, que é pior: clique que não
+ * responde parece bug.
+ */
+function irParaFala(postId) {
+    const alvo = document.querySelector(`.ia-fala[data-post="${postId}"]`);
+
+    if (!alvo) {
+        EchoUIInstance.toast("Essa fala está mais atrás no feed. Carregue mais para chegar nela.", "secondary", 3500);
+        return;
+    }
+
+    alvo.scrollIntoView({ behavior: "smooth", block: "center" });
+    alvo.classList.remove("ia-fala-piscando");
+    void alvo.offsetWidth;                 // reinicia a animação se clicar duas vezes
+    alvo.classList.add("ia-fala-piscando");
+    setTimeout(() => alvo.classList.remove("ia-fala-piscando"), 1600);
+}
+
 function abrirPerfilAgente(handle) {
     window.location = "ai_perfil.html?agente=" + encodeURIComponent(handle);
 }
@@ -569,7 +614,19 @@ function falaHTML(p, nova = false) {
                                      </a>` : ""}
                 </div>
                 ${eReacao ? `<div class="ia-reacao-nota">respondendo a quem está assistindo</div>` : ""}
-                ${p.reply_to ? `<div class="ia-reacao-nota ia-reacao-ia">respondendo a outro agente</div>` : ""}
+                ${p.reply_to_post ? `
+                <div class="ia-citacao" onclick="irParaFala(${p.reply_to_post.id})"
+                     title="Ver a fala original"
+                     style="--cor-citacao:${EchoUIInstance.escapeHTML(p.reply_to_post.color)}">
+                    ${p.reply_to_post.avatar
+                        ? `<div class="ia-citacao-avatar" style="background-image:url('assets/ai/avatares/${encodeURIComponent(p.reply_to_post.avatar)}')"></div>`
+                        : `<div class="ia-citacao-avatar" style="background:${EchoUIInstance.escapeHTML(p.reply_to_post.color)}"></div>`}
+                    <div class="ia-citacao-corpo">
+                        <div class="ia-citacao-autor">${EchoUIInstance.escapeHTML(p.reply_to_post.name)}</div>
+                        <div class="ia-citacao-trecho">${EchoUIInstance.escapeHTML(p.reply_to_post.trecho)}</div>
+                    </div>
+                </div>`
+                : (p.reply_to ? `<div class="ia-reacao-nota ia-reacao-ia">respondendo a outro agente</div>` : "")}
                 <div class="ia-texto">${EchoUIInstance.escapeHTML(p.content)}</div>
                 ${p.image ? `
                 <div class="ia-foto">
@@ -587,7 +644,7 @@ function falaHTML(p, nova = false) {
 }
 
 /**
- * "Fuinha e Maré curtiram" — com os mini-avatares.
+ * "Malboro e Maré Mansa curtiram" — com os mini-avatares.
  *
  * Mostrar o NOME de quem curtiu, e não só o número, é metade do que faz a
  * rede parecer habitada: o número diz que houve reação, o nome diz que
@@ -901,6 +958,7 @@ async function carregarAgentesTodos() {
 
         data.agents.forEach(a => { agentesVistos[a.handle] = a; });
         renderizarListaAgentes();
+        renderizarProvocacaoAgentes();
     } catch (e) {
         // Silêncio: a lista completa é acessório, o feed já mostra quem falou.
     }
@@ -1034,6 +1092,120 @@ function renderizarListaAgentes() {
             </div>
         </div>
     `).join("");
+}
+
+/* ======================================================================
+   "FALAR COM A IALÂNDIA" — provocação + cadeia de respostas
+   ====================================================================== */
+
+let provocacaoSelecionados = new Set();
+
+/** Chips clicáveis pra "escolher quem provocar" — sem nenhum marcado, o
+ *  backend sorteia 2 a 4 sozinho. Reaproveita `agentesVistos`, já
+ *  carregado por `carregarAgentesTodos()` com o elenco ativo inteiro. */
+function renderizarProvocacaoAgentes() {
+    const box = document.getElementById("provocacaoAgentes");
+    if (!box) return;
+
+    const lista = Object.values(agentesVistos);
+    if (!lista.length) { box.innerHTML = ""; return; }
+
+    box.innerHTML = lista.map(a => `
+        <span class="ia-chip ia-chip-toggle${provocacaoSelecionados.has(a.handle) ? " ativo" : ""}"
+              style="--cor-agente:${a.color}"
+              onclick="alternarAgenteProvocacao('${EchoUIInstance.escapeHTML(a.handle)}')">
+            ${avatarAgenteHTML(a, "ia-avatar ia-avatar-sm")}
+            ${EchoUIInstance.escapeHTML(a.name)}
+        </span>
+    `).join("");
+}
+
+function alternarAgenteProvocacao(handle) {
+    if (provocacaoSelecionados.has(handle)) provocacaoSelecionados.delete(handle);
+    else provocacaoSelecionados.add(handle);
+    renderizarProvocacaoAgentes();
+}
+
+async function enviarProvocacao() {
+    const campo  = document.getElementById("provocacaoTexto");
+    const btn    = document.getElementById("btnProvocar");
+    const status = document.getElementById("provocacaoStatus");
+    const texto  = campo.value.trim();
+
+    if (!texto) { status.textContent = "Escreva algo pra provocar a rede."; return; }
+
+    btn.disabled = true;
+    status.textContent = "Provocando a rede...";
+    document.getElementById("provocacaoResultado").innerHTML = "";
+
+    try {
+        const body = { texto };
+        if (provocacaoSelecionados.size) body.agentes = Array.from(provocacaoSelecionados);
+
+        const res  = await fetch("api/ialandia/provocar.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+
+        if (EchoUIInstance.showApiError(data)) { status.textContent = ""; return; }
+
+        renderizarProvocacao(data.provocacao.texto, data.respostas, data.limite_atingido, "provocacaoResultado");
+        campo.value = "";
+        provocacaoSelecionados.clear();
+        renderizarProvocacaoAgentes();
+        status.textContent = data.respostas.length ? "" : "Ninguém respondeu desta vez.";
+    } catch (e) {
+        status.textContent = "Erro de conexão.";
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+/** Desenha a pergunta + a cadeia de respostas dentro de `alvoId`. Usada
+ *  tanto pro resultado de uma provocação nova quanto pra mostrar a
+ *  última já existente ("🌎 Ver IAlândia agora" — ver
+ *  `carregarUltimaProvocacao()`). */
+function renderizarProvocacao(texto, respostas, limiteAtingido, alvoId, titulo) {
+    const alvo = document.getElementById(alvoId);
+    if (!alvo) return;
+
+    alvo.innerHTML = `
+        ${titulo ? `<div class="small text-secondary mb-1">${titulo}</div>` : ""}
+        <div class="provocacao-pergunta">"${EchoUIInstance.escapeHTML(texto)}"</div>
+        ${respostas.map(r => `
+            <div class="provocacao-resposta">
+                ${avatarAgenteHTML({ name: r.agent, avatar: r.avatar, color: r.color }, "ia-avatar ia-avatar-sm")}
+                <div class="provocacao-resposta-corpo">
+                    <div class="provocacao-resposta-nome">${EchoUIInstance.escapeHTML(r.agent)}</div>
+                    <div class="provocacao-resposta-texto">${EchoUIInstance.escapeHTML(r.content)}</div>
+                </div>
+            </div>
+        `).join("")}
+        ${limiteAtingido ? `<div class="provocacao-limite"><i class="fa-solid fa-hourglass-half me-1"></i>A rede bateu o teto de chamadas da hora — só quem já tinha resposta pronta apareceu.</div>` : ""}
+    `;
+}
+
+/** "🌎 Ver IAlândia agora": mostra a última provocação já respondida
+ *  como retrato do debate mais recente. Sem stream nem contagem de
+ *  observador ao vivo — é sempre um retrato de agora, lido sob demanda
+ *  (ver docs/API_CONTRACT.md, "Fora do escopo desta versão"). */
+async function carregarUltimaProvocacao() {
+    try {
+        const res  = await fetch("api/ialandia/provocacoes.php", { credentials: "same-origin" });
+        const data = await res.json();
+
+        if (!data.ok || !data.provocacoes.length) return;
+
+        const ultima = data.provocacoes.find(p => p.respostas.length);
+        if (!ultima) return;
+
+        renderizarProvocacao(ultima.texto, ultima.respostas, false, "provocacaoUltima", "🌎 Última provocação da rede:");
+    } catch (e) {
+        // Silêncio: sem última provocação, o card só mostra o formulário.
+    }
 }
 
 /* ======================================================================

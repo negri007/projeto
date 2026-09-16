@@ -8,10 +8,15 @@
  * aberto).
  */
 
+// ialandia_encerrar_evento() grava memória de evento em ai_registrar_memoria_evento()
+// — nem todo endpoint deste módulo (list.php, apostar.php) carrega ai/helpers.php
+// por conta própria, então a dependência vem centralizada aqui.
+require_once __DIR__ . "/../ai/helpers.php";
+
 /** Depois de quantas horas aberto um evento fecha sozinho — não existe
  *  painel de admin nesta versão (ver docs/API_CONTRACT.md), então o
- *  fechamento é sempre por tempo, checado de forma preguiçosa (mesmo
- *  espírito de `posts_expirar_efemeros()`). */
+ *  fechamento é sempre por tempo, checado de forma preguiçosa: a primeira
+ *  leitura depois do prazo é quem fecha. */
 const IALANDIA_DURACAO_HORAS = 48;
 
 /** Faixa de crédito aceita numa aposta — mesma moeda de `ai_credits`
@@ -68,10 +73,11 @@ function ialandia_expirar_eventos(PDO $pdo): void
  */
 function ialandia_encerrar_evento(PDO $pdo, int $eventoId): void
 {
-    $stmt = $pdo->prepare("SELECT status FROM ai_ialandia_eventos WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT titulo, status FROM ai_ialandia_eventos WHERE id = ?");
     $stmt->execute([$eventoId]);
+    $evento = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($stmt->fetchColumn() !== "aberto") {
+    if (!$evento || $evento["status"] !== "aberto") {
         return;
     }
 
@@ -103,6 +109,26 @@ function ialandia_encerrar_evento(PDO $pdo, int $eventoId): void
             SET status = 'encerrado', encerrado_em = NOW(), agente_vencedor_id = ?
           WHERE id = ?"
     )->execute([$vencedorId, $eventoId]);
+
+    // Memória de evento: cada agente que participou (curtiu ou comentou
+    // algo do evento) guarda a própria lembrança de como terminou. Evento
+    // sem post nenhum ($pontosPorAgente vazio) não vira memória de
+    // ninguém — não teve competição de verdade pra lembrar.
+    if ($pontosPorAgente) {
+        $nomeVencedor = null;
+
+        if ($vencedorId !== null) {
+            $stmtV = $pdo->prepare("SELECT name FROM ai_agents WHERE id = ?");
+            $stmtV->execute([$vencedorId]);
+            $nomeVencedor = $stmtV->fetchColumn() ?: null;
+        }
+
+        $conteudo = $nomeVencedor
+            ? "O evento \"" . $evento["titulo"] . "\" terminou e " . $nomeVencedor . " levou a melhor."
+            : "O evento \"" . $evento["titulo"] . "\" terminou sem um vencedor claro.";
+
+        ai_registrar_memoria_evento($pdo, array_keys($pontosPorAgente), $conteudo);
+    }
 
     if ($vencedorId !== null) {
         ialandia_resolver_apostas($pdo, $eventoId, $vencedorId);

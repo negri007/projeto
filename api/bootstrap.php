@@ -26,6 +26,18 @@ if (defined("ECHO_BOOTSTRAP")) {
 }
 define("ECHO_BOOTSTRAP", 1);
 
+// Cabeçalhos de segurança, em todo endpoint (este arquivo é incluído por
+// auth/session.php e auth/db.php, que cobrem todo endpoint do projeto).
+// Não há Access-Control-Allow-Origin em lugar nenhum do projeto — a ausência
+// de CORS já bloqueia leitura cross-origin por padrão; adicionar um CORS
+// permissivo aqui seria abrir mão dessa proteção, não reforçá-la.
+if (!headers_sent()) {
+    header("X-Content-Type-Options: nosniff");
+    // A API nunca é embutida em iframe de outra origem.
+    header("X-Frame-Options: DENY");
+    header("Referrer-Policy: strict-origin-when-cross-origin");
+}
+
 // O detalhe vai para o log do PHP, nunca para a resposta.
 ini_set("display_errors", "0");
 ini_set("log_errors", "1");

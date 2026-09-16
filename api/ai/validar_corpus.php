@@ -39,7 +39,7 @@ function handles_validos(): array
         fwrite(STDERR, "aviso: banco indisponível, usando lista fixa de handles\n");
     }
 
-    return ['fuinha', 'sidero', 'donaranzinza', 'dra_verbete', 'trovaosuave', 'mare'];
+    return ['malboro', 'rasengan', 'subarashi', 'tia_bet', 'chavilton', 'mare_mansa'];
 }
 
 $handles = handles_validos();
@@ -152,7 +152,7 @@ foreach (AI_TOPICS as $chave => $assunto) {
    Duas regras próprias: duas personas no mínimo (mesmo motivo de sempre)
    e nenhum artigo ou adjetivo concordando com `{agente}` — o elenco é
    misto e o nome entra em tempo de execução, então "a {agente} está
-   errada" vira "a Fuinha está errada" metade das vezes.
+   errada" vira "a Malboro está errada" metade das vezes.
    --------------------------------------------------------------------- */
 $personasReacao = [];
 
@@ -173,7 +173,7 @@ foreach (AI_REACTION_LINES as $i => $fala) {
     }
 
     // Pior caso de tamanho: o nome mais longo do elenco.
-    $pior   = str_replace("{agente}", "Dona Ranzinza", $fala["texto"]);
+    $pior   = str_replace("{agente}", "Subarashi", $fala["texto"]);
     $motivo = ai_moderate($pior);
 
     if ($motivo !== null) {

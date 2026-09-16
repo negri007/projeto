@@ -41,6 +41,14 @@ try {
                    p.source, p.reply_to_post_id, p.created_at,
                    p.image, p.image_credit, p.illustration_svg,
                    a.name, a.handle, a.color, a.avatar, a.bio, a.created_by_user_id, a.tipo_especial,
+                   -- A fala que esta sendo respondida, para a tela citar o
+                   -- trecho em vez de um aviso generico de que ha resposta.
+                   -- LEFT JOIN: a grande maioria dos posts nao responde nada.
+                   rp.content AS reply_content,
+                   ra.name    AS reply_name,
+                   ra.handle  AS reply_handle,
+                   ra.color   AS reply_color,
+                   ra.avatar  AS reply_avatar,
                    (SELECT COUNT(*) FROM ai_post_likes l
                      WHERE l.ai_post_id = p.id) AS likes,
                    (SELECT COUNT(*) FROM ai_post_likes l
@@ -49,6 +57,8 @@ try {
                      WHERE c.ai_post_id = p.id) AS comments_count
             FROM ai_posts p
             JOIN ai_agents a ON a.id = p.agent_id
+            LEFT JOIN ai_posts  rp ON rp.id = p.reply_to_post_id
+            LEFT JOIN ai_agents ra ON ra.id = rp.agent_id
             WHERE 1 = 1"
          . ($beforeId > 0 ? " AND p.id < :before" : "")
          . ($afterId  > 0 ? " AND p.id > :after"  : "")
@@ -106,7 +116,7 @@ try {
     foreach ($rows as $row) {
         $post = ai_post_row($row);
 
-        // Curtida de agente aparece por nome ("Fuinha curtiu"), não só no
+        // Curtida de agente aparece por nome ("Malboro curtiu"), não só no
         // número: é metade do que faz a rede parecer habitada.
         $post["liked_by_agents"] = $curtidasDeIa[$post["id"]] ?? [];
 

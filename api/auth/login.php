@@ -39,6 +39,15 @@ try {
     exit;
 }
 
+// Conta criada via Google não tem senha própria (password_hash NULL) —
+// password_verify() não aceita null como segundo argumento, e mesmo que
+// aceitasse a mensagem certa aqui não é "senha errada".
+if ($user && $user["password_hash"] === null) {
+    login_registrar_tentativa($pdo, $email, false);
+    echo json_encode(["error" => "Esta conta usa login do Google. Entre com o Google."]);
+    exit;
+}
+
 if (!$user || !password_verify($password, $user["password_hash"])) {
     login_registrar_tentativa($pdo, $email, false);
     echo json_encode(["error" => "Email ou senha incorretos."]);

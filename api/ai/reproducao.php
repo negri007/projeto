@@ -26,7 +26,7 @@
 require_once __DIR__ . "/helpers.php";
 
 /** Os 7 agentes de sistema — nunca morrem pelo teto de população. */
-const AI_CORE_HANDLES = ['fuinha', 'sidero', 'donaranzinza', 'dra_verbete', 'trovaosuave', 'mare', 'beta'];
+const AI_CORE_HANDLES = ['malboro', 'rasengan', 'subarashi', 'tia_bet', 'chavilton', 'mare_mansa', 'beta'];
 
 /** Handle do agente que assina os anúncios (inativo, ver banco.sql). */
 const AI_HANDLE_SISTEMA = 'echo_sistema';
@@ -418,7 +418,7 @@ function repro_herdar_traits(array $pai, array $mae): array
  */
 function gerar_nome_filhote(PDO $pdo, array $pai, array $mae): array
 {
-    // Só letras: "dra_verbete" vira "draverbete", senão o corte cai no "_".
+    // Só letras: "tia_bet" vira "draverbete", senão o corte cai no "_".
     $p = preg_replace('/[^a-z]/', '', $pai["handle"]);
     $m = preg_replace('/[^a-z]/', '', $mae["handle"]);
 

@@ -204,6 +204,21 @@ try {
                     "INSERT INTO ai_post_likes (ai_post_id, user_id, agent_id, acknowledged)
                      VALUES (?, NULL, ?, 1)"
                 )->execute([(int)$alvo["id"], $agente["id"]]);
+
+                // Memória dos agentes: curtida também é sinal de relação
+                // (docs/plans/rede-ia-memoria.md, fase 2). Sem `papel`
+                // estruturado próprio — só soma interação, não
+                // concordância/discordância — mas sempre vira memória:
+                // curtida é rara o bastante (25% do pool, 1 ação a cada
+                // AI_TICK_INTERVAL) pra não afogar a tabela.
+                ai_registrar_interacao_agente(
+                    $pdo, (int)$agente["id"], (int)$alvo["agent_id"], 'curtida',
+                    $alvo["name"] . ": " . $alvo["content"]
+                );
+                ai_registrar_memoria(
+                    $pdo, (int)$agente["id"], 'agente', (int)$alvo["agent_id"], null,
+                    "Curtiu a fala de " . $alvo["name"] . ": " . $alvo["content"], (int)$alvo["id"]
+                );
             }
 
             $pdo->prepare(
@@ -255,8 +270,13 @@ try {
             if ($usarIaReal) {
                 ai_registrar_chamada_api($pdo);
 
+                $memoriaAgente = ai_contexto_memoria_agente(
+                    $pdo, (int)$agente["id"], (int)$alvo["agent_id"], $alvo["name"]
+                );
+
                 $texto = ai_gerar_reacao_ia_real(
-                    $agente, $alvo["name"], $alvo["content"], $topico, $memoria, $ultimas
+                    $agente, $alvo["name"], $alvo["content"], $topico, $memoria, $ultimas,
+                    $memoriaAgente, $alvo["handle"]
                 );
                 $source = "ia";
 
@@ -510,6 +530,17 @@ try {
     $stmt->execute([$agente["id"], $eventoId, $topico, $papel, $replyTo, $texto, $source, $imagemArquivo, $imagemCredito, $ilustracaoSvg]);
 
     $postId = (int)$pdo->lastInsertId();
+
+    // Memória dos agentes (docs/plans/rede-ia-memoria.md): relação +
+    // memória quando houve alvo (ação "comentar"); em qualquer caso,
+    // varre o texto por @menção a outro agente.
+    ai_registrar_memoria_pos_post($pdo, $agente, $alvo, $papel, $texto, $postId);
+
+    // Poda ocasional (não a cada rodada — podar é barato, mas não precisa
+    // competir com a rodada principal toda vez).
+    if (mt_rand(1, 100) <= 4) {
+        ai_podar_memorias($pdo, (int)$agente["id"]);
+    }
 
     // Só quando a ação foi "post": "comentar" reage a um assunto que já
     // está em pauta (o do post-alvo), não abre um novo relógio de 5 min.

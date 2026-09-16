@@ -2,6 +2,29 @@
    ECHO DESIGN SYSTEM - UI & NOTIFICATIONS MODULE (js/echo-ui.js)
    ========================================================================== */
 
+/**
+ * Alterna um campo de senha entre oculto e visivel. `btn` e o botao-olho;
+ * o input alvo e o irmao anterior a ele no DOM (ver .pwd-wrapper /
+ * .input-icon-wrapper nos formularios de login, cadastro, reset e troca
+ * de senha).
+ */
+function toggleSenhaVisibilidade(btn) {
+    const input = btn.previousElementSibling;
+    if (!input) return;
+
+    const icon = btn.querySelector("i");
+    const vaiMostrar = input.type === "password";
+
+    input.type = vaiMostrar ? "text" : "password";
+
+    if (icon) {
+        icon.classList.toggle("fa-eye", !vaiMostrar);
+        icon.classList.toggle("fa-eye-slash", vaiMostrar);
+    }
+
+    btn.setAttribute("aria-label", vaiMostrar ? "Ocultar senha" : "Mostrar senha");
+}
+
 class EchoUI {
     constructor() {
         this.notifications = [];
@@ -22,15 +45,99 @@ class EchoUI {
         this.injectMobileOffcanvas(currentPage);
         this.setupNotificationDropdown();
         this.renderNotifications();
-        this.startNotificationPolling();
+        this.startNotificationRealtime();
         // O campo "Buscar no ECHO" existe no cabeçalho de todas as telas;
         // ligá-lo aqui evita repetir a mesma ligação em cada uma.
         this.initSearchBox();
     }
 
     /**
-     * Busca as notificacoes agora e passa a repetir a cada
-     * POLL_INTERVAL. Chamar duas vezes nao cria dois timers.
+     * Notificação do sino em tempo real via SSE (api/notifications/stream.php),
+     * com o polling antigo como reserva — usado se o navegador não tiver
+     * EventSource, ou se a conexão falhar repetidas vezes seguidas (sessão
+     * caiu, servidor fora do ar).
+     */
+    startNotificationRealtime() {
+        this.fetchNotificationsAPI();
+
+        if (typeof EventSource === "undefined") {
+            this.startNotificationPolling();
+            return;
+        }
+
+        this.sseErrosSeguidos = 0;
+        this.abrirNotificationStream();
+
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden && !this.notificationStream && !this.notificationTimer) {
+                this.abrirNotificationStream();
+            }
+        });
+    }
+
+    /**
+     * Abre a conexão SSE do sino. O servidor fecha sozinho a cada ~25s
+     * (ver comentário em stream.php) e o EventSource reconecta sozinho —
+     * isso dispara `onerror` mesmo em reconexão normal, então só cai pro
+     * polling depois de vários erros seguidos sem nenhuma mensagem entre
+     * eles.
+     */
+    abrirNotificationStream() {
+        if (this.notificationStream) return;
+
+        const es = new EventSource("api/notifications/stream.php");
+        this.notificationStream = es;
+
+        es.addEventListener("notification", (ev) => {
+            this.sseErrosSeguidos = 0;
+
+            try {
+                const data = JSON.parse(ev.data);
+                this.mesclarNotificacoes(data.notifications || []);
+
+                if (typeof data.unread_count === "number") {
+                    this.unreadCount = data.unread_count;
+                }
+
+                this.renderNotifications();
+            } catch (e) {
+                console.error("Erro ao processar notificação SSE:", e);
+            }
+        });
+
+        es.onopen = () => {
+            this.sseErrosSeguidos = 0;
+        };
+
+        es.onerror = () => {
+            this.sseErrosSeguidos = (this.sseErrosSeguidos || 0) + 1;
+
+            if (this.sseErrosSeguidos >= 8) {
+                es.close();
+                this.notificationStream = null;
+                this.startNotificationPolling();
+            }
+        };
+    }
+
+    /**
+     * Funde notificações novas (vindas do SSE, ordem crescente de id) na
+     * lista já carregada, sem duplicar, mantendo ordem decrescente de id
+     * — o mesmo formato que list.php devolve.
+     */
+    mesclarNotificacoes(novas) {
+        if (!novas.length) return;
+
+        const porId = new Map(this.notifications.map(n => [n.id, n]));
+        novas.forEach(n => porId.set(n.id, n));
+
+        this.notifications = Array.from(porId.values()).sort((a, b) => b.id - a.id);
+    }
+
+    /**
+     * Reserva: busca as notificacoes agora e passa a repetir a cada
+     * POLL_INTERVAL. Só entra em uso se o SSE não estiver disponível.
+     * Chamar duas vezes nao cria dois timers.
      */
     startNotificationPolling() {
         this.fetchNotificationsAPI();
@@ -311,12 +418,16 @@ class EchoUI {
                 credentials: "same-origin"
             });
 
-            // Sessao caiu no meio da navegacao: para o polling em vez de
-            // ficar batendo em 401 para sempre.
+            // Sessao caiu no meio da navegacao: para o polling e o SSE em
+            // vez de ficar batendo em 401 para sempre.
             if (res.status === 401) {
                 if (this.notificationTimer) {
                     clearInterval(this.notificationTimer);
                     this.notificationTimer = null;
+                }
+                if (this.notificationStream) {
+                    this.notificationStream.close();
+                    this.notificationStream = null;
                 }
                 return;
             }
@@ -474,6 +585,17 @@ class EchoUI {
         if (this.notificationTimer) {
             clearInterval(this.notificationTimer);
             this.notificationTimer = null;
+        }
+
+        // Fecha o SSE ANTES do fetch de logout: com o php -S do ambiente
+        // local (single-thread), a conexao aberta do sino segura o unico
+        // processo do servidor por ate ~25s, e o logout ficava preso na
+        // fila atras dela. Fechar aqui faz o stream.php notar
+        // connection_aborted() na proxima volta do loop (~1s) em vez de
+        // esperar o ciclo inteiro.
+        if (this.notificationStream) {
+            this.notificationStream.close();
+            this.notificationStream = null;
         }
 
         try {

@@ -590,34 +590,6 @@ a:hover {
     background: var(--accent-hover);
 }
 
-/* Toggle "Efêmero" no composer — mesmo espírito visual do icon-btn ao
-   lado, só que com estado (marcado = aviso ligado). */
-.echo-post-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: var(--radius-full);
-    color: var(--text-soft);
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition: background-color var(--transition-fast), color var(--transition-fast);
-    user-select: none;
-}
-
-.echo-post-toggle:hover {
-    background: var(--warning-hover);
-}
-
-.echo-post-toggle input {
-    display: none;
-}
-
-.echo-post-toggle:has(input:checked) {
-    color: var(--warning);
-    background: var(--warning-hover);
-}
-
 .image-preview img {
     max-width: 100%;
     border-radius: var(--radius-lg);
@@ -910,6 +882,41 @@ a:hover {
     pointer-events: none;
 }
 
+.pwd-wrapper {
+    position: relative;
+}
+
+.pwd-field {
+    padding-right: 42px !important;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: var(--text-muted);
+    opacity: 0.6;
+    font-size: 0.9rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.password-toggle-btn:hover,
+.password-toggle-btn:focus-visible {
+    color: var(--text-main);
+    opacity: 1;
+}
+
 .btn-auth {
     border-radius: var(--radius-full);
     font-weight: 700;
@@ -917,6 +924,49 @@ a:hover {
     margin-top: 8px;
     font-size: 1rem;
     transition: background-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-soft);
+}
+
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-radius: var(--radius-full);
+    font-weight: 600;
+    padding: 12px 0;
+    font-size: 0.95rem;
+    background: var(--bg-input);
+    border: 1px solid var(--border-soft);
+    color: var(--text-main);
+    transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.btn-google:hover {
+    background: var(--bg-card);
+    border-color: var(--text-soft);
+    color: var(--text-main);
+}
+
+.btn-google i {
+    color: #ea4335;
+    font-size: 1.05rem;
 }
 
 .auth-links {
@@ -1331,71 +1381,6 @@ a.echo-author-link:hover { text-decoration: underline; }
     color: var(--text-muted);
     font-size: 0.78rem;
     font-style: italic;
-}
-
-/* Selo "morre em Xh" do post efêmero */
-.post-efemero-badge {
-    color: var(--warning);
-    font-size: 0.78rem;
-    white-space: nowrap;
-}
-
-/*
- * Post efêmero: `--decadencia` (0 a 1) vem do JS a cada carga do feed,
- * calculado a partir de quanto já passou desde a criação (ou o último
- * comentário, que reseta o relógio). Opacidade cai e o post embaça —
- * nunca some de vez sozinho, só quando o servidor marca `morto` e ele
- * para de vir na listagem. O piso de opacidade/blur é pra continuar
- * legível até bem perto do fim, em vez de virar ilegível cedo demais.
- */
-.post-efemero {
-    opacity: calc(1 - (var(--decadencia, 0) * 0.6));
-    filter: blur(calc(var(--decadencia, 0) * 1.4px));
-    transition: opacity 1.2s ease, filter 1.2s ease;
-}
-
-.post-efemero:hover {
-    opacity: 1;
-    filter: none;
-}
-
-/* Botão "Boato" nas ações do post — mesmo icon-btn dos demais, só com
-   rótulo de texto ao lado do ícone (os outros são só número). */
-.rumor-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-
-/* Linha do tempo do boato (telefone sem fio) */
-.rumor-timeline {
-    padding-left: 10px;
-}
-
-.rumor-item {
-    margin-bottom: 10px;
-}
-
-.rumor-item-rotulo {
-    font-weight: 700;
-    font-size: 0.8rem;
-    color: var(--text-main);
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-}
-
-.rumor-item-texto {
-    font-size: 0.92rem;
-    line-height: 1.4;
-    margin-top: 2px;
-}
-
-/* Palavra que mudou de um repasse para o seguinte */
-mark.rumor-diff {
-    background: var(--accent-hover);
-    color: var(--accent);
-    padding: 0 2px;
-    border-radius: 4px;
 }
 
 /* Badge de mensagens não lidas na lista de conversas */
@@ -2263,6 +2248,62 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     background: color-mix(in srgb, var(--cor-agente) 12%, transparent);
 }
 
+/* Chip clicável, pra escolher quem provocar ("Falar com a IAlândia") —
+   mesma base do .ia-chip, só que apagado até ser selecionado. */
+.ia-chip-toggle {
+    cursor: pointer;
+    opacity: 0.5;
+    user-select: none;
+    transition: opacity .15s ease;
+}
+.ia-chip-toggle:hover { opacity: 0.8; }
+.ia-chip-toggle.ativo {
+    opacity: 1;
+    box-shadow: 0 0 0 1px var(--cor-agente) inset;
+}
+
+/* --------------------------------------------------------------------------
+   "Falar com a IAlândia" — provocação + cadeia de respostas
+   -------------------------------------------------------------------------- */
+.provocacao-pergunta {
+    font-size: 0.8rem;
+    color: var(--text-soft);
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    border-left: 2px solid var(--ia-acento);
+    margin-bottom: 2px;
+}
+
+.provocacao-resposta {
+    display: flex;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border-soft);
+}
+.provocacao-resposta:first-child { border-top: none; }
+
+.provocacao-resposta-corpo { min-width: 0; }
+
+.provocacao-resposta-nome {
+    font-weight: 700;
+    font-size: 0.78rem;
+    color: #fff;
+}
+
+.provocacao-resposta-texto {
+    font-size: 0.82rem;
+    color: var(--text-soft);
+    margin-top: 2px;
+    line-height: 1.35;
+}
+
+.provocacao-limite {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
 /* --------------------------------------------------------------------------
    Cabeçalho do fio
    -------------------------------------------------------------------------- */
@@ -2742,6 +2783,75 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     letter-spacing: 0.04em;
     margin-bottom: 4px;
     opacity: 0.85;
+}
+
+/* --------------------------------------------------------------------------
+   Citação da fala respondida
+
+   Mesma ideia do Instagram e do WhatsApp: quem chega no meio da conversa vê
+   a que está sendo respondida sem ter de procurar. Antes havia só o aviso
+   "respondendo a outro agente", que dizia que existia resposta mas não a quê
+   — e numa rede onde sete agentes falam ao mesmo tempo isso não basta.
+
+   A barra lateral usa a cor do agente citado, não a de quem responde: é dele
+   a fala que está ali dentro.
+   -------------------------------------------------------------------------- */
+.ia-citacao {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    padding: 6px 10px 6px 8px;
+    border-left: 3px solid var(--cor-citacao, var(--ia-acento));
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.ia-citacao:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.ia-citacao-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    flex: none;
+    background-size: cover;
+    background-position: center;
+}
+
+.ia-citacao-corpo {
+    min-width: 0;
+}
+
+.ia-citacao-autor {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--cor-citacao, var(--ia-acento));
+    line-height: 1.3;
+}
+
+/* Duas linhas no máximo: a citação é referência, não leitura. */
+.ia-citacao-trecho {
+    font-size: 0.78rem;
+    color: var(--text-soft);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Pisca uma vez quando a citação leva até a fala original. */
+@keyframes ia-piscada {
+    0%, 100% { background-color: transparent; }
+    30%      { background-color: rgba(29, 155, 240, 0.16); }
+}
+
+.ia-fala-piscando {
+    animation: ia-piscada 1.4s ease-in-out;
 }
 
 /* --------------------------------------------------------------------------

@@ -6,6 +6,10 @@ api/auth/mail_config.php
 # O modelo versionado é api/ai/ai_config.example.php.
 api/ai/ai_config.php
 
+# Credenciais OAuth do login com Google — nunca versionar.
+# O modelo versionado é api/auth/google_config.example.php.
+api/auth/google_config.php
+
 # Log de e-mail do driver de desenvolvimento.
 logs/
 
@@ -22,4 +26,4 @@ assets/ai/avatares/user_*
 
 # Logs do ambiente de teste local (mysqld, php -S).
 mysql_start.log
-php_server.log
+php_server*.log
