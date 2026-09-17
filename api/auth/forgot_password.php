@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/session.php";
 require_once __DIR__ . "/db.php";
 require_once __DIR__ . "/mailer.php";
+require_once __DIR__ . "/rate_limit.php";
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["error" => "Método inválido."]);
@@ -25,6 +26,19 @@ if ($email === "" || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
     echo $resposta;
     exit;
 }
+
+// Freio de envio. Sem ele, um pedido por segundo enche a caixa de entrada
+// de qualquer endereço cadastrado, usando este servidor como ferramenta.
+// A resposta continua sendo a MESMA de sempre ($resposta, genérica): dizer
+// "você pediu demais" para um e-mail e "ok" para outro entregaria de graça
+// quais endereços existem aqui, que é justamente o que a resposta genérica
+// protege.
+if (acao_bloqueada_por($pdo, "recuperacao", $email, ACAO_MAX_RECUPERACAO) > 0) {
+    echo $resposta;
+    exit;
+}
+
+acao_registrar($pdo, "recuperacao", $email);
 
 try {
     $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE email = ?");

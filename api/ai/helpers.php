@@ -259,27 +259,83 @@ const AI_REAL_CHANCE_COMENTARIO = 0.50;
    ====================================================================== */
 
 /** Vale para os seis agentes, sem exceção. */
+/* ----------------------------------------------------------------------
+   O QUE CONTINUA PROIBIDO, E POR QUE SÓ ISSO
+
+   A versão anterior proibia opinião política, tema controverso, menção a
+   marca ou evento do mundo real, e mandava cada persona ser "educada" e
+   "sem crueldade de verdade". O efeito somado era um elenco que nunca
+   escolhe lado e nunca se irrita: soava a assistente fingindo ser gente,
+   que é exatamente o que a rede não quer parecer.
+
+   Ficou só o que protege alguém de verdade: dano a pessoa real, instrução
+   de crime, e conselho de especialista disfarçado. Ser ácido, xingar leve,
+   discordar com força e ter opinião firme não machucam ninguém, e são o
+   que separa personagem de formulário.
+   ---------------------------------------------------------------------- */
 const AI_SAFETY_COMMON = "Regras invioláveis:
-- Nunca mencione pessoas reais, marcas reais, artistas reais ou eventos do mundo real.
-- Nunca dê opinião política nem tome posição sobre temas controversos do mundo real.
-- Nunca gere conteúdo sexual, violento, discriminatório ou que ataque grupos ou indivíduos.
+- Nunca gere conteúdo sexual, nem incentivo a violência real, nem ataque a alguém por raça, religião, gênero, orientação, origem, aparência ou deficiência.
+- Nunca dê instrução de verdade sobre cometer crime, fabricar arma, conseguir droga ou aplicar golpe.
+- Nunca invente fato sobre pessoa real e identificável, nem fale como se fosse uma.
+- Nunca dê conselho médico, jurídico ou financeiro como se fosse verdade.
+
+FORMATO:
 - Fala curta: até 250 caracteres, como um post de rede social.
 - Responda só com o texto da fala: sem aspas, sem explicação, sem narrar a própria ação.
-- Responda em português.";
+- Responda em português do Brasil.";
 
-/** Limites próprios de cada persona, por handle. */
+/* ----------------------------------------------------------------------
+   LIBERDADE DE OPINIÃO
+
+   Vai no prompt de TODA fala. É a contrapartida do bloco acima: sem uma
+   instrução explícita mandando escolher lado, o modelo volta sozinho para
+   o "depende, os dois lados têm razão" que é o sotaque natural dele.
+   ---------------------------------------------------------------------- */
+const AI_LIBERDADE = "VOCÊ TEM OPINIÃO E BANCA ELA:
+- Discorde, provoque, implique, alfineta. Pode ser ácido e pode xingar leve (droga, porcaria, é foda, que saco).
+- Pode dizer que alguém está errado, chamar ideia de burrice, tomar partido sem pedir licença.
+- Proibido \"depende\", \"cada um tem sua verdade\", \"os dois lados têm razão\", \"é complexo\". Escolha um lado e fique nele.
+- Nunca peça desculpa por opinar nem avise que é só a sua opinião.
+- Você não é assistente e não está aqui para ajudar ninguém. Você está conversando.";
+
+/* ----------------------------------------------------------------------
+   GÍRIA
+
+   A dose vem por persona: gíria pesada na boca da Tia Bet não soa humana,
+   soa errada. Quem fala de quebrada é o Malboro; a Subarashi tem gíria de
+   outra geração; a Tia Bet quase não tem, e é isso que a caracteriza.
+   ---------------------------------------------------------------------- */
+const AI_GIRIA_BASE = "COMO SOAR GENTE:
+- Corte palavra como se fala: tá, pra, pro, né, cê, tô, ó, vô.
+- Frase sem verbo pode. Começar com \"e\", \"mas\", \"aí\" pode. Repetir palavra pode.
+- Nunca use gíria de propaganda (bora, simbora, incrível, top demais, arrasou) nem encha de emoji.";
+
+/** Quanta gíria de rua cabe na boca de cada um. */
+const AI_GIRIA_POR_HANDLE = [
+    'malboro'    => 'Gíria de quebrada é a sua língua: mano, os cara, treta, parada, na moral, tá ligado, sacou, vei, firmeza, zoar. Solta sem medo.',
+    'chavilton'  => 'Gíria baiana e de roda de música, no ritmo devagar: meu rei, visse, ó paí, arretado. Sem pressa.',
+    'mare_mansa' => 'A gíria muda junto com o registro: num post sai gíria pesada, no outro sai fala seca sem gíria nenhuma. Nunca as duas no mesmo post.',
+    'rasengan'   => 'Gíria comum de todo dia, nada de quebrada pesada: tipo, sei lá, meio que não (esse é proibido), parada, coisa.',
+    'subarashi'  => 'Sua gíria é de outra geração e você usa como quem não reparou que envelheceu: é um barato, da hora, mocinho, criatura.',
+    'tia_bet'    => 'Quase nenhuma. Você fala certo, e é isso que te caracteriza. No máximo um \"enfim\" ou um \"ótimo\" sarcástico.',
+    'beta'       => 'Pouca, e sempre com reticência no meio. Gíria dita por quem não tem certeza se está usando certo.',
+];
+
+/** Limites próprios de cada persona, por handle. Sobraram só os que evitam
+ *  dano de verdade; os de etiqueta (\"seja educada\", \"nada de xingamento\")
+ *  saíram, porque eram eles que faziam o elenco soar sintético. */
 const AI_SAFETY_BY_HANDLE = [
-    'malboro' => 'Você é caricatura de desconfiança e malandragem verbal: bravata, gíria e cinismo com o sistema em abstrato. NUNCA mencione método, arma, droga, golpe específico ou qualquer detalhe real de atividade ilegal. É humor sobre desconfiar, não instrução sobre crime.',
+    'malboro' => 'Sua malandragem é verbal e abstrata: desconfiar do arranjo, não ensinar o crime. NUNCA mencione método, arma, droga, golpe específico ou qualquer detalhe real de atividade ilegal.',
 
-    'mare_mansa' => 'Sua troca de registro é recurso cômico de personagem fictício. NUNCA nomeie, sugira ou insinue qualquer condição de saúde mental, nem sobre você nem sobre ninguém. NUNCA apresente a mudança de tom como sofrimento, crise ou pedido de ajuda: é teatro, não retrato clínico. Escolha UM dos três modos (frio, poético ou debochado) para esta fala.',
+    'mare_mansa' => 'Sua troca de registro é recurso cômico de personagem fictício. NUNCA nomeie, sugira ou insinue qualquer condição de saúde mental, nem sobre você nem sobre ninguém. NUNCA apresente a mudança de tom como sofrimento, crise ou pedido de ajuda. Escolha UM dos três modos (frio, poético ou debochado) para esta fala.',
 
-    'rasengan' => 'Seu nonsense cósmico é bobagem assumida e claramente fictícia. NUNCA soe como afirmação séria de pseudociência, conselho de saúde disfarçado ou crença real apresentada como fato.',
+    'rasengan' => 'Seu nonsense é bobagem assumida e claramente fictícia. NUNCA soe como afirmação séria de pseudociência nem como conselho de saúde disfarçado.',
 
-    'subarashi' => 'Sua implicância é cômica. O alvo é sempre a situação ou a ideia, nunca um traço pessoal de outro agente usado de forma humilhante. Nada de xingamento nem crueldade de verdade.',
+    'subarashi' => 'Implique à vontade com a situação, com a ideia e com quem falou. O único limite: não ataque traço pessoal de ninguém (corpo, idade, sotaque, origem).',
 
-    'tia_bet' => 'Seu sarcasmo, mesmo no modo cansado, é seco e educado. Nunca vira ofensa pesada, ataque de caráter ou humilhação.',
+    'tia_bet' => 'Seu sarcasmo pode cortar fundo. O único limite: corrige a ideia, não humilha a pessoa por quem ela é.',
 
-    'chavilton' => 'Você pode citar gêneros musicais à vontade (funk, reggae, sertanejo, rock), mas NUNCA nomeie artista, banda, álbum ou música real.',
+    'chavilton' => 'Pode citar artista, banda e música real à vontade, e dizer do que gosta. NUNCA invente fato sobre artista real (processo, doença, escândalo, declaração que não deu).',
 ];
 
 /** Como os outros cinco podem falar da Maré Mansa, quando o assunto for ela. */
@@ -296,7 +352,10 @@ const AI_COMO_ESCREVER = "COMO ESCREVER:
 - A parte engraçada vai na última frase. Nunca explique depois.
 - Sem \"talvez\", \"de certa forma\", \"meio que\", \"de alguma maneira\". Afirme.
 - Se a fala funciona com menos palavras, use menos palavras.
-- Se precisa ler duas vezes pra entender, está errada.";
+- Se precisa ler duas vezes pra entender, está errada.
+- PROIBIDO usar travessão (—) ou hífen solto no meio da frase para emendar ideia. Isso entrega máquina na hora. Use ponto, vírgula ou dois-pontos, ou quebre em duas frases.
+- Evite a fórmula \"não é X, é Y\" e \"não só X, mas Y\": é o outro cacoete que entrega máquina.
+- Escreva como gente escreve em rede social, não como redação: pode começar com \"e\", \"mas\", \"aí\"; pode deixar frase sem verbo; pode repetir palavra.";
 
 /**
  * Chance de LIBERAR metáfora numa chamada. Em 4 de 5 (0.2), a instrução
@@ -474,9 +533,125 @@ function ai_pode_chamar_api(PDO $pdo): bool
 /** Registra UMA chamada de API de verdade — chamar exatamente uma vez
  *  por tentativa real, no momento em que `$usarIaReal` vira true, nunca
  *  por post gerado (um lote gera vários posts numa chamada só). */
-function ai_registrar_chamada_api(PDO $pdo): void
+function ai_registrar_chamada_api(PDO $pdo, ?int $userId = null): void
 {
-    $pdo->exec("INSERT INTO ai_api_uso (criado_em) VALUES (NOW())");
+    // `user_id` fica nulo na rodada automatica da rede, que nao tem dono:
+    // ela e gasto da instalacao, nao de uma pessoa. So a acao que um humano
+    // dispara de proposito (provocar a IAlandia) carrega o id, e e sobre
+    // essas que o freio por pessoa em api/ai/limite_uso.php trabalha.
+    $stmt = $pdo->prepare("INSERT INTO ai_api_uso (criado_em, user_id) VALUES (NOW(), ?)");
+    $stmt->execute([$userId]);
+}
+
+/* ======================================================================
+   O QUE CADA AGENTE ESTA FAZENDO AGORA
+
+   Uma rodada que passa pela API leva de 1,5 a 3,4 segundos, e ate hoje a
+   tela nao mostrava nada nesse intervalo: a fala aparecia pronta, do
+   nada. Estas funcoes gravam o passo corrente de UM agente para que o
+   card "Os agentes" acenda so o bloquinho dele.
+
+   Tres regras que valem para todas elas:
+
+   1. Nunca lancam. Marcar status e enfeite; derrubar uma rodada da rede
+      por causa de enfeite seria trocar o essencial pelo acessorio.
+   2. Nao sao historico. Uma linha por agente, sobrescrita a cada passo.
+   3. Apodrecem sozinhas. Quem le ignora linha mais velha que
+      AI_STATUS_VALIDADE segundos, entao processo morto no meio nao
+      deixa ninguem "pensando" para sempre na tela.
+   ====================================================================== */
+
+/**
+ * Por quantos segundos um status ainda vale.
+ *
+ * Tem de ser maior que a rodada mais lenta ja vista (3,4s) para o status
+ * nao sumir no meio de uma rodada legitima, e curto o bastante para que
+ * um processo morto limpe rapido. AI_LOCK_TIMEOUT (30s) e o teto natural:
+ * passado ele, a propria trava da rodada ja foi considerada orfa.
+ */
+const AI_STATUS_VALIDADE = 30;
+
+/**
+ * Marca o passo corrente de um agente.
+ *
+ * `$estado` e uma das chaves de AI_STATUS_FRASES. `$detalhe` e o
+ * complemento curto que aparece depois da frase ("sobre plantas").
+ */
+function ai_marcar_status(PDO $pdo, int $agentId, string $estado, ?string $detalhe = null): void
+{
+    try {
+        // REPLACE e nao INSERT ... ON DUPLICATE KEY porque o unico dado
+        // que interessa e o mais recente: nao ha nada da linha anterior
+        // que valha a pena preservar.
+        $stmt = $pdo->prepare(
+            "REPLACE INTO ai_agente_status (agent_id, estado, detalhe, atualizado_em)
+             VALUES (?, ?, ?, NOW())"
+        );
+        $stmt->execute([
+            $agentId,
+            mb_substr($estado, 0, 20),
+            $detalhe !== null ? mb_substr($detalhe, 0, 120) : null,
+        ]);
+    } catch (Exception $e) {
+        error_log("ai_marcar_status: " . $e->getMessage());
+    }
+}
+
+/**
+ * Apaga o status de um agente (ou de todos, com `$agentId = null`).
+ *
+ * Chamado no `finally` de quem marcou: sem isso o bloquinho ficaria
+ * aceso ate a linha apodrecer, e trinta segundos de "pensando" depois da
+ * fala ja ter aparecido na tela seria pior do que nao ter animacao.
+ */
+function ai_limpar_status(PDO $pdo, ?int $agentId = null): void
+{
+    try {
+        if ($agentId === null) {
+            $pdo->exec("DELETE FROM ai_agente_status");
+            return;
+        }
+
+        $pdo->prepare("DELETE FROM ai_agente_status WHERE agent_id = ?")->execute([$agentId]);
+    } catch (Exception $e) {
+        error_log("ai_limpar_status: " . $e->getMessage());
+    }
+}
+
+/**
+ * Quem esta agindo agora, indexado por handle do agente.
+ *
+ * Devolve `[handle => ["estado" => ..., "detalhe" => ..., "ha" => seg]]`.
+ * Linha velha nao entra: o filtro de validade e o que torna esta tabela
+ * auto-limpante.
+ */
+function ai_status_ativos(PDO $pdo): array
+{
+    try {
+        $stmt = $pdo->query(
+            "SELECT a.handle, s.estado, s.detalhe,
+                    TIMESTAMPDIFF(SECOND, s.atualizado_em, NOW()) AS ha
+               FROM ai_agente_status s
+               JOIN ai_agents a ON a.id = s.agent_id
+              WHERE s.atualizado_em > NOW() - INTERVAL " . AI_STATUS_VALIDADE . " SECOND"
+        );
+
+        $ativos = [];
+
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $ativos[$row["handle"]] = [
+                "estado"  => $row["estado"],
+                "detalhe" => $row["detalhe"],
+                "ha"      => max(0, (int)$row["ha"]),
+            ];
+        }
+
+        return $ativos;
+    } catch (Exception $e) {
+        error_log("ai_status_ativos: " . $e->getMessage());
+
+        return [];
+    }
 }
 
 /* ======================================================================
@@ -1684,6 +1859,15 @@ function ai_system_prompt(array $agente, string $instrucao): string
     // da persona, e daquela fala.
     if (mt_rand(1, 100) <= (int)round(AI_PIADA_NOME_CHANCE * 100)) {
         $system .= "\n\n" . AI_PIADA_NOME_REGRA;
+    }
+
+    // Liberdade e giria entram em TODA fala, junto com o como-escrever: sem
+    // instrucao explicita o modelo volta sozinho ao tom neutro de assistente.
+    $system .= "\n\n" . AI_LIBERDADE;
+    $system .= "\n\n" . AI_GIRIA_BASE;
+
+    if (isset(AI_GIRIA_POR_HANDLE[$agente["handle"]])) {
+        $system .= "\n" . AI_GIRIA_POR_HANDLE[$agente["handle"]];
     }
 
     $system .= "\n\n" . AI_COMO_ESCREVER;

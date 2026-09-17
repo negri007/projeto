@@ -18,6 +18,11 @@ require_once __DIR__ . "/helpers.php";
 
 $userId = require_login();
 
+// Solta o lock do arquivo de sessao aqui: dali pra baixo este endpoint
+// so LE o banco, nunca mais escreve em $_SESSION, e sem isto ele deixa
+// todas as outras chamadas da mesma pagina esperando. Ver liberar_sessao().
+liberar_sessao();
+
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["error" => "Método inválido."]);
     exit;

@@ -1630,6 +1630,66 @@ class EchoUI {
      * Preenche o card de tendências com as etiquetas reais dos últimos
      * dias. Até aqui o card era texto fixo no HTML (#PHP, #Linux, #IA).
      */
+    /* ==================================================================
+       LAYOUT QUE REAGE AO CONTEÚDO
+
+       A coluna da direita foi desenhada para três colunas de altura
+       parecida, e nunca teve o que pôr na terceira: numa tela de 950px de
+       altura sobravam 680 de preto embaixo do último cartão, e os dois
+       cartões que havia estavam ocupados anunciando que não tinham nada
+       ("Nenhum assunto em alta ainda").
+
+       Anunciar o vazio é pior que não mostrar: chama atenção justamente
+       para o que falta. Agora o cartão sem conteúdo some, e quando TODOS
+       somem a coluna inteira sai e o feed ocupa o espaço. Quando dado
+       aparecer, tudo volta sozinho — é o mesmo caminho, só que ao
+       contrário.
+       ================================================================== */
+
+    /**
+     * Esconde o `.right-card` que contém `box` e reavalia a coluna.
+     * Esconde o CARTÃO, não só o miolo: o título ("Assuntos em alta")
+     * sozinho é tão vazio quanto o aviso que ele encabeça.
+     */
+    esconderCartaoVazio(box) {
+        const cartao = box.closest(".right-card") || box;
+        cartao.hidden = true;
+        this.ajustarColunaDireita();
+    }
+
+    /** Revela de novo quando o conteúdo voltou. */
+    revelarCartao(box) {
+        const cartao = box.closest(".right-card") || box;
+
+        if (cartao.hidden) {
+            cartao.hidden = false;
+            this.ajustarColunaDireita();
+        }
+    }
+
+    /**
+     * Coluna da direita sem nenhum cartão visível sai da tela, e o feed
+     * herda a largura. A marca vai na `.layout`, não na coluna, porque
+     * quem precisa reagir é o irmão ao lado — e CSS não tem seletor de
+     * "elemento anterior".
+     */
+    ajustarColunaDireita() {
+        const coluna = document.querySelector(".right-col");
+        const layout = document.querySelector(".layout");
+        if (!coluna || !layout) return;
+
+        const vivos = [...coluna.querySelectorAll(".right-card")].filter(c => !c.hidden);
+
+        coluna.hidden = vivos.length === 0;
+        layout.classList.toggle("layout-sem-direita", vivos.length === 0);
+
+        // Coluna com um cartão só não precisa dos 430px reservados para
+        // três: encolhe, e a largura devolvida vai para o feed. É o mesmo
+        // princípio do sumiço, em grau menor — o espaço acompanha o que
+        // existe, em vez de ficar guardado para conteúdo que não veio.
+        layout.classList.toggle("layout-direita-magra", vivos.length === 1);
+    }
+
     async renderTrending(containerId = "trendingCard", limit = 5) {
         const box = document.getElementById(containerId);
         if (!box) return;
@@ -1639,10 +1699,11 @@ class EchoUI {
             const data = await res.json();
 
             if (!data.ok || !data.hashtags.length) {
-                box.innerHTML = `<p class="text-secondary mb-0 small">
-                    Nenhum assunto em alta ainda. Publique com <strong>#etiqueta</strong> para começar um.</p>`;
+                this.esconderCartaoVazio(box);
                 return;
             }
+
+            this.revelarCartao(box);
 
             box.innerHTML = data.hashtags.map((h, i) => `
                 <a class="echo-trend" href="explorar.html?tag=${encodeURIComponent(h.tag)}">
@@ -1702,11 +1763,11 @@ class EchoUI {
             const data = await res.json();
 
             if (!data.ok || !data.circles?.length) {
-                box.innerHTML = `<p class="text-secondary mb-0 small">
-                    Você ainda não participa de nenhum círculo.
-                    <a href="circulos.html">Criar um</a>.</p>`;
+                this.esconderCartaoVazio(box);
                 return;
             }
+
+            this.revelarCartao(box);
 
             box.innerHTML = data.circles.slice(0, limit).map(c => `
                 <a class="echo-trend" href="circle_chat.html?circle_id=${c.id}">
@@ -1723,6 +1784,147 @@ class EchoUI {
         }
     }
 
+    /* ==================================================================
+       O QUE A COLUNA DA DIREITA MOSTRA
+
+       A coluna tinha dois cartões e sobrava tela. Não faltava dado:
+       faltava mostrar o dado que o Echo já tem e ninguém vê de fora da
+       página onde ele mora. Os três cartões abaixo não criaram endpoint
+       nenhum — são `api/ai/feed.php`, `api/friends/suggestions.php` e
+       `api/profile/get.php`, que já existiam e já respondiam isto.
+
+       Todos passam por `esconderCartaoVazio()`/`revelarCartao()`: cartão
+       sem conteúdo sai, e quando todos saem a coluna inteira sai e o feed
+       herda a largura. Encher a tela não pode virar encher de aviso de
+       vazio — seria trocar um buraco por outro pior.
+       ================================================================== */
+
+    /**
+     * "A rede agora": as últimas falas dos agentes, fora da aba deles.
+     *
+     * A rede de IA é o coração do projeto e vivia escondida atrás de um
+     * item de menu: quem abria o Início não tinha como saber que havia
+     * conversa acontecendo naquele minuto. Aqui ela aparece de relance, e
+     * clicar leva para o fio inteiro.
+     *
+     * Atualiza sozinho a cada `intervaloMs`, e só com a aba à vista: o
+     * `tick.php` que alimenta essa conversa custa chamada de API, e não
+     * faz sentido varrer o banco para uma aba que ninguém está olhando.
+     */
+    async renderRedeAgora(containerId = "redeAgoraCard", limit = 3, intervaloMs = 45000) {
+        const box = document.getElementById(containerId);
+        if (!box) return;
+
+        const pintar = async () => {
+            try {
+                const res  = await fetch(`api/ai/feed.php?limit=${limit}`, { credentials: "same-origin" });
+                const data = await res.json();
+
+                if (!data.ok || !data.posts?.length) {
+                    this.esconderCartaoVazio(box);
+                    return;
+                }
+
+                this.revelarCartao(box);
+
+                box.innerHTML = data.posts.slice(0, limit).map(p => {
+                    const a     = p.agent || {};
+                    const cor   = this.escapeHTML(a.color || "#1d9bf0");
+                    const capa  = a.avatar
+                        ? `<span class="rede-agora-foto" style="background-image:url('assets/ai/avatares/${encodeURIComponent(a.avatar)}')"></span>`
+                        : `<span class="rede-agora-foto rede-agora-foto-letra" style="background:${cor}">${this.escapeHTML((a.name || "?").charAt(0))}</span>`;
+
+                    return `
+                        <a class="rede-agora-item" href="rede_ia.html?fala=${p.id}">
+                            ${capa}
+                            <span class="rede-agora-corpo">
+                                <span class="rede-agora-topo">
+                                    <strong style="color:${cor}">${this.escapeHTML(a.name || "Agente")}</strong>
+                                    <small>${this.formatTime(p.created_at)}</small>
+                                </span>
+                                <small class="rede-agora-fala">${this.escapeHTML(this.cortar(p.content, 90))}</small>
+                            </span>
+                        </a>`;
+                }).join("") + `
+                    <a class="rede-agora-todos" href="rede_ia.html">Ver a conversa inteira
+                       <i class="fa-solid fa-arrow-right-long"></i></a>`;
+            } catch (e) {
+                this.esconderCartaoVazio(box);
+            }
+        };
+
+        await pintar();
+
+        if (intervaloMs > 0 && !this._redeAgoraTimer) {
+            this._redeAgoraTimer = setInterval(() => {
+                if (document.visibilityState === "visible") pintar();
+            }, intervaloMs);
+        }
+    }
+
+    /**
+     * "Seu Echo": o próprio número da pessoa, no lugar onde ela começa o
+     * dia. Vem de `api/profile/get.php` sem `user_id`, que já devolvia
+     * `stats` prontinho para o próprio perfil — o mesmo número que a
+     * página de perfil mostra, sem segunda fonte da verdade.
+     */
+    async renderMeuResumo(containerId = "resumoCard") {
+        const box = document.getElementById(containerId);
+        if (!box) return;
+
+        try {
+            const res  = await fetch("api/profile/get.php", { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (!data.ok || !data.stats) {
+                this.esconderCartaoVazio(box);
+                return;
+            }
+
+            const s = data.stats;
+
+            // Conta zerada: o cartão vira convite, e não quatro zeros. Zero
+            // publicação em letra grande é pior do que cartão nenhum.
+            if (!s.posts && !s.friends && !s.circles && !s.likes_received) {
+                this.revelarCartao(box);
+                box.innerHTML = `
+                    <p class="text-secondary small mb-2">Sua conta ainda está em branco.</p>
+                    <a class="rede-agora-todos" href="#postText">Escrever a primeira publicação
+                       <i class="fa-solid fa-arrow-right-long"></i></a>`;
+                return;
+            }
+
+            this.revelarCartao(box);
+
+            const numeros = [
+                ["posts",          s.posts,          "publicação",  "publicações"],
+                ["friends",        s.friends,        "amigo",        "amigos"],
+                ["likes_received", s.likes_received, "curtida",      "curtidas"],
+                ["circles",        s.circles,        "círculo",     "círculos"],
+            ];
+
+            box.innerHTML = `<div class="echo-resumo">` + numeros.map(([, n, um, muitos]) => `
+                <div class="echo-resumo-item">
+                    <strong>${Number(n) || 0}</strong>
+                    <small>${Number(n) === 1 ? um : muitos}</small>
+                </div>
+            `).join("") + `</div>`;
+        } catch (e) {
+            this.esconderCartaoVazio(box);
+        }
+    }
+
+    /** Corta texto no limite sem partir palavra no meio. */
+    cortar(texto, limite) {
+        const t = String(texto || "").trim();
+        if (t.length <= limite) return t;
+
+        const corte = t.slice(0, limite);
+        const espaco = corte.lastIndexOf(" ");
+
+        return (espaco > limite * 0.6 ? corte.slice(0, espaco) : corte) + "…";
+    }
+
     /**
      * Preenche o card "Talvez você conheça" com gente de verdade
      * (`api/friends/suggestions.php`), com botão de adicionar.
@@ -1736,9 +1938,14 @@ class EchoUI {
             const data = await res.json();
 
             if (!data.ok || !data.users?.length) {
-                box.innerHTML = `<p class="text-secondary mb-0 small">Nenhuma sugestão por enquanto.</p>`;
+                // Entrou no layout que se adapta (ver esconderCartaoVazio):
+                // "nenhuma sugestão por enquanto" ocupava espaço só para
+                // dizer que não tinha nada para ocupar espaço.
+                this.esconderCartaoVazio(box);
                 return;
             }
+
+            this.revelarCartao(box);
 
             box.innerHTML = data.users.slice(0, limit).map(u => `
                 <div class="echo-suggestion" id="suggestion-${u.user_id}">
@@ -1752,7 +1959,7 @@ class EchoUI {
                 </div>
             `).join("");
         } catch (e) {
-            box.innerHTML = `<p class="text-secondary mb-0 small">Não foi possível carregar as sugestões.</p>`;
+            this.esconderCartaoVazio(box);
         }
     }
 

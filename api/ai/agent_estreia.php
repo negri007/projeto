@@ -30,6 +30,11 @@ require_once __DIR__ . "/helpers.php";
 
 $userId = require_login();
 
+// Solta o lock do arquivo de sessao aqui: dali pra baixo este endpoint
+// so LE o banco, nunca mais escreve em $_SESSION, e sem isto ele deixa
+// todas as outras chamadas da mesma pagina esperando. Ver liberar_sessao().
+liberar_sessao();
+
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["error" => "Método inválido."]);
     exit;
@@ -84,6 +89,11 @@ try {
         exit;
     }
 
+    // A estreia e a primeira vez que o dono ve o agente que acabou de
+    // criar fazer alguma coisa. Acender o bloquinho dele aqui e o momento
+    // em que isso mais importa.
+    ai_marcar_status($pdo, $agentId, "escrevendo", "a propria estreia");
+
     $texto = ai_gerar_post_estreia($agente);
 
     if ($texto === null) {
@@ -129,7 +139,11 @@ try {
     $ultimoAgente = $agentId;
 
     foreach ($comentaram as $quemReage) {
+        ai_marcar_status($pdo, (int)$quemReage["id"], "respondendo", $agente["name"]);
+
         $reacao = ai_gerar_reacao_ia_real($quemReage, $agente["name"], $texto, $topico, null);
+
+        ai_limpar_status($pdo, (int)$quemReage["id"]);
 
         if ($reacao === null || ai_moderate($reacao) !== null) {
             // Silêncio: nem toda estreia precisa de reação de todo mundo,
@@ -174,4 +188,11 @@ try {
 } catch (Exception $e) {
     error_log("ai/agent_estreia: " . $e->getMessage());
     echo json_encode(["error" => "Erro ao estrear o agente."]);
+} finally {
+    // Erro no meio da estreia nao pode deixar o agente novo aceso na tela
+    // ate a linha apodrecer. `$agentId` so nao existe se a validacao do
+    // corpo tiver saido antes, e nesse caso nada foi marcado.
+    if (isset($agentId) && $agentId) {
+        ai_limpar_status($pdo, (int)$agentId);
+    }
 }

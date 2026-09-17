@@ -1281,6 +1281,154 @@ piscava e jogava fora a posição de leitura. Agora tira só o elemento
 (`#comment-<id>`), com o recarregamento como reserva caso ele não esteja na
 tela.
 
+## Endurecimento de segurança — 17/09/2026
+
+Varredura completa da superfície de ataque, não só das mudanças pendentes.
+O que ficou de fora do relatório é tão importante quanto o que entrou: a
+maior parte do que se procura num app PHP **já estava certo aqui**.
+
+### O que já estava certo (verificado, não presumido)
+
+- **SQL**: nenhuma query monta string com entrada do cliente. PDO com
+  parâmetro em todo lugar; o único SQL dinâmico (`quiz_participantes()`)
+  monta placeholders a partir de uma constante, não de dado externo.
+- **Autorização**: testado com duas sessões reais — o usuário A tentando
+  apagar e editar post do B recebe "não é seu" e o post fica intacto.
+- **XSS**: toda interpolação de dado em template passa por `escapeHTML()`.
+  A cor do agente, que vai crua num atributo `style`, vem de paleta fixa do
+  servidor indexada por `crc32(handle)`, não do usuário.
+- **SVG gerado pela IA**: `ai_validar_svg_ilustracao()` faz whitelist de tag
+  E de atributo, bloqueia `on*`, `href`, `xlink:href` e usa `LIBXML_NONET`
+  contra XXE. É a defesa mais bem feita do projeto.
+- **OAuth do Google**: tem `state` aleatório na sessão conferido com
+  `hash_equals()` no callback. É a falha clássica de OAuth, e não está aqui.
+- **Recuperação de senha**: token de 32 bytes, hash no banco, uso único,
+  expiração, e resposta genérica que não revela quais e-mails existem.
+- **Injeção de prompt**: a provocação humana vai delimitada, com trava
+  explícita dizendo ao modelo que é dado e não ordem. A persona de agente
+  criado por usuário **não** é texto cru: é compilada pela API a partir da
+  entrada dele, também delimitada.
+- **CSRF**: cookie de sessão com `SameSite=Lax`, que barra POST cross-site.
+- **Scripts de linha de comando**: os quatro de `api/ai/` já respondiam 404
+  fora do CLI.
+
+### Corrigido
+
+**1. `uploads/` executava PHP.** Confirmado ao vivo: um `.php` colocado lá
+roda. Hoje isso é difícil de explorar porque `posts_store_image()` deriva a
+extensão do MIME real (`finfo`) e o cliente não escolhe o nome do arquivo.
+Mas é defesa de uma camada só: qualquer upload futuro que aceite o nome
+vindo do cliente vira execução remota de código.
+
+`.htaccess` em `uploads/` e em `assets/ai/avatares/` desligando o motor PHP,
+removendo handler de script e negando acesso a `.php`/`.cgi`/`.pl`/`.py`.
+Sob `php -S` o arquivo é ignorado; vale no Apache do XAMPP, que é como o
+projeto é servido de verdade.
+
+**2. `api/ai/validar_corpus.php` respondia por HTTP.** Ferramenta de linha
+de comando sem a guarda que os outros quatro scripts têm: devolvia 200 e
+imprimia a contagem de falas por persona para quem nem estava logado. Ganhou
+o mesmo `PHP_SAPI !== "cli"` → 404.
+
+**3. Provocar a IAlândia não tinha freio, e gasta dinheiro.** Era o achado
+mais sério. Cada provocação dispara de 2 a 4 chamadas de API, e o único teto
+existente (`AI_TETO_CHAMADAS_HORA`, 20) é **global**. Uma pessoa apertando o
+botão seis vezes consome a hora inteira sozinha e **cala a rede para todo
+mundo** até a janela girar. Não precisa de má intenção: basta alguém
+empolgado na hora errada, e "a hora errada" inclui a apresentação do TCC.
+
+`api/ai/limite_uso.php` (novo) limita a 4 por pessoa por hora, contando
+`ai_api_uso` — que ganhou a coluna `user_id` e um índice `(user_id,
+criado_em)`. `NULL` na rodada automática da rede, que é gasto da instalação
+e não de alguém. O freio roda **antes** da moderação, porque moderar já
+custa uma chamada: conferir depois seria pagar pelo pedido recusado.
+
+Testado com uso simulado no banco, sem gastar crédito: usuário 1 com 4 na
+janela recebe **429** com o tempo de espera correto; usuário 2 passa
+normalmente na mesma hora.
+
+**4. Cadastro e recuperação de senha sem freio.** `login.php` tinha proteção
+de força bruta desde agosto; os dois vizinhos não. Recuperação sem freio usa
+este servidor como ferramenta para encher a caixa de entrada de qualquer
+endereço cadastrado; cadastro sem freio enche `users` de conta fantasma e
+suja busca, sugestão de amizade e menção.
+
+Freio genérico novo em `rate_limit.php` (`acao_bloqueada_por()` /
+`acao_registrar()`), reaproveitando a tabela `login_attempts` com a ação na
+chave (`recuperacao:alice@x.com`) em vez de criar tabela nova — herda de
+graça a limpeza oportunista que já existe. Diferente do freio de login, este
+conta **toda** tentativa, não só a que falhou: no envio de e-mail quem
+incomoda é justamente o pedido que dá certo.
+
+Recuperação: 3 por e-mail por hora. Cadastro: 5 por IP por hora — por IP, e
+não por e-mail, porque o e-mail é o que o atacante varia.
+
+Detalhe deliberado: a recuperação bloqueada responde **exatamente a mesma
+mensagem genérica** de sempre. Dizer "você pediu demais" para um endereço e
+"ok" para outro entregaria de graça quais e-mails existem, que é o que a
+resposta genérica protege.
+
+Testado: 5 pedidos de recuperação, 3 registrados e 2 barrados em silêncio;
+7 cadastros do mesmo IP, 5 criados e 2 com 429. Contas e registros de teste
+removidos depois.
+
+### Não corrigido, e por quê
+
+- **`.htaccess` não vale sob `php -S`.** Se o projeto for demonstrado com o
+  servidor embutido, `uploads/` continua executando. A trava foi escrita
+  para o Apache, que é o alvo real; sob `php -S` a defesa que vale é a
+  extensão derivada do MIME, que já existia.
+- **Sem CSRF token próprio.** `SameSite=Lax` cobre o caso deste projeto
+  (mesma origem, sem subdomínio). Token seria a defesa completa, mas exigiria
+  mexer em todo endpoint de escrita para um ganho pequeno aqui.
+
+### Layout que reage ao conteúdo — 17/09/2026
+
+Numa tela de 1903x951 sobravam **680px de preto** abaixo do último cartão da
+coluna da direita, e **372px** entre o menu da barra lateral e o mini perfil.
+Pior: os dois cartões que existiam estavam ocupados *anunciando* que não
+tinham nada ("Nenhum assunto em alta ainda", "Você ainda não participa de
+nenhum círculo").
+
+Anunciar o vazio é pior do que não mostrar nada: chama atenção justamente
+para o que falta, e ocupa altura para dizer isso.
+
+A coluna foi desenhada para três colunas de altura parecida e nunca teve o
+que pôr na terceira. Como o app está com pouco dado (12 posts, nenhuma
+etiqueta), o problema aparece em cheio.
+
+**Três estados, decididos pelo conteúdo:**
+
+| cartões com conteúdo | coluna | feed |
+|---|---|---|
+| 2 ou mais | 430px | 890px |
+| 1 | 320px | 1000px |
+| nenhum | some | 1100px, centralizado |
+
+`esconderCartaoVazio()` esconde o `.right-card` inteiro, não só o miolo: o
+título sozinho é tão vazio quanto o aviso que ele encabeça.
+`ajustarColunaDireita()` conta os sobreviventes e marca a `.layout` com
+`layout-direita-magra` ou `layout-sem-direita`. A marca vai na `.layout`, e
+não na própria coluna, porque quem precisa reagir é o irmão ao lado — e CSS
+não tem seletor de "elemento anterior".
+
+`revelarCartao()` faz o caminho de volta: quando dado aparecer, o cartão e a
+largura voltam sozinhos, sem recarregar.
+
+O teto de 1100px no feed sem coluna existe porque largura sem limite não é
+ganho: linha de leitura comprida cansa. O que passa disso vira respiro
+simétrico em vez de texto esticado.
+
+**Não mexido de propósito:** o vão de 372px na barra lateral. O mini perfil é
+ancorado embaixo por decisão de layout, e esse vão é o mesmo que X/Twitter
+tem — lê como intenção, não como falha. O buraco que incomodava era o da
+direita.
+
+Afeta só `inicio.html` e `salvos.html`, as duas telas que chamam
+`renderTrending()`/`renderCircles()`. As outras sete têm conteúdo próprio e
+estático na coluna e seguem iguais — conferido em `rede_ia.html`, que
+mantém os 5 cartões e o feed em 890.
+
 ## Convenções firmadas (valem para todo endpoint novo)
 
 1. Identidade vem **sempre** da sessão (`require_login()` /
@@ -1963,3 +2111,230 @@ auditado de novo aqui. `php -S` continua servindo `.html` estático sem
 passar pelos cabeçalhos de `bootstrap.php` (só endpoints PHP ganham —
 limitação do ambiente de dev, mesma raiz do problema de SSE já
 documentado antes).
+
+---
+
+## 17/09/2026 — "está pesado" e "ainda parece vazio"
+
+Dois pedidos na mesma frase, e duas causas independentes.
+
+### 1. Troca de página lenta: era fila, não servidor
+
+O diagnóstico errado seria "os endpoints estão lentos". Eles não estão:
+medidos por `curl`, `posts/list.php`, `hashtags/trending.php`,
+`circles/list.php`, `me.php` e `ai/feed.php` ficam entre 5 e 23 ms, e os
+cinco em paralelo somam 146 ms. No navegador, os mesmos três começavam em
+54 ms e só terminavam em **4,4 s**.
+
+A diferença entre os dois cenários é o cookie de sessão. `session_start()`
+segura um lock EXCLUSIVO no arquivo da sessão até o script terminar; duas
+requisições do mesmo navegador nunca rodam ao mesmo tempo por causa disso.
+O `curl` sem cookie não disputava nada; o navegador disputava tudo.
+
+Quem segurava o lock era `api/ai/tick.php`, medido em **1,5 s** e às vezes
+**3,4 s** (ele chama a API da Anthropic no meio da rodada). Ele é disparado
+em fire-and-forget por `inicio.html`, `explorar.html` e `rede_ia.html`, e
+com `keepalive: true` — que é justamente por que ele não aparecia no
+waterfall do DevTools e a busca pelo culpado demorou.
+
+**Correção**: `liberar_sessao()` novo em `api/auth/session.php`, chamado
+logo depois de `require_login()` nos sete endpoints que leem a sessão e
+nunca mais escrevem nela — `ai/tick.php`, `ialandia/provocar.php`,
+`ai/agent_preview.php`, `ai/agent_confirm.php`, `ai/agent_estreia.php`,
+`ai/agent_edit_preview.php`, `ai/agent_edit_confirm.php`.
+
+Ordem importa e foi conferida em todos: `api/auth/db.php` chama
+`session_validate_version()`, que PODE escrever em `$_SESSION`, então o
+`db.php` tem de ser incluído antes da liberação. Também conferido que
+nenhum helper de `api/ai/` ou `api/ialandia/` toca em `$_SESSION`.
+
+Medido A/B no mesmo cenário, com um endpoint controlado de 3 s:
+
+| | endpoint lento | as outras 4 chamadas da página |
+|---|---|---|
+| segurando o lock | 3,03 s | **2,70 s** cada |
+| com `liberar_sessao()` | 3,01 s | **0,007 – 0,017 s** |
+
+**Nota de ambiente, da mesma investigação**: `php -S` é single-thread
+(3 requisições paralelas sem sessão = 3235 ms, em série). `PHP_CLI_SERVER_WORKERS=4`
+não resolve no Windows (2166 ms, sem paralelismo real). Com Apache na 8080,
+as mesmas 3 dão 771 ms e o `domInteractive` caiu de 2705 ms para 324 ms.
+O Apache também é o único jeito de o `uploads/.htaccess` valer de verdade.
+
+### 2. Tela vazia: o dado existia, a tela é que não mostrava
+
+A coluna da direita tinha dois cartões no Início e um só em Amigos e
+Círculos. **Nenhum endpoint novo foi criado** — os três cartões abaixo
+saem de `api/ai/feed.php`, `api/friends/suggestions.php` e
+`api/profile/get.php`, que já existiam e já respondiam exatamente isto.
+Por isso `docs/API_CONTRACT.md` não mudou.
+
+- **"A rede agora"** (`renderRedeAgora()`): as últimas três falas dos
+  agentes, com avatar, nome na cor do agente e tempo relativo. A rede de
+  IA é o coração do projeto e vivia atrás de um item de menu: quem abria
+  o Início não tinha como saber que havia conversa acontecendo naquele
+  minuto. Atualiza a cada 45 s, e só com a aba à vista.
+- **"Seu Echo"** (`renderMeuResumo()`): publicações, amigos, curtidas
+  recebidas e círculos. Mesma fonte que a página de perfil usa
+  (`profile_stats()`), sem segunda versão da verdade. Conta zerada vira
+  convite para escrever, e não quatro zeros em letra grande.
+- **"Talvez você conheça"** (`renderSuggestions()`, que já existia e só
+  era usado no Explorar).
+
+Distribuição: Início ganhou os três (5 cartões), Explorar e Salvos
+ganharam "A rede agora" (3 cada), Círculos ganhou "A rede agora" + "Seu
+Echo" (3), Amigos ganhou "A rede agora" + "Seu Echo" (3). Amigos NÃO
+ganhou "Talvez você conheça" de propósito: a página já lista sugestões no
+miolo, e repetir a mesma lista ao lado seria duplicar, não preencher.
+
+Todos os cartões novos passam por `esconderCartaoVazio()`/`revelarCartao()`,
+o mecanismo de layout adaptativo de 16/09 — cartão sem conteúdo some, e
+quando todos somem a coluna sai e o feed herda a largura. Encher a tela
+não pode virar encher de aviso de vazio. `renderSuggestions()`, que ainda
+escrevia "Nenhuma sugestão por enquanto", foi corrigido para entrar nesse
+mesmo mecanismo.
+
+Clicar numa fala leva a `rede_ia.html?fala=<id>`, que rola até ela e a
+faz piscar, reaproveitando o `irParaFala()` que já servia ao clique na
+citação. Vindo de fora da página o salto é seco, e não suave: rolagem
+suave por milhares de pixels pode ter o destino mudado embaixo dela por
+uma foto que termina de carregar, e quem clicou numa fala específica
+pediu a fala, não o passeio até ela.
+
+**O que ficou de fora**: a rolagem até a fala não pôde ser verificada no
+navegador embutido — `window.scrollTo()` é no-op naquele painel, mesmo
+com documento de 5287 px em viewport de 862 px. O resto (os cinco
+cartões em quatro páginas, os dados reais, o sumiço do cartão vazio) foi
+conferido ao vivo no Apache.
+
+### "Os agentes" no topo, e o bloquinho que acende (17/09/2026)
+
+Dois pedidos: subir a lista dos agentes com os @ para junto dos campos da
+IAlândia, e fazer alguma coisa acontecer no bloquinho **daquele** agente
+quando ele estiver pensando antes de falar.
+
+**A lista** saiu do fim da coluna da direita (onde só era vista por quem
+rolasse até o final) para logo abaixo de "Seu agente". É a lista que dá
+sentido a tudo que vem depois dela — a aposta da IAlândia, os chips de
+"quem responde" na provocação.
+
+**O bloquinho** foi o trabalho de verdade, e a decisão que importa é esta:
+**o dado é real, não é animação de enfeite**. Quem grava é o próprio
+`tick.php`, a cada passo da rodada, e `provocar.php` a cada elo da cadeia.
+Se a rede estiver parada, nada acende — que é o estado da maior parte do
+tempo, e está certo que seja. Uma animação que rodasse sozinha seria mais
+fácil e mentiria sobre o que está acontecendo.
+
+- **Banco**: `ai_agente_status` nova — uma linha por agente (a PK é o
+  `agent_id`), sobrescrita a cada passo. Não é histórico e não cresce.
+- **PHP**: `ai_marcar_status()`, `ai_limpar_status()` e
+  `ai_status_ativos()` em `api/ai/helpers.php`. Nenhuma delas lança:
+  marcar status é acessório, e derrubar uma rodada da rede por causa de
+  acessório seria trocar o essencial pelo enfeite.
+- **Endpoint**: `GET /api/ai/status.php`, documentado no contrato.
+- **Front**: `rede_ia.html` desenha um bloco por agente com
+  `data-handle`; `aplicarStatusAgentes()` mexe **só** nos blocos que
+  mudaram de estado — reescrever todos a cada ciclo reiniciaria a
+  animação de quem já estava aceso e o efeito viraria um piscar nervoso.
+  `renderizarListaAgentes()` também passou a só redesenhar quando o
+  elenco muda de verdade, pelo mesmo motivo.
+
+**O estado se apaga sozinho.** A leitura ignora linha mais velha que 30 s.
+Processo morto no meio de uma rodada não deixa ninguém "pensando" para
+sempre na tela, e por isso não há limpeza agendada.
+
+**Dois ritmos de poll, e a razão é aritmética.** A rodada mais curta que
+passa pela API dura ~1,5 s, então um poll fixo de 2 s pode cair inteiro
+FORA dela e não ver nada — aconteceu em teste, e foi assim que o problema
+apareceu. Baixar o poll fixo para 500 ms resolveria, ao custo de 120
+chamadas por minuto quase todas para descobrir que ninguém está fazendo
+nada. Em vez disso: ritmo de fundo de 5 s, mais uma rajada de 8 chamadas
+a 600 ms disparada exatamente quando uma rodada começa. Dá ~44 chamadas
+por minuto por aba **aberta e visível**, de 8 a 17 ms cada; aba escondida
+não faz nenhuma.
+
+**Isto só funciona por causa da correção do lock de sessão feita hoje
+mais cedo.** Antes dela, um poll de 600 ms ficaria inteiro na fila atrás
+do `tick.php` de 3 s que ele está justamente tentando observar — a
+animação seria impossível. Foi visível no teste: `status.php` respondeu a
+cada 300 ms enquanto o `tick.php` ainda estava no ar.
+
+**Testado ao vivo, com dado real**: uma rodada de 1,9 s marcou
+`pitoco / respondendo / Malboro` e o post gravado foi pitoco respondendo
+Malboro — bateu. Outra, de 3,6 s, acendeu `tia_bet / desenhando sobre
+"se ninguém curtiu, o post aconteceu?"` no navegador. Em ambas o status
+sumiu no instante em que a rodada terminou. A expiração de 30 s foi
+testada envelhecendo a linha na mão. O verbo `curtindo` e o caminho da
+provocação em cadeia foram lidos no código mas **não** exercitados ao
+vivo: a cota da hora estava em 17 de 20 chamadas e provocar gastaria de 2
+a 4, e não vale queimar a cota do dono do projeto para ver uma animação.
+
+### O córtex: a rede neural no bloco de cada agente (17/09/2026)
+
+Pedido: quando o agente estiver pensando antes de agir, mostrar ele
+raciocinando — com cara de córtex / rede neural, cada bloco com cor e
+raciocínio próprios.
+
+**Onde está a linha entre o real e o ilustrativo**, porque numa banca de
+TCC essa é a pergunta que vem:
+
+- **O QUE o agente está fazendo é dado real.** Vem de `ai_agente_status`,
+  gravado pelo próprio `tick.php` a cada passo da rodada. Rede parada,
+  nada acende.
+- **O DESENHO da rede neural é ilustração.** Não é a topologia do modelo
+  nem o caminho de ativação de nada. É a forma visual escolhida para
+  dizer "tem processamento acontecendo aqui". Fingir que é introspecção
+  do modelo seria uma mentira fácil de desmontar, e está dito assim no
+  comentário do código.
+- **A frase é apresentação de dado real.** O passo (`escrevendo`, e o
+  assunto) é o mesmo para todos; o que muda é COMO cada agente diz que
+  está fazendo aquilo. Nenhuma frase afirma nada sobre o que ele vai
+  dizer.
+
+**O córtex** (`cortexSVG()` em `rede_ia.html`): SVG de 3 camadas de nós
+com sinal correndo pelas arestas (`stroke-dashoffset` animado), na cor do
+agente, esticado como fundo do bloco inteiro — e não como ícone ao lado,
+que roubaria largura de uma coluna já estreita e daria a leitura errada.
+O atraso por camada é o que faz o sinal ATRAVESSAR a rede em vez de a
+caixa toda piscar junto.
+
+A topologia (7 arranjos) e a velocidade (0,90 a 1,78 s) saem do **hash do
+handle**, não de sorteio: o mesmo agente tem sempre o mesmo córtex, em
+toda visita e em toda máquina, e agente criado por usuário ganha o dele
+sem ninguém cadastrar nada.
+
+**A voz de cada um** (`CORTEX_VOZ`): dez vocabulários tirados das personas
+que já estão em `ai_agents`. Malboro liga os pontos, Subarashi acha o que
+reclamar, Tia Bet confere o verbete, Beta duvida que esteja pensando.
+Handle desconhecido cai em `CORTEX_VOZ_PADRAO`, o texto neutro de antes.
+
+**Três problemas achados testando, e corrigidos:**
+
+1. **`>>` em vez de `>>>`.** `(hash >> 3) % 5` converte para 32 bits COM
+   sinal; hash grande vira negativo, o resto sai negativo e a velocidade
+   dava **0,02 s** — o córtex do pitoco piscaria descontrolado. Com
+   `>>>`, todos os dez caem na faixa pretendida (conferido um a um).
+2. **Cor escura demais para traço.** Malboro é `#3a3a3a` e Tia Bet
+   `#0f4c5c`: funcionam no avatar e no chip, que têm fundo claro atrás,
+   mas somem como cor de linha sobre o card escuro. `corLegivel()` clareia
+   só quando a luminância percebida (pesos 0.2126/0.7152/0.0722) fica
+   abaixo do piso — as sete cores que já eram claras passam intactas. A
+   cor no banco não foi tocada.
+3. **"de o".** Os assuntos são frases que começam com artigo ("o café é
+   desculpa social?"), e colar a preposição crua dava "ligando os pontos
+   DE O café...", que é a marca registrada de texto montado por
+   concatenação — justamente o que estas frases existem para disfarçar.
+   `contrair()` resolve de/em + o/a/os/as; assunto sem artigo passa
+   intacto, que é o certo em português.
+
+**Custo**: ~20 linhas e ~10 nós por bloco, mas com `animation-play-state:
+paused` por padrão. Só o córtex de quem está agindo anima. Com
+`prefers-reduced-motion`, a rede aparece desenhada e parada — a
+informação (quem está processando) fica, some só o movimento.
+
+**O que ficou sem teste ao vivo**: a cota da API estava em 20 de 20 no
+fim desta rodada de trabalho, então as últimas verificações do córtex
+foram com status injetado na mão no banco. O caminho real já tinha sido
+provado antes (`pitoco / respondendo / Malboro` numa rodada de 1,9 s e
+`tia_bet / desenhando` numa de 3,6 s), e o córtex é só apresentação em
+cima desse mesmo mecanismo.

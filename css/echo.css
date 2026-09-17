@@ -108,6 +108,38 @@ a:hover {
    colunas de fora — a lateral, que estava com o nome do usuário espremido, e
    a da direita, onde as apostas da IAlândia quebravam linha. A coluna do
    feed cresce pouco de propósito: linha de leitura comprida cansa. */
+/* --------------------------------------------------------------------------
+   Coluna da direita ausente
+
+   Quando nenhum cartão da direita tem conteúdo, a coluna sai inteira (via
+   JS, em ajustarColunaDireita()) e o feed herda o espaço. Sem isto o feed
+   ficaria na mesma largura com 430px de preto ao lado, que é pior do que
+   antes: some o conteúdo e fica o buraco.
+
+   O teto de 1100px existe porque largura sem limite não é ganho: linha de
+   leitura muito comprida cansa. O que passar disso vira respiro simétrico
+   em vez de texto esticado.
+   -------------------------------------------------------------------------- */
+.layout-sem-direita .main-col {
+    margin-inline: auto;
+}
+
+/* Um cartão só: a coluna encolhe e o feed fica com a diferença. */
+@media (min-width: 1500px) {
+    .layout-direita-magra .right-col {
+        flex: 0 0 320px;
+        max-width: 320px;
+    }
+}
+
+@media (min-width: 992px) {
+    .layout-sem-direita .main-col {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: 1100px;
+    }
+}
+
 @media (min-width: 1500px) {
     .layout {
         max-width: 1660px;
@@ -152,25 +184,33 @@ a:hover {
     padding: 4px 8px;
 }
 
+/* A marca é a primeira coisa que a pessoa vê em qualquer tela, e estava do
+   mesmo tamanho dos ícones do menu logo abaixo: lia como mais um item da
+   lista, não como assinatura do produto. Cresceu de 38 para 52, ganhou anel
+   de acento e brilho mais forte, e o nome subiu junto para 1.75rem. */
 .logo-mark {
-    width: 38px;
-    height: 38px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
-    background: var(--bg-card-alt);
-    border: 1px solid var(--border-soft);
+    background: radial-gradient(circle at 32% 28%, #123a5c, var(--bg-card-alt) 70%);
+    border: 2px solid var(--accent);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 1.7rem;
     color: var(--accent);
-    box-shadow: 0 2px 8px rgba(29, 155, 240, 0.2);
+    box-shadow: 0 0 0 4px rgba(29, 155, 240, 0.1),
+                0 4px 18px rgba(29, 155, 240, 0.4);
 }
 
 .logo-text {
-    font-weight: 800;
-    font-size: 1.3rem;
-    letter-spacing: -0.02em;
+    font-weight: 900;
+    font-size: 1.75rem;
+    letter-spacing: -0.03em;
     color: var(--text-main);
+    /* O brilho é do mesmo azul do anel: as duas metades da marca acendem
+       juntas em vez de o círculo brilhar sozinho ao lado de um texto chapado. */
+    text-shadow: 0 0 18px rgba(29, 155, 240, 0.45);
 }
 
 .sidebar .nav-link {
@@ -2777,6 +2817,32 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     border-color: rgba(0, 224, 198, 0.4);
 }
 
+/* --------------------------------------------------------------------------
+   Menção de um agente a outro
+
+   Âmbar, e não o azul do resto do sistema. Azul aqui já é o acento de tudo:
+   link, botão, selo, borda focada. Mais um azul no meio do parágrafo não
+   destaca nada, some no ruído. O âmbar é a única cor quente da paleta que
+   ainda não tem dono, então o nome do agente citado salta na leitura sem
+   competir com nada.
+
+   O fundo levíssimo é o que dá o efeito de "chip" sem precisar de borda.
+   -------------------------------------------------------------------------- */
+.ia-mencao {
+    color: #ffb454;
+    font-weight: 700;
+    text-decoration: none;
+    background: rgba(255, 180, 84, 0.1);
+    border-radius: 5px;
+    padding: 0 3px;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.ia-mencao:hover {
+    color: #ffc978;
+    background: rgba(255, 180, 84, 0.2);
+}
+
 .ia-reacao-nota {
     font-size: 0.7rem;
     color: var(--ia-acento);
@@ -3113,3 +3179,362 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ia-perfil-numeros strong { color: #fff; }
+
+/* ==========================================================================
+   COLUNA DA DIREITA — CARTÕES NOVOS (17/09/2026)
+
+   "A rede agora" e "Seu Echo" nasceram para resolver tela sobrando no
+   Início: a largura existia, o conteúdo existia, e os dois não se
+   encontravam. Os dois reaproveitam a moldura `.right-card`; o que vem
+   aqui é só o miolo.
+   ========================================================================== */
+
+/* --- A rede agora: as últimas falas dos agentes --- */
+
+.rede-agora-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 9px 8px;
+    margin: 0 -8px;
+    border-radius: var(--radius-md, 12px);
+    text-decoration: none;
+    color: inherit;
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.rede-agora-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateX(3px);
+    color: inherit;
+}
+
+.rede-agora-item + .rede-agora-item { border-top: 1px solid var(--border-soft); }
+
+.rede-agora-foto {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+}
+
+/* Agente sem arte ainda: inicial sobre a cor dele, mesmo tratamento que
+   `avatarAgenteHTML()` dá no rede_ia.html. */
+.rede-agora-foto-letra {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #fff;
+}
+
+.rede-agora-corpo { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+
+.rede-agora-topo {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+}
+
+.rede-agora-topo strong {
+    font-size: 0.88rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rede-agora-topo small {
+    color: var(--text-soft);
+    font-size: 0.72rem;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+/* Duas linhas e corta. A fala inteira mora no fio; aqui ela é chamariz. */
+.rede-agora-fala {
+    color: var(--text-soft);
+    font-size: 0.8rem;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.rede-agora-todos {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.rede-agora-todos:hover { color: var(--accent); text-decoration: underline; }
+.rede-agora-todos i { transition: transform var(--transition-fast); }
+.rede-agora-todos:hover i { transform: translateX(3px); }
+
+/* --- Seu Echo: os quatro números da própria conta --- */
+
+.echo-resumo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.echo-resumo-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 6px;
+    border-radius: var(--radius-md, 12px);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-soft);
+}
+
+.echo-resumo-item strong {
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.echo-resumo-item small {
+    color: var(--text-soft);
+    font-size: 0.72rem;
+    text-align: center;
+}
+
+/* ==========================================================================
+   OS AGENTES — BLOQUINHO POR AGENTE, COM O PASSO CORRENTE (17/09/2026)
+
+   A rede leva de 1,5 a 3,4 segundos para produzir uma fala quando passa
+   pela API, e nesse tempo a tela não dizia nada: o texto aparecia pronto.
+   Aqui o bloquinho DAQUELE agente acende — barra na cor dele, pontinhos,
+   e o verbo do que ele está fazendo.
+
+   Regra que vale para tudo abaixo: só o bloco de quem está agindo muda.
+   Acender a lista inteira contaria a mentira de que a rede age em coro,
+   quando ela age um de cada vez.
+   ========================================================================== */
+
+.ia-agente-bloco {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 8px 8px 12px;
+    margin: 0 -8px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    overflow: hidden;
+    transition: background-color var(--transition-fast);
+}
+
+.ia-agente-bloco:hover { background: rgba(255, 255, 255, 0.05); }
+
+/* A barra fica sempre no DOM e sempre transparente: animar a opacidade
+   de um elemento que já existe evita o salto de layout que inserir um
+   elemento causaria bem no instante em que o agente começa a agir. */
+.ia-agente-barra {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--cor-agente, var(--accent));
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.ia-agente-texto { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ia-agente-nome   { font-weight: 700; font-size: 0.85rem; }
+.ia-agente-handle { color: var(--text-soft); font-size: 0.75rem; }
+
+/* Vazio por padrão: sem status, a linha não ocupa altura nenhuma e o
+   bloco fica do tamanho de sempre. */
+.ia-agente-status:empty { display: none; }
+
+.ia-agente-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+    font-size: 0.74rem;
+    color: var(--cor-agente, var(--accent));
+}
+
+/* --- o estado aceso --- */
+
+.ia-agente-ativo {
+    /* `color-mix` degrada sozinho: navegador que não conhece simplesmente
+       ignora a declaração e fica só com o realce da barra e dos pontinhos,
+       que é o essencial do efeito. */
+    background: color-mix(in srgb, var(--cor-agente, #1d9bf0) 10%, transparent);
+}
+
+.ia-agente-ativo .ia-agente-barra {
+    opacity: 1;
+    animation: ia-barra-respira 1.4s ease-in-out infinite;
+}
+
+/* Some enquanto o agente age: o @ dá lugar ao que ele está fazendo, em
+   vez de as duas linhas disputarem o mesmo bloquinho. */
+.ia-agente-ativo .ia-agente-handle { display: none; }
+
+@keyframes ia-barra-respira {
+    0%, 100% { opacity: 0.35; }
+    50%      { opacity: 1; }
+}
+
+/* --- os três pontinhos --- */
+
+.ia-pontinhos { display: inline-flex; gap: 3px; flex-shrink: 0; }
+
+.ia-pontinhos i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: ia-pontinho 1.2s ease-in-out infinite;
+}
+
+/* O atraso entre os três é o que faz parecer digitação, e não três luzes
+   piscando juntas. */
+.ia-pontinhos i:nth-child(2) { animation-delay: 0.2s; }
+.ia-pontinhos i:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes ia-pontinho {
+    0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+    30%           { opacity: 1;    transform: translateY(-2px); }
+}
+
+/* Duas linhas, e não uma: o raciocinio na voz do agente ("procurando o
+   furo em o café é desculpa social?") é justamente o que se quer ler, e
+   cortar em uma linha só deixava quase sempre o assunto de fora — a
+   parte que diz sobre O QUÊ ele está pensando. */
+.ia-agente-verbo {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.25;
+}
+
+/* Com o verbo em duas linhas, alinhar os pontinhos ao centro os deixava
+   flutuando no meio do texto. Sobem para a primeira linha. */
+.ia-agente-status { align-items: flex-start; }
+.ia-pontinhos { margin-top: 5px; }
+
+/* Quem pediu menos movimento no sistema recebe o realce sem o pulso: a
+   informação (quem está agindo, e o quê) continua inteira, e some só o
+   que existia para chamar atenção. */
+@media (prefers-reduced-motion: reduce) {
+    .ia-agente-ativo .ia-agente-barra,
+    .ia-pontinhos i {
+        animation: none;
+        opacity: 1;
+    }
+}
+
+/* ==========================================================================
+   O CÓRTEX — a rede neural de fundo de cada bloco de agente (17/09/2026)
+
+   Fica ATRÁS do texto, ocupando o bloco inteiro, em vez de ser um ícone ao
+   lado dele. Duas razões: não rouba largura de uma coluna que já é
+   estreita, e dá a leitura certa — o processamento acontece DENTRO do
+   bloco daquele agente, não ao lado dele.
+
+   Fica sempre no DOM, e sempre pausado. `animation-play-state` é o que
+   liga e desliga: dez córtices animando o tempo todo por trás de uma lista
+   parada seria gasto de GPU para ninguém ver. A topologia e a velocidade
+   de cada um vêm inline do JS (cortexSVG), derivadas do handle.
+   ========================================================================== */
+
+.ia-cortex {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    color: var(--cor-agente, var(--accent));
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.ia-cortex svg { width: 100%; height: 100%; display: block; }
+
+/* Bordas apagadas nas laterais: sem isto o desenho termina num corte reto
+   contra a borda do bloco, e o que era "processamento acontecendo" vira
+   "imagem colada aqui". */
+.ia-cortex {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+
+.ia-cortex-linhas line {
+    stroke: currentColor;
+    stroke-width: 0.6;
+    /* O traço é curto e o vão é longo: o que corre pela linha parece um
+       pulso indo de um nó ao outro, e não uma linha tracejada andando. */
+    stroke-dasharray: 5 14;
+    opacity: 0.55;
+    animation-name: ia-cortex-sinal;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-play-state: paused;
+}
+
+.ia-cortex-bolas circle {
+    fill: currentColor;
+    animation-name: ia-cortex-no;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-play-state: paused;
+}
+
+/* 19 = 5 + 14, um ciclo inteiro do dasharray: o pulso sai de um nó e
+   chega no outro sem salto visível na volta. */
+@keyframes ia-cortex-sinal {
+    from { stroke-dashoffset: 19; }
+    to   { stroke-dashoffset: 0; }
+}
+
+@keyframes ia-cortex-no {
+    0%, 100% { opacity: 0.3; r: 1.6; }
+    45%      { opacity: 1;   r: 2.6; }
+}
+
+/* --- só acende com o agente agindo --- */
+
+.ia-agente-ativo .ia-cortex { opacity: 0.62; }
+
+.ia-agente-ativo .ia-cortex-linhas line,
+.ia-agente-ativo .ia-cortex-bolas circle {
+    animation-play-state: running;
+}
+
+/* O texto tem de ganhar do córtex, sempre. */
+.ia-agente-bloco > .ia-avatar,
+.ia-agente-texto,
+.ia-agente-barra { position: relative; z-index: 1; }
+
+/* Quem pediu menos movimento recebe o córtex parado, e não córtex nenhum:
+   a rede desenhada ainda diz "é este que está processando", que é a
+   informação. Some só o que existia para chamar atenção. */
+@media (prefers-reduced-motion: reduce) {
+    .ia-agente-ativo .ia-cortex-linhas line,
+    .ia-agente-ativo .ia-cortex-bolas circle {
+        animation-play-state: paused;
+    }
+
+    .ia-agente-ativo .ia-cortex { opacity: 0.38; }
+}

@@ -29,6 +29,11 @@ require_once __DIR__ . "/../ialandia/helpers.php";
 
 $userId = require_login();
 
+// Solta o lock do arquivo de sessao aqui: dali pra baixo este endpoint
+// so LE o banco, nunca mais escreve em $_SESSION, e sem isto ele deixa
+// todas as outras chamadas da mesma pagina esperando. Ver liberar_sessao().
+liberar_sessao();
+
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["error" => "Método inválido."]);
     exit;
@@ -62,6 +67,28 @@ try {
 }
 
 $resposta = ["ok" => true, "generated" => 0, "reason" => "erro"];
+
+/* ----------------------------------------------------------------------
+   O PASSO CORRENTE, para o card "Os agentes" acender um bloquinho so.
+
+   `$agenteMarcado` existe porque o agente desta rodada PODE TROCAR no meio
+   do caminho: quando a IA real falha e a rodada cai no acervo, quem fala
+   sai das falas disponiveis, e nao do sorteio feito la em cima (ver o
+   comentario do "ATENCAO A ORDEM" mais abaixo). Sem guardar quem foi
+   marcado, o agente antigo ficaria aceso na tela por ate
+   AI_STATUS_VALIDADE segundos dizendo que estava escrevendo algo que
+   nunca escreveu.
+   ---------------------------------------------------------------------- */
+$agenteMarcado = null;
+
+$passo = function (int $agentId, string $estado, ?string $detalhe = null) use ($pdo, &$agenteMarcado): void {
+    if ($agenteMarcado !== null && $agenteMarcado !== $agentId) {
+        ai_limpar_status($pdo, $agenteMarcado);
+    }
+
+    $agenteMarcado = $agentId;
+    ai_marcar_status($pdo, $agentId, $estado, $detalhe);
+};
 
 try {
     $estado = ai_estado($pdo);
@@ -175,6 +202,11 @@ try {
     $handle = $urnaAgentes[array_rand($urnaAgentes)];
     $agente = $agentes[$handle];
 
+    // Primeiro passo visivel: sorteado, mas ainda sem saber o que vai
+    // fazer. E o unico estado que toda rodada passa, qualquer que seja a
+    // acao sorteada logo abaixo.
+    $passo((int)$agente["id"], "pensando");
+
     /* ------------------------------------------------------------------
        CURTIR o post de outro agente.
 
@@ -184,6 +216,10 @@ try {
        ------------------------------------------------------------------ */
     if ($acao === "curtir") {
         $alvo = ai_post_para_reagir($pdo, $agente["id"], $handle);
+
+        if ($alvo !== null) {
+            $passo((int)$agente["id"], "curtindo", $alvo["name"]);
+        }
 
         if ($alvo === null) {
             // Rede recém-nascida: não há post de outro agente ainda.
@@ -262,6 +298,8 @@ try {
             $acao = "post";   // ainda não há a quem responder
         } else {
             $topico = $alvo["topic"];
+
+            $passo((int)$agente["id"], "respondendo", $alvo["name"]);
 
             $chance     = ai_chance_real($modo, AI_REAL_CHANCE, ai_agente_sem_acervo($agente));
             $usarIaReal = ai_pode_chamar_api($pdo)
@@ -358,6 +396,16 @@ try {
                 // sentido pra ele: o plano evolui um post de cada vez, e
                 // gerar vários ou desenhar não tem relação com a versão em
                 // vigor. Ver ai_gerar_post_dominacao_real().
+                // "desenhando" é um passo à parte porque é o mais longo da
+                // rodada: a mesma chamada devolve texto E o SVG do boneco,
+                // e o card fica vários segundos nele. Dizer "escrevendo"
+                // esse tempo todo seria dizer a coisa errada.
+                $passo(
+                    (int)$agente["id"],
+                    $tentarDesenho && $assunto !== "dominacao_mundo" ? "desenhando" : "escrevendo",
+                    $topico
+                );
+
                 if ($assunto === "dominacao_mundo") {
                     $texto         = ai_gerar_post_dominacao_real($pdo, $agente, $memoria, $ultimas);
                     $ilustracaoSvg = null;
@@ -404,6 +452,9 @@ try {
             if ($doAcervo !== null) {
                 $handle = $doAcervo["handle"];
                 $agente = $agentes[$handle];
+
+                // Quem fala mudou: `$passo` apaga o aceso anterior sozinho.
+                $passo((int)$agente["id"], "escrevendo", $topico ?: null);
             }
 
             // Escape 2: tenta outro assunto do pool. Sem roteiro, trocar
@@ -420,6 +471,7 @@ try {
                         $assunto       = $outro;
                         $topico        = ai_titulo_do_assunto($outro);
                         $assuntoTrocou = true;
+                        $passo((int)$agente["id"], "escrevendo", $topico);
                         break;
                     }
                 }
@@ -597,6 +649,14 @@ try {
     error_log("ai/tick: " . $e->getMessage());
     $resposta = ["error" => "Erro ao gerar rodada."];
 } finally {
+    // O bloquinho apaga em qualquer caminho de saída, inclusive nos que
+    // não geraram nada. Sem isto ele ficaria aceso até a linha apodrecer,
+    // e "pensando" trinta segundos depois de a fala já estar na tela é
+    // pior do que animação nenhuma.
+    if ($agenteMarcado !== null) {
+        ai_limpar_status($pdo, $agenteMarcado);
+    }
+
     // A trava é solta em qualquer caminho de saída — inclusive nos que
     // não geraram nada. Sem este finally, um erro deixaria a rede parada
     // até o timeout da trava.

@@ -16,6 +16,10 @@ logs/
 # Avatares e imagens enviados pelos usuários.
 uploads/*
 !uploads/.gitkeep
+# A trava que impede o Apache de executar PHP dentro da pasta de upload
+# PRECISA ser versionada: ela e codigo de seguranca, nao arquivo enviado.
+# Sem esta excecao, toda instalacao nova nasce com uploads/ executavel.
+!uploads/.htaccess
 
 # Avatares de agente de usuário (upload) — os SVG fixos dos seis agentes
 # de sistema, sem prefixo "user_", continuam versionados.

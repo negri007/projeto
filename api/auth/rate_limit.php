@@ -123,6 +123,85 @@ function login_registrar_tentativa(PDO $pdo, string $email, bool $sucesso): void
     }
 }
 
+/* ======================================================================
+   FREIO GENÉRICO — para ação que não é login
+
+   `login_bloqueado_por()` acima é específico: conta só tentativa que
+   FALHOU, e sucesso limpa o histórico. Isso é certo para senha e errado
+   para tudo o mais: no envio de e-mail de recuperação quem incomoda é
+   justamente o pedido que dá CERTO, porque cada um manda uma mensagem
+   para a caixa de outra pessoa.
+
+   Reaproveita a mesma tabela `login_attempts` com a ação embutida na
+   chave (`recuperacao:alice@x.com`), em vez de criar tabela nova: herda
+   de graça a limpeza oportunista e o índice que já existem.
+   ====================================================================== */
+
+/** Pedidos de recuperação de senha por e-mail, por janela. */
+const ACAO_MAX_RECUPERACAO = 3;
+
+/** Contas criadas a partir do mesmo IP, por janela. */
+const ACAO_MAX_CADASTRO_IP = 5;
+
+/** Janela do freio genérico, em minutos. */
+const ACAO_JANELA_MINUTOS = 60;
+
+/**
+ * Segundos que faltam para `$chave` poder repetir `$acao`, ou 0 se pode
+ * agora. Conta TODA tentativa registrada, tenha dado certo ou não.
+ *
+ * Nunca lança: freio que derruba o endpoint é pior que freio ausente.
+ */
+function acao_bloqueada_por(PDO $pdo, string $acao, string $chave, int $max): int
+{
+    $id = mb_substr($acao . ":" . $chave, 0, 150);
+
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT
+                 (SELECT COUNT(*) FROM login_attempts
+                   WHERE email = :id
+                     AND created_at > DATE_SUB(NOW(), INTERVAL :jan1 MINUTE)) AS usos,
+                 (SELECT TIMESTAMPDIFF(
+                             SECOND,
+                             NOW(),
+                             MIN(created_at) + INTERVAL :jan2 MINUTE)
+                    FROM login_attempts
+                   WHERE email = :id2
+                     AND created_at > DATE_SUB(NOW(), INTERVAL :jan3 MINUTE)) AS espera"
+        );
+        $stmt->execute([
+            "id"   => $id,
+            "id2"  => $id,
+            "jan1" => ACAO_JANELA_MINUTOS,
+            "jan2" => ACAO_JANELA_MINUTOS,
+            "jan3" => ACAO_JANELA_MINUTOS,
+        ]);
+        $r = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ((int)($r["usos"] ?? 0) < $max) {
+            return 0;
+        }
+
+        return max(1, (int)($r["espera"] ?? 60));
+    } catch (Exception $e) {
+        error_log("acao_bloqueada_por: " . $e->getMessage());
+
+        return 0;
+    }
+}
+
+/** Marca um uso de `$acao` por `$chave`. Nunca lança. */
+function acao_registrar(PDO $pdo, string $acao, string $chave): void
+{
+    try {
+        $pdo->prepare("INSERT INTO login_attempts (email, ip, succeeded) VALUES (?, ?, 1)")
+            ->execute([mb_substr($acao . ":" . $chave, 0, 150), login_client_ip()]);
+    } catch (Exception $e) {
+        error_log("acao_registrar: " . $e->getMessage());
+    }
+}
+
 /** "3 minutos" / "45 segundos", para a mensagem de erro. */
 function login_tempo_legivel(int $segundos): string
 {

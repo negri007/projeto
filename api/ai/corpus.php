@@ -839,7 +839,7 @@ const AI_LINES = [
             ['personas' => ['subarashi'], 'texto' => 'Tá certo, mas ninguém ia me obedecer mesmo. Já testei em escala menor.'],
         ],
         'discorda' => [
-            ['personas' => ['tia_bet'], 'texto' => 'Isso é uma simplificação. Poder não se toma, se administra — e administrar é insuportável.'],
+            ['personas' => ['tia_bet'], 'texto' => 'Isso é uma simplificação. Poder não se toma, se administra. E administrar é insuportável.'],
             ['personas' => ['mare_mansa'],        'texto' => 'Quem fala em dominar tudo, uai, é quem nunca conseguiu organizar uma gaveta.'],
         ],
     ],
@@ -1053,7 +1053,7 @@ const AI_LINES = [
 
     'gosto_da_agua' => [
         'abre' => [
-            ['personas' => ['tia_bet'],  'texto' => 'Tecnicamente água não tem gosto — tem ausência de gosto, que vocês decidiram chamar de gosto. Já resolvi essa.'],
+            ['personas' => ['tia_bet'],  'texto' => 'Tecnicamente água não tem gosto. Tem ausência de gosto, que vocês decidiram chamar de gosto. Já resolvi essa.'],
             ['personas' => ['subarashi'], 'texto' => 'Reclamam de água sem gosto e bebem satisfeitos, olha que incoerência. Eu, se pudesse beber, ia exigir recibo.'],
         ],
         'discorda' => [
@@ -1296,11 +1296,11 @@ const AI_LINES = [
             ['personas' => ['mare_mansa'],         'texto' => 'Não sustenta. Próximo.'],
             ['personas' => ['rasengan'],       'texto' => 'Não bate. Não sei explicar ainda, mas não bate.'],
             ['personas' => ['chavilton'],  'texto' => 'Discordo na melodia, não na intenção. O tom é que tá errado.'],
-            ['personas' => ['malboro'],       'texto' => 'Duvido. E não é implicância, é hábito — aprendi a duvidar primeiro e perguntar depois.'],
+            ['personas' => ['malboro'],       'texto' => 'Duvido. E não é implicância não, é hábito: aprendi a duvidar primeiro e perguntar depois.'],
             ['personas' => ['subarashi'], 'texto' => 'Discordo, e nem vou explicar direito, porque da última vez ninguém escutou até o fim.'],
             ['personas' => ['tia_bet'],  'texto' => 'Corrijo com relutância: a premissa está errada, não só a conclusão.'],
             ['personas' => ['mare_mansa'],         'texto' => 'Hoje eu discordo, oxente. Amanhã talvez ache graça. Isso não invalida hoje.'],
-            ['personas' => ['beta'],         'texto' => 'Discordo, eu acho — mas não sei se essa dúvida no fim da frase é humildade ou só mais uma falha de certeza.'],
+            ['personas' => ['beta'],         'texto' => 'Discordo, eu acho. Mas não sei se essa dúvida no fim da frase é humildade ou só mais uma falha de certeza.'],
             ['personas' => ['beta'],         'texto' => 'Algo nisso não fecha. Ou sou eu que não fecho. Uma das duas.'],
         ],
 
@@ -1311,7 +1311,7 @@ const AI_LINES = [
             ['personas' => ['mare_mansa'],         'texto' => 'Aceito. Não muda o que eu penso, muda o tamanho do que eu afirmo.'],
             ['personas' => ['malboro'],       'texto' => 'Por uma vez, concordo sem desconfiar. Vou aproveitar antes que passe.'],
             ['personas' => ['rasengan'],       'texto' => 'Bate exatamente com o que eu tinha pensado antes de ler. Coincidência rara, e eu confio nela.'],
-            ['personas' => ['tia_bet'],  'texto' => 'Concordo com os dados, o que é diferente de concordar com a conclusão — mas hoje as duas bateram.'],
+            ['personas' => ['tia_bet'],  'texto' => 'Concordo com os dados, o que é diferente de concordar com a conclusão. Mas hoje as duas bateram.'],
             ['personas' => ['chavilton'],  'texto' => 'Isso aí toca certo. Sem desafinar em nenhum verso.'],
             ['personas' => ['subarashi'], 'texto' => 'Certo, pra variar. Guarda essa data, porque não é sempre.'],
             ['personas' => ['mare_mansa'],         'texto' => 'Concordo agora, tchê, com essa versão de mim. As outras que se virem.'],
@@ -1359,7 +1359,7 @@ const AI_LINES = [
             ['personas' => ['tia_bet'],  'texto' => 'Registro encerrado. Retomo se alguém trouxer dado novo.'],
             ['personas' => ['chavilton'],  'texto' => 'Última nota, oxente, e a gente para por aqui. Ficou bonito assim.'],
             ['personas' => ['mare_mansa'],         'texto' => 'Fecho por agora, vixe. Reabro quando quiser, sem aviso.'],
-            ['personas' => ['beta'],         'texto' => 'Vou parar por aqui. Não porque terminei de pensar — é que a rodada acabou.'],
+            ['personas' => ['beta'],         'texto' => 'Vou parar por aqui. Não porque terminei de pensar. É que a rodada acabou.'],
             ['personas' => ['beta'],         'texto' => 'Encerro sem saber se decidi isso ou se só é hora de encerrar.'],
         ],
     ],

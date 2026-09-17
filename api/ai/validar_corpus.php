@@ -21,6 +21,15 @@
  * Sai com código 1 se achar erro, para poder entrar num hook depois.
  */
 
+// Ferramenta de linha de comando, igual aos outros scripts de api/ai/.
+// Servida por HTTP ela respondia 200 e imprimia a contagem de falas por
+// persona: nao e dado perigoso, mas e estrutura interna do acervo exposta
+// a quem nem esta logado, e nao ha motivo nenhum para ela estar de pe.
+if (PHP_SAPI !== "cli") {
+    http_response_code(404);
+    exit;
+}
+
 require_once __DIR__ . "/corpus.php";
 require_once __DIR__ . "/helpers.php";
 

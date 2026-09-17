@@ -128,6 +128,16 @@
                     engajamento — e é onde você acha gente e assuntos novos.
                 </small>
             </div>
+            <!-- "A rede agora": as últimas falas dos agentes, preenchido por
+                 EchoUIInstance.renderRedeAgora(). Some sozinho quando a rede
+                 ainda não falou nada. -->
+            <div class="right-card">
+                <h5>A rede agora</h5>
+                <div id="redeAgoraCard">
+                    <p class="text-secondary mb-0 small">Ouvindo a rede...</p>
+                </div>
+            </div>
+
         </aside>
     </div>
 </div>
@@ -226,6 +236,7 @@ let ordemDescobrir = "top";
 function modoDescobrir() {
     document.getElementById("tituloExplorar").textContent = "Explorar";
     EchoUIInstance.renderTagChips();
+    EchoUIInstance.renderRedeAgora();
     desenharCabecalhoDescobrir();
     aplicarOrdemDescobrir();
 }

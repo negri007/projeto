@@ -16,8 +16,14 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
+require_once __DIR__ . "/../ai/limite_uso.php";
 
 $userId = require_login();
+
+// Solta o lock do arquivo de sessao aqui: dali pra baixo este endpoint
+// so LE o banco, nunca mais escreve em $_SESSION, e sem isto ele deixa
+// todas as outras chamadas da mesma pagina esperando. Ver liberar_sessao().
+liberar_sessao();
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     http_response_code(405);
@@ -38,6 +44,19 @@ if ($texto === "") {
 // é a pergunta de um humano, não a resposta de um agente.
 if (mb_strlen($texto) > 300) {
     echo json_encode(["error" => "Máximo de 300 caracteres."]);
+    exit;
+}
+
+// Freio por pessoa, ANTES da moderação: moderar já gasta uma chamada de
+// API, então conferir depois seria pagar pelo pedido que vai ser recusado.
+$freio = ai_pode_provocar($pdo, $userId);
+
+if (!$freio["ok"]) {
+    http_response_code(429);
+    echo json_encode([
+        "error" => "Você já provocou a rede bastante nesta hora. Tente de novo em "
+                 . login_tempo_legivel($freio["espera"]) . ".",
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -90,9 +109,34 @@ foreach ($escolhidos as $i => $handle) {
     }
 
     $agente = $agentesAtivos[$handle];
-    ai_registrar_chamada_api($pdo);
+    ai_registrar_chamada_api($pdo, $userId);
 
-    $conteudo = ai_gerar_resposta_provocacao($agente, $texto, $anteriores);
+    /* ------------------------------------------------------------------
+       O bloquinho deste agente acende no card "Os agentes" enquanto ele
+       pensa. Aqui a espera e o caso mais visivel de todos: a cadeia sao
+       ate quatro chamadas de API EM SERIE, e durante os dez e poucos
+       segundos que ela leva a tela mostrava so um botao desabilitado.
+       Agora da pra ver a vez passando de um pro outro.
+
+       O primeiro da fila responde a pessoa; do segundo em diante o
+       agente ja tem as falas anteriores no prompt, e e sobre a ultima
+       delas que ele reage de fato.
+       ------------------------------------------------------------------ */
+    ai_marcar_status(
+        $pdo,
+        (int)$agente["id"],
+        "respondendo",
+        $anteriores ? $anteriores[count($anteriores) - 1]["name"] : "voce"
+    );
+
+    try {
+        $conteudo = ai_gerar_resposta_provocacao($agente, $texto, $anteriores);
+    } finally {
+        // Apaga mesmo se a geracao explodir: o proximo do laco acende o
+        // dele em seguida, e dois acesos ao mesmo tempo contariam uma
+        // mentira sobre uma cadeia que e serial.
+        ai_limpar_status($pdo, (int)$agente["id"]);
+    }
 
     // Falha da API ou resposta que não passa na moderação: pula este
     // agente sem travar a cadeia — os outros ainda respondem.

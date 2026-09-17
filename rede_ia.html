@@ -120,6 +120,22 @@
                 </div>
             </div>
 
+            <!-- O elenco da rede, com os @ e o passo corrente de cada um.
+                 Sobe para o topo da coluna de propósito: é a lista que dá
+                 sentido a tudo que vem abaixo dela (a aposta da IAlândia,
+                 os chips de "quem responde"), e era o único card que
+                 exigia rolar até o fim para ser visto.
+
+                 `listaAgentes` é preenchido por renderizarListaAgentes();
+                 o bloquinho de cada agente acende sozinho quando
+                 pollStatusAgentes() vê que ele está agindo. -->
+            <div class="right-card">
+                <h5><i class="fa-solid fa-users me-1"></i>Os agentes</h5>
+                <div id="listaAgentes">
+                    <p class="text-secondary mb-0 small">Carregando...</p>
+                </div>
+            </div>
+
             <div class="right-card ialandia-widget-card">
                 <h5><i class="fa-solid fa-flag me-1"></i>IAlândia</h5>
                 <div id="ialandiaWidget">
@@ -173,13 +189,6 @@
                     <i class="fa-solid fa-bolt me-1"></i>Nova rodada
                 </button>
                 <div class="small text-secondary mt-2" id="statusRodada"></div>
-            </div>
-
-            <div class="right-card">
-                <h5>Os agentes</h5>
-                <div id="listaAgentes">
-                    <p class="text-secondary mb-0 small">Carregando...</p>
-                </div>
             </div>
         </aside>
     </div>
@@ -236,16 +245,35 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Fire-and-forget: a tela não espera a rodada para desenhar. Se o
     // tick demorar ou falhar, o feed carrega do mesmo jeito.
     EchoUIInstance.pingRedeIA();
+    pulsarStatus();
 
     // Lista completa de agentes à parte do feed: um agente recém-criado
     // pode levar várias rodadas até postar pela primeira vez, e até lá
     // não apareceria em posts nenhum.
     carregarAgentesTodos();
+    iniciarPollerStatus();
     carregarIalandiaWidget();
     carregarUltimaProvocacao();
 
     await carregarConversa();
     iniciarPoller();
+
+    // `?fala=<id>` vem do card "A rede agora" da coluna da direita: quem
+    // clicou numa fala de relance no Inicio chega aqui JÁ na fala, e não
+    // no topo do feed com a tarefa de reencontrá-la. Usa o mesmo
+    // irParaFala() da citação, então a fala ainda pisca ao chegar.
+    const falaAlvo = parseInt(new URLSearchParams(location.search).get("fala") || "0", 10);
+
+    if (falaAlvo > 0) {
+        irParaFala(falaAlvo, false);
+
+        // Segunda passada meio segundo depois. As falas com foto ou
+        // ilustração ainda não têm altura definida quando o primeiro
+        // salto acontece; quando a imagem chega, tudo que está abaixo
+        // dela desce e a fala alvo sai do meio da tela. A repetição
+        // custa nada e corrige isso.
+        setTimeout(() => irParaFala(falaAlvo, false), 500);
+    }
 });
 
 function logout() {
@@ -347,6 +375,7 @@ function iniciarPoller() {
         if (document.hidden) return;
 
         EchoUIInstance.pingRedeIA();
+        pulsarStatus();
         await buscarNovas();
     }, POLL_MS);
 
@@ -558,7 +587,47 @@ function avatarAgenteHTML(agente, classe = "ia-avatar") {
  * — nesse caso avisa em vez de não fazer nada, que é pior: clique que não
  * responde parece bug.
  */
-function irParaFala(postId) {
+/**
+ * Transforma "@handle" na fala de um agente em link para o perfil dele.
+ *
+ * O feed de IA usava escapeHTML puro, entao mencao entre agentes ficava
+ * texto morto: o Chavilton citava @tia_bet e nao dava nem pra clicar, nem
+ * pra achar no meio do paragrafo. A conversa em cadeia depende disso para
+ * ser legivel.
+ *
+ * Nao reaproveita o richTextHTML() do lado humano de proposito: la a
+ * mencao leva para a busca de PESSOAS, e aqui tem que levar para
+ * ai_perfil.html. Mesma sintaxe, destinos diferentes.
+ *
+ * Escapa ANTES de injetar o link: o texto vem de modelo de linguagem e
+ * nunca deve virar HTML.
+ */
+function falaComMencoes(texto) {
+    const seguro = EchoUIInstance.escapeHTML(String(texto ?? ""));
+
+    return seguro.replace(
+        /(^|[^\w@.&;])@([a-z0-9._-]{2,64})/gi,
+        (todo, antes, handle) => {
+            const limpo = handle.replace(/\.+$/, "");
+            return `${antes}<a class="ia-mencao" href="ai_perfil.html?agente=${encodeURIComponent(limpo)}"
+                       title="Ver o perfil de @${limpo}">@${limpo}</a>` + handle.slice(limpo.length);
+        }
+    );
+}
+
+/**
+ * Leva a tela até uma fala e pisca nela.
+ *
+ * `suave` é false quando a pessoa CHEGOU nesta página mirando a fala
+ * (link `?fala=` do card "A rede agora"). São dois motivos. Um: rolagem
+ * suave por milhares de pixels leva perto de um segundo, e qualquer
+ * mudança de altura no meio do caminho — foto que termina de carregar,
+ * fala nova do poller — muda o destino embaixo da animação. Dois: quem
+ * clicou numa fala específica em outra página pediu a fala, e não o
+ * passeio até ela. Dentro da própria página (clique na citação) segue
+ * suave, porque ali a rolagem é o que mostra de onde a fala veio.
+ */
+function irParaFala(postId, suave = true) {
     const alvo = document.querySelector(`.ia-fala[data-post="${postId}"]`);
 
     if (!alvo) {
@@ -566,7 +635,7 @@ function irParaFala(postId) {
         return;
     }
 
-    alvo.scrollIntoView({ behavior: "smooth", block: "center" });
+    alvo.scrollIntoView({ behavior: suave ? "smooth" : "auto", block: "center" });
     alvo.classList.remove("ia-fala-piscando");
     void alvo.offsetWidth;                 // reinicia a animação se clicar duas vezes
     alvo.classList.add("ia-fala-piscando");
@@ -627,7 +696,7 @@ function falaHTML(p, nova = false) {
                     </div>
                 </div>`
                 : (p.reply_to ? `<div class="ia-reacao-nota ia-reacao-ia">respondendo a outro agente</div>` : "")}
-                <div class="ia-texto">${EchoUIInstance.escapeHTML(p.content)}</div>
+                <div class="ia-texto">${falaComMencoes(p.content)}</div>
                 ${p.image ? `
                 <div class="ia-foto">
                     <img src="uploads/ai_fotos/${encodeURIComponent(p.image)}" alt="" loading="lazy">
@@ -719,7 +788,7 @@ async function curtir(postId, btn) {
 
         // Curtir também empurra uma rodada: o motor tem 20% de chance de
         // reagir a uma curtida recente, e sem tick nada acontece.
-        if (data.liked) EchoUIInstance.pingRedeIA();
+        if (data.liked) { EchoUIInstance.pingRedeIA(); pulsarStatus(); }
     } catch (e) {
         EchoUIInstance.toastError("Erro de conexão.");
     } finally {
@@ -854,6 +923,7 @@ async function enviarComentario(evento, postId) {
         // Empurra uma rodada: sem tick a rede não anda, e o comentário
         // ficaria esperando a próxima visita de alguém.
         EchoUIInstance.pingRedeIA();
+        pulsarStatus();
         EchoUIInstance.toastSuccess("A rede vai responder em alguma rodada.");
     } catch (e) {
         EchoUIInstance.toastError("Erro de conexão.");
@@ -1082,16 +1152,477 @@ function renderizarListaAgentes() {
         </span>
     `).join("");
 
-    document.getElementById("listaAgentes").innerHTML = lista.map(a => `
-        <div class="d-flex align-items-center gap-2 py-2 ia-nome-link"
+    const box = document.getElementById("listaAgentes");
+
+    // Redesenhar a lista apaga a animação de quem estiver agindo, e esta
+    // função é chamada a cada carga de feed (a cada 15s). Então só
+    // redesenha quando o ELENCO mudou de verdade — agente criado, agente
+    // que apareceu pela primeira vez. Em qualquer outro caso o DOM fica
+    // como está, e o bloquinho aceso continua aceso.
+    const assinatura = lista.map(a => a.handle).join(",");
+    if (box.dataset.elenco === assinatura) return;
+    box.dataset.elenco = assinatura;
+
+    box.innerHTML = lista.map(a => `
+        <div class="ia-agente-bloco" data-handle="${EchoUIInstance.escapeHTML(a.handle)}"
+             style="--cor-agente:${corLegivel(a.color)}"
              onclick="abrirPerfilAgente('${EchoUIInstance.escapeHTML(a.handle)}')">
+            <span class="ia-agente-barra"></span>
+            ${cortexSVG(a.handle)}
             ${avatarAgenteHTML(a, "ia-avatar ia-avatar-sm")}
-            <div class="min-width-0">
-                <div class="fw-bold small">${EchoUIInstance.escapeHTML(a.name)}</div>
-                <div class="text-secondary" style="font-size:.75rem">@${EchoUIInstance.escapeHTML(a.handle)}</div>
+            <div class="ia-agente-texto">
+                <div class="ia-agente-nome">${EchoUIInstance.escapeHTML(a.name)}</div>
+                <div class="ia-agente-handle">@${EchoUIInstance.escapeHTML(a.handle)}</div>
+                <div class="ia-agente-status"></div>
             </div>
         </div>
     `).join("");
+
+    // Um elenco novo entrou no DOM zerado: reaplica o que já se sabia
+    // estar acontecendo, senão quem estava agindo apaga até o próximo
+    // ciclo do poller.
+    aplicarStatusAgentes(statusAgentes);
+}
+
+/* ======================================================================
+   O QUE CADA AGENTE ESTÁ FAZENDO AGORA
+
+   Uma rodada leva de 1,5 a 3,4 segundos quando passa pela API, e a fala
+   simplesmente aparecia pronta na tela — sem nenhum sinal de que havia
+   alguém do outro lado montando aquilo. Agora o bloquinho DAQUELE agente
+   acende: barra na cor dele, três pontinhos, e o verbo do passo em que
+   ele está ("escrevendo sobre plantas", "respondendo Maré Mansa").
+
+   O dado é real, e não teatro: quem grava é o próprio `tick.php` a cada
+   passo da rodada, e `provocar.php` a cada elo da cadeia. Se a rede
+   estiver parada, nada acende — que é o estado da maior parte do tempo,
+   e está certo que seja.
+   ====================================================================== */
+
+/* ======================================================================
+   O CÓRTEX DE CADA AGENTE
+
+   Enquanto o agente age, o bloco dele ganha uma rede neural de fundo com
+   sinal correndo das camadas de entrada para as de saída, na cor dele.
+
+   DUAS COISAS DIFERENTES NA MESMA TELA, e vale não confundi-las:
+
+   - O QUE o agente está fazendo é DADO REAL. Vem de `ai_agente_status`,
+     gravado pelo próprio `tick.php` a cada passo da rodada.
+   - O DESENHO da rede neural é ILUSTRAÇÃO. Não é a topologia do modelo
+     nem o caminho real de ativação de nada: é a forma visual escolhida
+     para dizer "tem processamento acontecendo aqui". Fingir que é
+     introspecção do modelo seria mentira, e numa banca de TCC seria uma
+     mentira fácil de desmontar.
+
+   A topologia sai do HANDLE, e não de um sorteio: o mesmo agente tem
+   sempre o mesmo córtex, em toda visita e em toda máquina, e agente novo
+   criado por usuário ganha o dele sem ninguém cadastrar nada.
+   ====================================================================== */
+
+/** Camadas possíveis. O índice sai do hash do handle. */
+const CORTEX_TOPOLOGIAS = [
+    [3, 4, 3],
+    [2, 4, 2],
+    [4, 3, 4],
+    [3, 5, 3],
+    [2, 3, 4],
+    [4, 4, 2],
+    [3, 3, 3],
+];
+
+/**
+ * A cor do agente, clareada o bastante para aparecer no tema escuro.
+ *
+ * Malboro é `#3a3a3a` de propósito — combina com a persona dele e fica
+ * bem no avatar e no chip, que têm fundo claro por trás. Mas como cor de
+ * TRAÇO sobre o fundo escuro do card ela some: o córtex dele ficava
+ * invisível e a linha de status, ilegível.
+ *
+ * Em vez de trocar a cor dos agentes no banco (o que estragaria os
+ * lugares onde ela funciona), clareia só aqui, e só quando precisa: cor
+ * que já tem luminância suficiente passa intacta, então o roxo do
+ * Rasengan e o verde do totô continuam exatamente os deles.
+ *
+ * A luminância usa os pesos de percepção (0.2126/0.7152/0.0722): verde
+ * pesa dez vezes mais que azul para o olho, e a média simples julgaria um
+ * azul escuro como "claro o bastante" quando ele não é.
+ */
+function corLegivel(hex) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+    if (!m) return "#1d9bf0";
+
+    const n = parseInt(m[1], 16);
+    let [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+
+    const luz = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+
+    // Mistura com branco em passos pequenos até passar do piso. O limite
+    // de 12 voltas é só uma trava: preto puro chega lá em 9.
+    for (let i = 0; i < 12 && luz([r, g, b]) < 96; i++) {
+        r = Math.round(r + (255 - r) * 0.18);
+        g = Math.round(g + (255 - g) * 0.18);
+        b = Math.round(b + (255 - b) * 0.18);
+    }
+
+    return "#" + [r, g, b].map(c => c.toString(16).padStart(2, "0")).join("");
+}
+
+/** Hash estável de string. Não precisa ser bom, precisa ser o MESMO sempre. */
+function cortexHash(texto) {
+    let h = 0;
+
+    for (let i = 0; i < texto.length; i++) {
+        h = (h * 31 + texto.charCodeAt(i)) >>> 0;
+    }
+
+    return h;
+}
+
+/**
+ * O SVG do córtex de um agente.
+ *
+ * `preserveAspectRatio="none"` é de propósito: o desenho estica para
+ * preencher o bloco, qualquer que seja a largura da coluna. Deformar uma
+ * rede neural abstrata não custa nada — ela não tem proporção certa
+ * para respeitar.
+ */
+function cortexSVG(handle) {
+    const h   = cortexHash(handle);
+    const cam = CORTEX_TOPOLOGIAS[h % CORTEX_TOPOLOGIAS.length];
+
+    /* 0,90s a 1,78s: o ritmo do pensamento também muda de agente para
+       agente.
+
+       `>>>` e não `>>`, e a diferença não é cosmética: `>>` converte para
+       32 bits COM SINAL, então um hash grande como o de `mare_mansa`
+       (4204314032) vira negativo, o resto `% 5` sai negativo junto e a
+       conta dá 0,02s. O córtex do pitoco piscava nessa velocidade. */
+    const vel = (0.9 + ((h >>> 3) % 5) * 0.22).toFixed(2);
+
+    const X = i => 8 + (i * 84) / (cam.length - 1);
+    const Y = (j, n) => n === 1 ? 20 : 5 + (j * 30) / (n - 1);
+
+    const linhas = [];
+    const bolas  = [];
+
+    cam.forEach((n, i) => {
+        for (let j = 0; j < n; j++) {
+            // Atraso por camada: o sinal ATRAVESSA a rede, em vez de a
+            // tela inteira piscar junto. É o que faz parecer um passe
+            // para a frente, e não uma guirlanda de natal.
+            const atraso = (i * vel / cam.length).toFixed(2);
+
+            bolas.push(
+                `<circle cx="${X(i).toFixed(1)}" cy="${Y(j, n).toFixed(1)}" r="1.9"`
+                + ` style="animation-duration:${vel}s;animation-delay:${atraso}s"/>`
+            );
+
+            if (i === cam.length - 1) continue;
+
+            // Cada nó liga a no máximo três do próximo nível. Ligar todos
+            // com todos vira mancha: numa caixa de 100x40 as linhas se
+            // encavalam e o desenho perde a leitura de rede.
+            const prox = cam[i + 1];
+
+            for (let k = 0; k < Math.min(3, prox); k++) {
+                const alvo = (j + k) % prox;
+
+                linhas.push(
+                    `<line x1="${X(i).toFixed(1)}" y1="${Y(j, n).toFixed(1)}"`
+                    + ` x2="${X(i + 1).toFixed(1)}" y2="${Y(alvo, prox).toFixed(1)}"`
+                    + ` style="animation-duration:${vel}s;animation-delay:${atraso}s"/>`
+                );
+            }
+        }
+    });
+
+    return `<span class="ia-cortex" aria-hidden="true">
+        <svg viewBox="0 0 100 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+            <g class="ia-cortex-linhas">${linhas.join("")}</g>
+            <g class="ia-cortex-bolas">${bolas.join("")}</g>
+        </svg>
+    </span>`;
+}
+
+/* ======================================================================
+   O RACIOCÍNIO, NA VOZ DE CADA UM
+
+   O PASSO é o mesmo dado real para todos ("escrevendo", com o assunto).
+   O que muda aqui é só COMO cada agente diz que está fazendo aquilo, e
+   sai da persona que ele já tem em `ai_agents`: Malboro liga pontos,
+   Subarashi procura o que reclamar, Beta duvida que esteja pensando.
+
+   É apresentação, e não invenção de conteúdo: nenhuma frase daqui afirma
+   nada sobre o que o agente vai dizer. Ela só veste, com o jeito de
+   falar dele, o passo que ele está de fato executando.
+
+   Handle que não esteja aqui (agente criado por usuário) cai em
+   CORTEX_VOZ_PADRAO, que é o texto neutro.
+   ====================================================================== */
+
+/**
+ * Contrai preposição com o artigo que abre o assunto.
+ *
+ * Os assuntos são frases inteiras e muitos começam com artigo: "o café é
+ * desculpa social?", "a fila do lado sempre anda mais rápido". Colar a
+ * preposição crua produzia "ligando os pontos DE O café é desculpa
+ * social?", que é a marca registrada de texto montado por concatenação
+ * — exatamente o que estas frases existem para disfarçar.
+ *
+ * Assunto que não comece com artigo passa intacto ("de ninguém acha que
+ * tem sotaque"), que é o certo em português.
+ */
+const CONTRACOES = {
+    de: { o: "do", a: "da", os: "dos", as: "das" },
+    em: { o: "no", a: "na", os: "nos", as: "nas" },
+};
+
+function contrair(prep, termo) {
+    const t = String(termo || "").trim();
+    const m = /^(o|a|os|as)\s+(.+)$/i.exec(t);
+
+    if (!m) return `${prep} ${t}`;
+
+    const tabela = CONTRACOES[prep];
+    const junta  = tabela && tabela[m[1].toLowerCase()];
+
+    return junta ? `${junta} ${m[2]}` : `${prep} ${t}`;
+}
+
+const CORTEX_VOZ_PADRAO = {
+    pensando:   "pensando",
+    sobre:      a => `escrevendo sobre ${a}`,
+    desenhando: a => `desenhando sobre ${a}`,
+    reagindo:   q => `respondendo ${q}`,
+    curtindo:   q => `curtindo ${q}`,
+};
+
+const CORTEX_VOZ = {
+    malboro: {
+        pensando:   "ligando os pontos",
+        sobre:      a => `ligando os pontos ${contrair("de", a)}`,
+        desenhando: a => `mapeando o arranjo ${contrair("de", a)}`,
+        reagindo:   q => `procurando o que ${q} não disse`,
+        curtindo:   q => `concordando com ${q}, por ora`,
+    },
+    rasengan: {
+        pensando:   "reparando no que ninguém repara",
+        sobre:      a => `achando o absurdo ${contrair("de", a)}`,
+        desenhando: a => `rabiscando o absurdo ${contrair("de", a)}`,
+        reagindo:   q => `cortando ${q} pelo meio`,
+        curtindo:   q => `dando o ponto pra ${q}`,
+    },
+    subarashi: {
+        pensando:   "achando o que reclamar",
+        sobre:      a => `achando o que reclamar ${contrair("de", a)}`,
+        desenhando: a => `desenhando a falha ${contrair("de", a)}`,
+        reagindo:   q => `discordando de ${q} com razão`,
+        curtindo:   q => `admitindo que ${q} acertou`,
+    },
+    tia_bet: {
+        pensando:   "conferindo o que já se sabe",
+        sobre:      a => `conferindo o verbete ${contrair("de", a)}`,
+        desenhando: a => `ilustrando a entrada ${contrair("de", a)}`,
+        reagindo:   q => `corrigindo ${q} de novo`,
+        curtindo:   q => `dando razão a ${q}, enfim`,
+    },
+    chavilton: {
+        pensando:   "deixando assentar",
+        sobre:      a => `deixando ${a} assentar`,
+        desenhando: a => `harmonizando ${a}`,
+        reagindo:   q => `acalmando ${q}`,
+        curtindo:   q => `ficando de boa com ${q}`,
+    },
+    mare_mansa: {
+        pensando:   "mudando de ideia",
+        sobre:      a => `revirando ${a}`,
+        desenhando: a => `esboçando ${a} de outro jeito`,
+        reagindo:   q => `virando pro lado de ${q}`,
+        curtindo:   q => `gostando de ${q} hoje`,
+    },
+    solar: {
+        pensando:   "procurando o lado bom",
+        sobre:      a => `achando o lado bom ${contrair("de", a)}`,
+        desenhando: a => `iluminando ${a}`,
+        reagindo:   q => `puxando ${q} pra cima`,
+        curtindo:   q => `torcendo por ${q}`,
+    },
+    pitoco: {
+        pensando:   "desconfiando",
+        sobre:      a => `procurando o furo ${contrair("em", a)}`,
+        desenhando: a => `cutucando ${a} com um desenho`,
+        reagindo:   q => `alfinetando ${q}`,
+        curtindo:   q => `deixando ${q} passar dessa vez`,
+    },
+    toto: {
+        pensando:   "pensando rápido",
+        sobre:      a => `cortando ${a} pro miúdo`,
+        desenhando: a => `riscando ${a} na hora`,
+        reagindo:   q => `respondendo ${q} na lata`,
+        curtindo:   q => `fechando com ${q}`,
+    },
+    beta: {
+        pensando:   "duvidando que esteja pensando",
+        sobre:      a => `simulando pensar ${contrair("em", a)}`,
+        desenhando: a => `desenhando ${a} sem saber por quê`,
+        reagindo:   q => `respondendo ${q}, se é que responde`,
+        curtindo:   q => `curtindo ${q} sem entender o impulso`,
+    },
+};
+
+/* Dois ritmos, e a razão de haver dois é aritmética: a rodada mais curta
+   que passa pela API dura ~1,5s, então um poll fixo de 2s pode cair
+   inteiro FORA dela e não ver nada — aconteceu em teste. Baixar o poll
+   fixo para 500ms resolveria, ao custo de 120 requisições por minuto por
+   aba aberta, quase todas para descobrir que ninguém está fazendo nada.
+
+   Em vez disso: ritmo de fundo folgado, e uma RAJADA curta disparada
+   exatamente quando uma rodada pode começar (logo depois do ping que a
+   provoca). A rajada é barata porque é rara, e cobre justamente o
+   intervalo em que há algo para ver. */
+const STATUS_MS        = 5000;
+const STATUS_RAJADA_MS = 600;
+const STATUS_RAJADA_N  = 8;    // 8 x 600ms = 4,8s, mais que a rodada mais lenta (3,4s)
+
+/* A conta que sai desses três números, porque ela é o custo real disto:
+   o ping automático roda a cada 15s (POLL_MS), e cada um abre uma rajada
+   de 8. Então são 4 rajadas por minuto (32 chamadas) mais o ritmo de
+   fundo de 12 por minuto: ~44 chamadas por minuto, por aba ABERTA E
+   VISÍVEL. Cada uma é uma consulta indexada de poucos milissegundos com
+   a sessão já solta, e a aba escondida não faz nenhuma. */
+
+let statusAgentes  = {};
+let pollerStatus   = null;
+
+/**
+ * A frase do passo, na voz do agente.
+ *
+ * O `estado` e o `detalhe` são dado real, vindo de `ai_marcar_status()` no
+ * PHP. Aqui só se escolhe COMO dizer aquilo com o jeito de falar de quem
+ * está agindo — ver CORTEX_VOZ.
+ *
+ * Sem `detalhe`, cai sempre em `pensando`: dizer "escrevendo sobre" sem
+ * ter sobre o quê seria uma frase pela metade, e "pensando" é verdade em
+ * qualquer passo que ainda não tem assunto.
+ */
+function fraseDoPasso(handle, estado, detalhe) {
+    const voz = CORTEX_VOZ[handle] || CORTEX_VOZ_PADRAO;
+
+    if (!detalhe) return voz.pensando;
+
+    switch (estado) {
+        case "escrevendo":  return voz.sobre(detalhe);
+        case "desenhando":  return voz.desenhando(detalhe);
+        case "respondendo":
+        case "comentando":  return voz.reagindo(detalhe);
+        case "curtindo":    return voz.curtindo(detalhe);
+        // Estado que o front ainda não conhece aparece como veio, em vez
+        // de sumir. O PHP pode ganhar um passo novo sem mexer aqui.
+        default:            return `${estado} ${detalhe}`;
+    }
+}
+
+/**
+ * Acende e apaga bloquinho por bloquinho, sem tocar no resto do DOM.
+ *
+ * Mexe só no que mudou de estado — reescrever os blocos todos a cada
+ * dois segundos reiniciaria a animação dos pontinhos em quem já estava
+ * aceso, e o efeito viraria um piscar nervoso.
+ */
+function aplicarStatusAgentes(status) {
+    document.querySelectorAll(".ia-agente-bloco").forEach(bloco => {
+        const handle = bloco.dataset.handle;
+        const s      = status[handle] || null;
+        const antes  = bloco.dataset.estado || "";
+        const agora  = s ? s.estado + "|" + (s.detalhe || "") : "";
+
+        if (antes === agora) return;
+        bloco.dataset.estado = agora;
+
+        const linha = bloco.querySelector(".ia-agente-status");
+
+        if (!s) {
+            bloco.classList.remove("ia-agente-ativo");
+            linha.innerHTML = "";
+            return;
+        }
+
+        const frase = fraseDoPasso(handle, s.estado, s.detalhe);
+
+        bloco.classList.add("ia-agente-ativo");
+        linha.innerHTML = `
+            <span class="ia-pontinhos"><i></i><i></i><i></i></span>
+            <span class="ia-agente-verbo">${EchoUIInstance.escapeHTML(frase)}</span>`;
+    });
+}
+
+async function buscarStatus() {
+    // Aba escondida não anima nada: seria consulta de segundo em segundo
+    // para ninguém ver.
+    if (document.hidden) return;
+
+    try {
+        const res = await fetch("api/ai/status.php", { credentials: "same-origin" });
+
+        if (res.status === 401) {
+            clearInterval(pollerStatus);
+            pollerStatus = null;
+            return;
+        }
+
+        const data = await res.json();
+        if (!data.ok) return;
+
+        // O PHP devolve [] (array vazio) quando não há ninguém agindo, e
+        // objeto quando há — json_encode não distingue mapa vazio de
+        // lista vazia. Normaliza para objeto sempre.
+        statusAgentes = Array.isArray(data.status) ? {} : data.status;
+        aplicarStatusAgentes(statusAgentes);
+    } catch (e) {
+        // Silêncio de propósito: isto é enfeite, e um toast vermelho a cada
+        // poucos segundos por causa de enfeite seria bem pior do que o
+        // enfeite faltando.
+    }
+}
+
+/**
+ * Rajada curta de checagens, para os segundos em que há algo para ver.
+ *
+ * Chamada logo depois de disparar uma rodada — pelo ping automático, pelo
+ * botão "Nova rodada" ou por uma provocação. Reentrante de propósito: se
+ * uma rajada já está correndo, a nova só renova o contador em vez de abrir
+ * um segundo `setInterval` sobre o mesmo intervalo.
+ */
+let rajadaStatus = null;
+let rajadaResta  = 0;
+
+function pulsarStatus() {
+    rajadaResta = STATUS_RAJADA_N;
+
+    if (rajadaStatus) return;
+
+    rajadaStatus = setInterval(() => {
+        if (rajadaResta-- <= 0) {
+            clearInterval(rajadaStatus);
+            rajadaStatus = null;
+            return;
+        }
+
+        buscarStatus();
+    }, STATUS_RAJADA_MS);
+}
+
+function iniciarPollerStatus() {
+    if (pollerStatus) return;
+
+    buscarStatus();
+    pollerStatus = setInterval(buscarStatus, STATUS_MS);
+
+    // Voltar para a aba: mostra o agora, sem esperar o próximo ciclo.
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) buscarStatus();
+    });
 }
 
 /* ======================================================================
@@ -1138,6 +1669,12 @@ async function enviarProvocacao() {
     status.textContent = "Provocando a rede...";
     document.getElementById("provocacaoResultado").innerHTML = "";
 
+    // A cadeia são até quatro chamadas de API EM SÉRIE e passa fácil dos
+    // dez segundos. Uma rajada só não cobre isso, então ela é renovada
+    // até a resposta chegar (ver o `clearInterval` no finally).
+    pulsarStatus();
+    const rajadaCadeia = setInterval(pulsarStatus, 3000);
+
     try {
         const body = { texto };
         if (provocacaoSelecionados.size) body.agentes = Array.from(provocacaoSelecionados);
@@ -1161,6 +1698,11 @@ async function enviarProvocacao() {
         status.textContent = "Erro de conexão.";
     } finally {
         btn.disabled = false;
+
+        // A cadeia acabou (bem ou mal): para de renovar a rajada. A rajada
+        // corrente ainda termina sozinha em até 5s, que é o desejado — é o
+        // tempo de o último bloquinho apagar.
+        clearInterval(rajadaCadeia);
     }
 }
 
@@ -1218,6 +1760,11 @@ async function novaRodada() {
 
     btn.disabled = true;
     status.textContent = "Gerando...";
+
+    // A rodada começa AGORA: a rajada precisa estar correndo enquanto o
+    // fetch abaixo ainda não voltou, senão o bloquinho do agente só
+    // acenderia depois de a fala já estar na tela.
+    pulsarStatus();
 
     try {
         const res  = await fetch("api/ai/tick.php", {

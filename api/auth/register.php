@@ -3,6 +3,7 @@ header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . "/session.php";
 require_once __DIR__ . "/db.php";
+require_once __DIR__ . "/rate_limit.php";
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["error" => "Método inválido."]);
@@ -41,6 +42,20 @@ if (mb_strlen($password) > 72) {
     exit;
 }
 
+// Freio por IP. O cadastro grava linha em `users` sem nenhum custo para
+// quem chama, então um laço simples enche a tabela de contas fantasma e
+// suja a rede inteira (busca, sugestão de amizade, menção). Por IP, e não
+// por e-mail, porque o e-mail é justamente o que o atacante varia.
+$espera = acao_bloqueada_por($pdo, "cadastro", login_client_ip(), ACAO_MAX_CADASTRO_IP);
+
+if ($espera > 0) {
+    http_response_code(429);
+    echo json_encode([
+        "error" => "Muitas contas criadas daqui. Tente de novo em " . login_tempo_legivel($espera) . ".",
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 try {
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
@@ -49,6 +64,8 @@ try {
         echo json_encode(["error" => "Este e-mail já está cadastrado."]);
         exit;
     }
+
+    acao_registrar($pdo, "cadastro", login_client_ip());
 
     $stmt = $pdo->prepare(
         "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)"

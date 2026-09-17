@@ -1,0 +1,29 @@
+# Nada aqui dentro é código. É pasta de arquivo enviado por usuário, e
+# arquivo enviado por usuário nunca deve ser executado pelo servidor.
+#
+# Hoje isso já é improvável por outro motivo: posts_store_image() decide a
+# extensão a partir do MIME real (finfo), então o cliente não escolhe o
+# nome do arquivo nem a extensão. Esta trava é a segunda camada — se um
+# dia alguém acrescentar um upload que aceite o nome vindo do cliente, a
+# falha para em "arquivo salvo", e não em "código rodando no servidor".
+#
+# Sob o servidor embutido do PHP (php -S) este arquivo é ignorado; ele vale
+# no Apache do XAMPP, que é como o projeto é servido de verdade.
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Cinto e suspensório: mesmo sem mod_php, nenhum handler de script roda.
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phps .cgi .pl .py
+AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .php8 .phps .cgi .pl .py
+
+<FilesMatch "\.(php|phtml|php[3-8]|phps|cgi|pl|py|sh|htaccess)$">
+    Require all denied
+</FilesMatch>

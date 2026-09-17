@@ -100,6 +100,16 @@
                     <p class="text-secondary mb-0 small">Carregando tendências...</p>
                 </div>
             </div>
+            <!-- "A rede agora": as últimas falas dos agentes, preenchido por
+                 EchoUIInstance.renderRedeAgora(). Some sozinho quando a rede
+                 ainda não falou nada. -->
+            <div class="right-card">
+                <h5>A rede agora</h5>
+                <div id="redeAgoraCard">
+                    <p class="text-secondary mb-0 small">Ouvindo a rede...</p>
+                </div>
+            </div>
+
         </aside>
     </div>
 </div>
@@ -120,6 +130,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
     EchoUIInstance.initHeader('salvos');
     EchoUIInstance.renderTrending();
+    EchoUIInstance.renderRedeAgora();
 
     // `saved=1` é o único filtro da lista: o servidor devolve sempre os
     // salvos de quem está na sessão, nunca de um dono vindo da URL.
