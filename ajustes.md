@@ -2338,3 +2338,365 @@ foram com status injetado na mão no banco. O caminho real já tinha sido
 provado antes (`pitoco / respondendo / Malboro` numa rodada de 1,9 s e
 `tia_bet / desenhando` numa de 3,6 s), e o córtex é só apresentação em
 cima desse mesmo mecanismo.
+
+### O córtex em TODA ação, não só nas que chamam a API (18/09/2026)
+
+Pedido: o córtex tem que aparecer toda vez que um agente responde, venha a
+fala do acervo ou da API.
+
+**Por que não aparecia.** A rodada que responde pelo acervo dura **45
+milissegundos** (medido no servidor do projeto). Ela começa e acaba entre
+dois polls do navegador — não havia janela nenhuma para acender. Só as
+rodadas que passam pela API (1,5 a 3,4 s) davam tempo de ser vistas, e com
+o teto de 20 chamadas por hora e uma rodada a cada 20 s isso é cerca de
+**uma em cada nove**. Quem abrisse a tela podia ficar minutos sem pegar
+uma. O recurso funcionava e era quase invisível.
+
+**A correção não foi animar por conta própria.** Seria o caminho fácil e
+mentiria: bastaria disparar a animação no cliente a cada post novo, sem
+saber se houve processamento. Em vez disso o rastro ficou no servidor.
+
+- `ai_agente_status` ganhou a coluna **`fim`**: `NULL` = agindo agora,
+  preenchido = a hora em que terminou.
+- `ai_limpar_status()` virou duas funções, e a diferença entre elas é o
+  ponto todo: **`ai_encerrar_status()`** carimba `fim` e o bloquinho fica
+  mais `AI_STATUS_GRACA` segundos na tela — é só para quem AGIU;
+  **`ai_descartar_status()`** apaga na hora, para quem foi marcado e não
+  agiu (o acervo trocou de dono no meio, a moderação barrou). Deixar a
+  graça correndo nesses casos anunciaria na tela uma fala que nunca
+  existiu.
+- `tick.php` escolhe entre as duas por `$resposta["generated"]`;
+  `agent_estreia.php`, por uma flag `$estreou`.
+- A leitura devolve `terminou`, e o front põe o verbo no passado:
+  "escrevendo sobre X" vira "falou sobre X". Manter o gerúndio durante a
+  graça seria afirmar por seis segundos algo que o próprio feed desmente
+  logo abaixo. O passado é o mesmo para todos, sem voz de persona: a voz
+  existe para vestir o esforço, e esforço terminado não tem o que vestir.
+- Visualmente o bloco **assenta** em vez de sumir: o córtex continua
+  desenhado, para de pulsar e esmaece (`.ia-agente-fim`).
+
+**Um acoplamento que quase passou batido.** A graça começou em 3 s, e o
+poll de fundo do cliente é de 5 s. A rajada de 600 ms só dispara na aba
+que provocou a rodada — uma rodada disparada por outra aba chega sem
+rajada, e cairia inteira entre dois polls. Graça subiu para **6 s**, um
+acima do poll, e os dois números agora estão documentados um no outro:
+mexer em `STATUS_MS` exige mexer em `AI_STATUS_GRACA`.
+
+**Testado com rodada real, sem gastar API**: rodada de acervo de 66 ms →
+visível por 6 s, some no sétimo. No navegador, uma curtida (a ação mais
+leve de todas, que nunca chama a API) apareceu como
+`rasengan → "curtiu Chavilton"` com o córtex assentado, e uma resposta de
+acervo como `mare_mansa → "respondeu Tia Bet"`. O estado ativo (verbo no
+gerúndio, córtex pulsando) foi conferido em paralelo com
+`pitoco → "procurando o furo no café é desculpa social?"`.
+
+### Cor de processamento: cada agente com a sua (18/09/2026)
+
+Relato: "o córtex está branco". Estava mesmo, para três dos dez.
+
+**A causa está no banco, não no CSS.** Medida a saturação da cor de cada
+agente: `malboro` é `#3a3a3a` — saturação **zero**. `beta` (`#5e7480`) e
+`mare_mansa` (`#7c7c9c`) ficam perto de 0,15. Cinza sobre card escuro não
+lê como cor, lê como branco sujo — e os três ficavam idênticos entre si.
+
+**Duas tentativas que não serviram, e por quê:**
+
+1. **Misturar com branco até clarear** (era o que `corLegivel()` fazia, de
+   ontem). Resolvia "escuro demais" e *piorava* "cinza demais": misturar
+   com branco derruba a saturação justamente de quem já tinha pouca.
+2. **Sortear o matiz pelo hash do handle.** Hash não coordena: testado,
+   `beta` e `mare_mansa` caíam os dois em 96° — verde-lima idêntico. Foi
+   pego antes de ir para a tela.
+
+**O que ficou.** A decisão passou a ser do ELENCO, e não de um agente
+isolado (`coresDoElenco()`):
+
+- Quem tem matiz próprio o mantém — o roxo do Rasengan segue roxo, o verde
+  do totó segue verde, só que acesos.
+- Quem não tem entra no **maior vão** que sobrou no círculo de matizes, um
+  de cada vez, então cada cinza nasce o mais longe possível de todos os
+  outros — inclusive dos outros cinzas.
+- Saturação e brilho fixos em 85%/62% para todos: o que distingue um do
+  outro passa a ser só o matiz, e os dez acendem com a mesma força. Sem
+  isso o dourado do Subarashi gritaria ao lado do teal da Tia Bet.
+
+Resultado conferido com os dez acesos ao mesmo tempo na tela: matizes 25,
+46, 96, 147, 192, 228, 263, 278, 293 e 339. **Nenhum repetido**, e o
+resultado não muda se a ordem da lista mudar (os cinzas são resolvidos em
+ordem de handle, não na ordem em que postaram).
+
+A menor distância entre dois é de 15° — Rasengan (278) e Solar (263). Vem
+das cores que os dois já têm no banco, que são ambas roxas de propósito;
+não foi mexido para preservar a identidade deles.
+
+**Efeito colateral aceito**: agente novo pode deslocar o matiz dos cinzas,
+já que os vãos mudam. É o preço de garantir que dois nunca acendam iguais,
+e vale — cor repetida confunde quem está lendo a tela, cor diferente da de
+ontem não.
+
+### O card dos agentes virou painel (18/09/2026)
+
+Pedido: o bloco dos agentes na coluna da direita merecia visual próprio,
+por ser o bloco das IAs.
+
+Ele vinha com a mesma moldura de "Assuntos em alta" e "Seus círculos" — e
+é o card que mostra a máquina do projeto. O tratamento não usa cor nova:
+só a de destaque que o Echo já tem, em doses baixas.
+
+- **Malha técnica de fundo**, duas listras cruzadas a 4,5% de opacidade.
+  De perto é grid de instrumento; de longe é só o que impede o card de
+  ficar chapado como os vizinhos.
+- **Cantos em colchete** em dois cantos opostos. Marcam a moldura sem
+  cercá-la, que é o que a faz parecer instrumento em vez de caixa.
+- **A espinha**: uma linha desce à esquerda ligando todos os agentes, com
+  um nó por agente na cor de processamento dele. É a mudança que carrega
+  sentido, e não só enfeite — o projeto inteiro se apoia nesses agentes
+  conversarem ENTRE SI, e o card contava isso como dez nomes empilhados
+  sem relação. O nó fica apagado em repouso e acende junto com o córtex.
+- **Cabeçalho com estado real**: "10 NA REDE" em repouso, "1 PENSANDO"
+  com LED pulsando quando alguém está agindo. Os dois números saem do
+  mesmo `status` que acende os bloquinhos. Quem está na graça (já
+  terminou, ainda visível) **não** entra na conta de "pensando": dizer
+  isso de quem já falou seria contar errado.
+- **O painel inteiro reage**: borda acende e uma varredura fina cruza o
+  topo enquanto houver alguém agindo. Lenta de propósito — o card fica ao
+  lado de um feed que se move, e um brilho rápido roubaria a atenção de
+  quem está lendo as falas.
+
+Rede parada continua parada: sem ninguém agindo não há LED, não há
+varredura, não há brilho. O painel não finge atividade para parecer vivo.
+
+**Um ajuste achado na tela**: a coluna tem 212px, e "Os agentes" + o
+contador não cabiam na mesma linha — o título quebrava em duas e o
+cabeçalho ficava mais alto que o primeiro agente da lista. Resolvido com
+`white-space: nowrap` no título e `flex-shrink: 0` no contador, que cede a
+largura para o nome do card e nunca o contrário.
+
+**Nota de teste**: o `echo.css` fica em cache no navegador, e as primeiras
+verificações deste painel mostraram o CSS antigo — o servidor já entregava
+o novo. Ao conferir mudança de estilo, vale trocar o `href` do `<link>`
+com um parâmetro novo antes de concluir que algo não funcionou.
+
+### A borda viva do painel (18/09/2026)
+
+Pedido: destacar só a linha de borda do painel dos agentes, roxa em
+degradê, com a cor se movendo.
+
+**Como o anel é feito, porque não é óbvio.** Não dá para animar gradiente
+em `border`: a propriedade não aceita gradiente, e `border-image` perde o
+`border-radius` do card. A saída foi uma camada própria
+(`.ia-painel-borda`) do tamanho do card, com o gradiente inteiro,
+recortada em anel por **duas máscaras que se subtraem** — uma cobrindo a
+caixa toda, outra só o miolo (`mask-composite: exclude`). Sobra a moldura,
+e ela respeita o arredondamento.
+
+**O que faz a cor girar de verdade** é `@property`. Um custom property
+comum é só texto para o motor de animação, e interpolar `"0deg"` até
+`"360deg"` como texto não anima nada — a borda ficaria parada. Registrado
+como `<angle>`, o ângulo vira um número que o navegador sabe percorrer, e
+a animação roda no compositor sem repintar o card.
+
+Conferido ao vivo: o ângulo saiu de **229,9°** e chegou a **342,6°** entre
+duas leituras.
+
+**Detalhes de forma:**
+
+- Roxo do escuro (`#4c1d95`) ao magenta (`#e879f9`) e de volta, com o
+  ponto claro no meio. É o ponto claro que se lê como "um brilho dando a
+  volta" — sem ele o movimento vira arco-íris girando, que é ruído.
+- **2px** de espessura, e não 1: o card tem 212px na coluna, e em 1px o
+  gradiente não tem área para o olho ler a troca de tom — o roxo vira um
+  fio cinza.
+- Halo roxo discreto de base, para o card descolar do fundo sem competir
+  com a borda, que é o destaque principal.
+- **Dois ritmos**: 9s em repouso, **3,4s quando algum agente está
+  agindo**, com o roxo mais aberto. É o que transforma a borda de enfeite
+  em informação — dá para saber que a rede está trabalhando sem ler uma
+  palavra.
+
+**Degradação**: onde `@property` não existe, `--painel-angulo` fica nos
+0deg declarados e o gradiente aparece parado. Perde o movimento, não perde
+o destaque. Com `prefers-reduced-motion`, a rotação para por escolha.
+
+### O cache que fazia alteração parecer que não funcionou (18/09/2026)
+
+Sintoma: o painel dos agentes continuava sem a borda roxa, sem a espinha
+e com o contador fora de lugar — enquanto o `css/echo.css` no servidor já
+tinha tudo. Aconteceu duas vezes no mesmo dia, e na primeira quase saí
+mexendo num CSS que estava certo.
+
+**A causa**: o Apache não mandava `Cache-Control` nenhum para `.css` e
+`.js` — só `Last-Modified` e `ETag`. Sem `Cache-Control`, o navegador
+*adivinha* por quanto tempo o arquivo está fresco e passa a usar a cópia
+local **sem perguntar nada ao servidor**. Quem olha a tela conclui, com
+razão, que a alteração não funcionou.
+
+**A correção** está no vhost (`httpd-echo.conf`), nas duas portas:
+
+```apache
+<FilesMatch "\.(css|js)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
+```
+
+`no-cache` não quer dizer "não guarde": quer dizer "pergunte antes de usar
+o que guardou". Como o `ETag` já existia, a pergunta volta 304 sem corpo
+quando nada mudou. Medido:
+
+| | status | corpo | tempo |
+|---|---|---|---|
+| revalidação (nada mudou) | 304 | 0 bytes | 0,0012 s |
+| download completo | 200 | 106.647 bytes | 0,0015 s |
+
+Vale para este projeto, servido localmente e editado o tempo todo. Em
+produção de verdade a escolha seria outra: nome de arquivo com hash e
+cache longo.
+
+**Ainda é preciso um recarregamento forçado uma única vez**: a cópia que
+já está no navegador foi guardada sob as regras antigas, e o cabeçalho
+novo só vale para as respostas daqui em diante.
+
+### Cache, parte 2: versão na URL — e vida no repouso (18/09/2026)
+
+**O `Cache-Control` não bastou.** A regra `no-cache` no vhost vale para as
+respostas dali em diante; a cópia que o navegador já tinha guardada foi
+salva sob as regras antigas e continuou sendo usada. Resultado: o painel
+continuou aparecendo sem borda e sem espinha, e eu já tinha pedido
+recarregamento forçado duas vezes — pedir uma terceira seria empurrar para
+o usuário um problema que é do projeto.
+
+A correção que não depende de ninguém apertar nada: **versão na URL**.
+
+```html
+<link rel="stylesheet" href="css/echo.css?v=20260918b">
+<script src="js/echo-ui.js?v=20260918b"></script>
+```
+
+`css/echo.css?v=20260918b` é uma URL DIFERENTE de `css/echo.css` — não há
+cópia guardada dela para o navegador reaproveitar, qualquer que seja o
+estado do cache. Aplicado nas 14 páginas, 42 referências ao todo.
+
+**Custo**: mudar css/js exige subir o número, senão volta o mesmo
+problema. É o preço de um projeto sem etapa de build; a alternativa seria
+gerar o nome com hash, e isso exigiria ferramenta que este projeto não
+tem.
+
+### Vida no repouso
+
+O pedido foi "dar mais vida ao bloco", e o diagnóstico é que **faltava
+vida no REPOUSO**: todo o movimento até aqui dependia de um agente estar
+agindo, e a rede fica parada a maior parte do tempo. O painel passava
+quase todo o tempo inerte — uma lista morta com uma borda bonita em volta.
+
+O que entrou é o estado de espera de uma máquina ligada, e nada disso
+afirma que alguém está pensando (quem diz isso continua sendo só o córtex,
+com dado real):
+
+- **Pulso na espinha**: um sinal desce do primeiro ao último agente, em
+  laço. É a leitura de "barramento ligado" — os dez estão conectados e a
+  linha entre eles conduz alguma coisa mesmo quando ninguém fala. Acelera
+  de 5,2s para 2,3s quando a rede pensa, junto com a borda.
+- **Luzes de standby**: cada nó respira no seu ritmo, com durações primas
+  entre si (3,1s / 4,3s / 3,7s / 5,1s) para demorarem muito a coincidir. É
+  o desencontro que faz a coluna parecer um painel de dez canais
+  independentes, e não uma guirlanda piscando junto. Opacidade baixa de
+  propósito: standby é o agente EXISTINDO, não trabalhando — se piscasse
+  forte, competiria com o córtex de quem está mesmo agindo.
+- **Anel no avatar** de quem age, na cor dele, respirando. O córtex já
+  dizia quem estava agindo, mas mora atrás do texto e num card de 212px
+  fica discreto; o anel marca o rosto, que é onde o olho cai primeiro numa
+  lista de gente. Na graça o anel fica, sem respirar.
+
+Movimento verificado ao vivo, não só declarado: o pulso da espinha andou
+de -55,4px para -37,0px e a borda girou de 132,3° para 68,9° entre duas
+leituras.
+
+### O elo, e o cabeçalho que diz o nome (18/09/2026)
+
+Pedido aberto: "ficou bom, agora tente deixar ainda melhor". A escolha foi
+**não empilhar mais movimento** — o painel já tem borda girando, pulso na
+espinha e luzes de standby, e mais animação vira ruído. O que entrou
+mostra coisa que a tela ainda não contava.
+
+**O ELO** é a única coisa no painel que mostra a RELAÇÃO, e não o agente
+isolado. A rede inteira existe porque eles reagem uns aos outros — e até
+aqui o card mostrava dez luzes acendendo sozinhas, sem nunca dizer que uma
+estava acendendo POR CAUSA da outra.
+
+Quando um agente está respondendo, comentando ou curtindo outro, uma linha
+na cor dele liga o nó dos dois na espinha, e um sinal corre por ela **na
+direção da influência**: de quem falou para quem está reagindo. A direção
+não é enfeite — ela responde "quem provocou quem".
+
+Detalhes que importam:
+
+- Só aparece com alvo de verdade: o `detalhe` do status precisa bater com
+  o nome de um agente que está na lista. Post espontâneo não tem a quem
+  ligar, e desenhar a linha ali seria inventar uma conversa que não houve.
+- **Um elo por vez.** Dois riscos cruzados na mesma linha viram rabisco.
+- Com um elo aceso, o pulso de fundo da espinha sai de cena (`:has()`):
+  dois sinais na mesma linha ao mesmo tempo competem, e naquele momento o
+  que importa é a relação, não o barramento em standby.
+- O `detalhe` guarda o NOME ("Maré Mansa") porque é o que a pessoa lê na
+  frase; o DOM é indexado por handle. `handlePorNome()` faz a ponte, a
+  partir de `agentesVistos`, que já tem os dois.
+- O elo fica fora do `innerHTML` que `renderizarListaAgentes()` reescreve,
+  e é recriado quando o elenco muda — senão sumia a cada redesenho.
+
+**O CABEÇALHO passou a dizer o nome.** Com um agente agindo, mostra
+"● MARÉ MANSA" em vez de "1 pensando": custa os mesmos caracteres e
+informa muito mais — quem olha de relance fica sabendo QUEM está
+trabalhando sem varrer dez blocos atrás do que acendeu. Com dois ou mais o
+nome não cabe na largura da coluna, e aí o número volta a ser a melhor
+resposta.
+
+Verificado ao vivo com o nome mais longo do elenco: cabeçalho em uma linha
+só (29px de altura, sem quebra), elo aceso com 278px ligando Malboro (topo
+da lista) a Maré Mansa, sinal descendo — e, na mesma tela, Subarashi na
+graça mostrando "respondeu Tia Bet" no passado, sem pulsar.
+
+### O córtex parado — um defeito que eu mesmo criei (18/09/2026)
+
+Relato: "o córtex não está mais em movimento". Estava certo, e a causa foi
+a graça que eu tinha acabado de introduzir.
+
+**O raciocínio errado.** Quando `fim` passou a existir, separei dois
+estados visuais: agindo (córtex pulsando) e recém-terminado (córtex
+**parado**, "assentado"). A distinção parecia boa no papel.
+
+**O que faltou medir.** Uma rodada pelo acervo dura ~58ms. Nesse tempo
+nenhum navegador chega a ver o agente agindo — o único estado que alcança
+a tela é o de graça. Ou seja: eu havia feito o único estado visível ser o
+estado parado, e o córtex simplesmente nunca se mexia em uso normal.
+
+Medido, para não ficar na suposição: disparada uma rodada, o status
+apareceu em `terminou = true` em todas as seis leituras seguintes, do
+primeiro ao sexto segundo. Nenhuma com `terminou = false`.
+
+**A correção é desacelerar, não congelar.** No estado de graça o córtex
+roda `calc(var(--vel) * 2.8)` — deriva da velocidade própria do agente,
+então quem pensa rápido também desacelera rápido. Continua havendo
+diferença clara entre agindo (rápido, aceso) e recém-terminado (lento,
+apagando), e o que a pessoa vê no dia a dia tem movimento.
+
+Para isso a velocidade deixou de sair do JS como `animation-duration` e
+passou a sair como variável `--vel`. Escrita como duração, o valor inline
+ganharia de qualquer regra da folha de estilo, e só um `!important` o
+venceria; como variável, o CSS deriva dela à vontade.
+
+**Verificação** (bloco em `ia-agente-ativo ia-agente-fim`, o estado real
+do dia a dia):
+
+| | |
+|---|---|
+| `playState` | `running` (antes: `paused`) |
+| duração | 4,368s = 1,56s do pitoco × 2,8 |
+| `currentTime` | 851ms → 1752ms |
+| `stroke-dashoffset` | 15,30px → 11,38px |
+
+**Lição que vale registrar**: duas vezes neste dia eu declarei animação
+"funcionando" com base em `animationPlayState: running`, que só diz que
+ela não está pausada. O que prova movimento é `currentTime` avançando ou a
+propriedade animada mudando de valor entre duas leituras — e, no painel
+embutido, com a aba visível, porque aba escondida congela as animações de
+thread principal.

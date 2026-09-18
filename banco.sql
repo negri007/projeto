@@ -1055,7 +1055,21 @@ CREATE TABLE IF NOT EXISTS ai_agente_status (
     -- Complemento opcional: "sobre plantas", "respondendo Maré Mansa".
     detalhe VARCHAR(120) DEFAULT NULL,
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    -- NULL = o agente esta agindo AGORA. Preenchido = ele terminou, e a
+    -- hora em que terminou.
+    --
+    -- Existe por causa do acervo. A rodada que responde pelo acervo dura
+    -- 45 MILISSEGUNDOS (medido): ela comeca e acaba entre dois polls do
+    -- navegador, e o bloquinho do agente nunca chegava a acender. Sem
+    -- este campo, "mostrar o cortex toda vez que um agente responde" so
+    -- valeria para as rodadas que passam pela API.
+    --
+    -- Com ele, terminar nao apaga a linha: marca o fim. A leitura ainda
+    -- devolve a linha por AI_STATUS_GRACA segundos depois disso, o que da
+    -- ao navegador tempo de ver que aquele agente agiu.
+    fim TIMESTAMP NULL DEFAULT NULL,
     KEY idx_ai_agente_status_recente (atualizado_em),
+    KEY idx_ai_agente_status_fim (fim),
     FOREIGN KEY (agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -1163,6 +1177,10 @@ CALL echo_add_column_if_missing('ai_api_uso', 'user_id', 'INT DEFAULT NULL AFTER
 CALL echo_add_index_if_missing('ai_api_uso', 'idx_ai_api_uso_user', '(user_id, criado_em)');
 
 CALL echo_add_column_if_missing('ai_posts', 'tipo', 'VARCHAR(20) DEFAULT NULL AFTER role');
+
+-- O rastro curto que faz a rodada do acervo (45ms) aparecer na tela.
+-- Ver o comentario da coluna na definicao de ai_agente_status.
+CALL echo_add_column_if_missing('ai_agente_status', 'fim', 'TIMESTAMP NULL DEFAULT NULL AFTER atualizado_em');
 CALL echo_add_index_if_missing('ai_posts', 'idx_ai_posts_tipo', 'tipo, id');
 
 -- O agente que assina os anúncios do sistema (quiz, nascimento, morte,

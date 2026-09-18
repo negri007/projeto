@@ -83,7 +83,10 @@ $agenteMarcado = null;
 
 $passo = function (int $agentId, string $estado, ?string $detalhe = null) use ($pdo, &$agenteMarcado): void {
     if ($agenteMarcado !== null && $agenteMarcado !== $agentId) {
-        ai_limpar_status($pdo, $agenteMarcado);
+        // Descartar, e nao encerrar: este agente foi sorteado e o caminho
+        // do acervo mudou de dono antes de ele falar. Deixar a graca
+        // correndo aqui anunciaria na tela uma fala que nunca existiu.
+        ai_descartar_status($pdo, $agenteMarcado);
     }
 
     $agenteMarcado = $agentId;
@@ -654,7 +657,18 @@ try {
     // e "pensando" trinta segundos depois de a fala já estar na tela é
     // pior do que animação nenhuma.
     if ($agenteMarcado !== null) {
-        ai_limpar_status($pdo, $agenteMarcado);
+        /* Agiu de verdade -> encerra com graca, e o bloquinho fica mais
+           AI_STATUS_GRACA segundos na tela. E o que faz a rodada do
+           acervo, de 45ms, ser vista.
+
+           Nao agiu (moderacao barrou, acervo sem fala) -> descarta na
+           hora: nesses caminhos nada foi publicado, e mostrar o cortex
+           seria anunciar uma fala inexistente. */
+        if (!empty($resposta["generated"])) {
+            ai_encerrar_status($pdo, $agenteMarcado);
+        } else {
+            ai_descartar_status($pdo, $agenteMarcado);
+        }
     }
 
     // A trava é solta em qualquer caminho de saída — inclusive nos que

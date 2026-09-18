@@ -3483,6 +3483,8 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .ia-cortex-linhas line {
     stroke: currentColor;
     stroke-width: 0.6;
+    animation-duration: var(--vel, 1.2s);
+    animation-delay: var(--atraso, 0s);
     /* O traço é curto e o vão é longo: o que corre pela linha parece um
        pulso indo de um nó ao outro, e não uma linha tracejada andando. */
     stroke-dasharray: 5 14;
@@ -3495,6 +3497,8 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 .ia-cortex-bolas circle {
     fill: currentColor;
+    animation-duration: var(--vel, 1.2s);
+    animation-delay: var(--atraso, 0s);
     animation-name: ia-cortex-no;
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
@@ -3537,4 +3541,508 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     }
 
     .ia-agente-ativo .ia-cortex { opacity: 0.38; }
+}
+
+/* O agente terminou, e a linha ainda está na graça de AI_STATUS_GRACA
+   segundos — a janela que faz a rodada do acervo (45ms) ser vista.
+
+   O córtex continua desenhado, mas assenta: para de pulsar e esmaece. É a
+   diferença visível entre "está pensando agora" e "acabou de falar", sem o
+   bloco sumir de repente na cara de quem estava olhando. */
+/* O ESTADO "ACABOU DE AGIR" DESACELERA — não congela.
+
+   Ele congelava, e estava errado por um motivo que só aparece medindo:
+   uma rodada pelo acervo dura ~58ms, então o agente NUNCA é visto
+   agindo. O único estado que chega à tela é este — e com ele parado, o
+   córtex simplesmente não se mexia nunca, em uso normal. A distinção
+   entre "pensando" e "acabou" existia, e custava toda a vida do painel.
+
+   Desacelerar preserva as duas coisas: continua havendo diferença clara
+   entre agindo (rápido e aceso) e recém-terminado (lento e apagando), e
+   o que a pessoa vê no dia a dia tem movimento. */
+.ia-agente-fim .ia-cortex { opacity: 0.34; }
+
+.ia-agente-fim .ia-cortex-linhas line,
+.ia-agente-fim .ia-cortex-bolas circle {
+    /* Deriva da velocidade própria do agente, que o JS entrega em --vel:
+       quem pensa rápido também desacelera rápido. */
+    animation-duration: calc(var(--vel, 1.2s) * 2.8);
+}
+
+.ia-agente-fim .ia-agente-barra {
+    opacity: 0.5;
+    animation-duration: 3.2s;
+}
+
+.ia-agente-fim .ia-pontinhos i {
+    opacity: 0.35;
+    animation-duration: 2.8s;
+}
+
+.ia-agente-fim .ia-agente-verbo { opacity: 0.75; }
+
+/* ==========================================================================
+   O PAINEL DOS AGENTES (18/09/2026)
+
+   Este card não é uma lista de nomes: é a máquina do projeto, e vinha com
+   a mesma moldura de "Assuntos em alta". O tratamento abaixo o separa do
+   resto da coluna sem sair do tema — nada de cor nova, só a de destaque
+   que o Echo já usa, em doses baixas.
+
+   Três camadas, da mais discreta para a mais visível:
+     1. malha técnica de fundo, quase imperceptível;
+     2. cantos em colchete, que dão o ar de instrumento;
+     3. o painel ACENDE quando algum agente está agindo de verdade.
+   ========================================================================== */
+
+.ia-painel {
+    position: relative;
+    overflow: hidden;
+    /* A borda deste card é desenhada por .ia-painel-borda, que gira. Aqui
+       ela só fica transparente para continuar ocupando o mesmo 1px de
+       espaço dos outros cards — sem isto o conteúdo saltaria 1px quando
+       o painel ganhasse a borda nova. */
+    border-color: transparent;
+    /* Halo roxo de base. Discreto: o destaque principal é a borda, e o
+       halo só descola o card do fundo para ele não parecer colado na
+       coluna. Cresce quando a rede pensa (.ia-painel-vivo). */
+    box-shadow: 0 0 18px rgba(147, 51, 234, 0.10);
+    background:
+        /* Malha: duas listras cruzadas em opacidade baixíssima. De perto é
+           um grid de instrumento; de longe é só uma textura que impede o
+           card de ficar chapado como os outros. */
+        repeating-linear-gradient(0deg,  rgba(29,155,240,.045) 0 1px, transparent 1px 14px),
+        repeating-linear-gradient(90deg, rgba(29,155,240,.045) 0 1px, transparent 1px 14px),
+        linear-gradient(170deg, rgba(29,155,240,.07), transparent 55%),
+        var(--bg-card);
+}
+
+/* Cantos em colchete. Dois elementos para dois cantos opostos: marcam a
+   moldura sem cercá-la, que é o que a faz parecer instrumento em vez de
+   caixa. */
+.ia-painel::before,
+.ia-painel::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 1px solid rgba(29, 155, 240, 0.55);
+    pointer-events: none;
+}
+
+.ia-painel::before { top: 8px;    left: 8px;  border-right: 0; border-bottom: 0; }
+.ia-painel::after  { bottom: 8px; right: 8px; border-left: 0;  border-top: 0; }
+
+/* --- cabeçalho: título + estado da rede --- */
+
+.ia-painel-topo {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(29, 155, 240, 0.18);
+}
+
+/* `nowrap` porque a coluna tem 212px de largura e o cabeçalho divide
+   esse espaço com o contador: sem isto "Os agentes" quebrava em duas
+   linhas e o cabeçalho ficava mais alto que o primeiro agente da lista. */
+.ia-painel-topo h5 {
+    margin-bottom: 0;
+    font-size: 1rem;
+    white-space: nowrap;
+}
+
+.ia-painel-pulso {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    white-space: nowrap;
+    /* Cede a largura para o título, nunca o contrário: o nome do card
+       importa mais que o contador. */
+    flex-shrink: 0;
+}
+
+/* Agindo, o contador deixa de ser informação secundária. */
+.ia-painel-vivo .ia-painel-pulso { color: var(--accent); }
+
+/* O LED só existe quando há alguém agindo — o HTML não o imprime no
+   estado parado. Rede parada não precisa de luz avisando que parou. */
+.ia-painel-led {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: ia-painel-led 1.1s ease-in-out infinite;
+}
+
+@keyframes ia-painel-led {
+    0%, 100% { opacity: 0.3; }
+    50%      { opacity: 1; }
+}
+
+/* --- a espinha: os agentes ligados entre si --- */
+
+.ia-painel-lista {
+    position: relative;
+    /* Abre espaço para a linha passar à esquerda dos avatares sem
+       encostar neles. */
+    padding-left: 10px;
+}
+
+/* A linha desce atrás dos avatares e some nas pontas. É o que faz a lista
+   ser lida como REDE, e não como dez nomes empilhados sem relação: o
+   projeto inteiro se apoia nesses agentes conversarem entre si, e o card
+   não contava isso em lugar nenhum. */
+.ia-painel-lista::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: linear-gradient(180deg,
+        transparent,
+        rgba(29, 155, 240, 0.35) 12%,
+        rgba(29, 155, 240, 0.35) 88%,
+        transparent);
+    pointer-events: none;
+}
+
+/* O nó de cada agente na espinha, na cor de processamento dele. Apagado
+   em repouso; acende junto com o córtex. */
+.ia-agente-bloco::before {
+    content: "";
+    position: absolute;
+    left: -2px;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    margin-top: -2.5px;
+    border-radius: 50%;
+    background: var(--cor-agente, var(--accent));
+    opacity: 0.3;
+    transition: opacity var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.ia-agente-ativo::before {
+    opacity: 1;
+    box-shadow: 0 0 7px var(--cor-agente, var(--accent));
+}
+
+/* --- o painel inteiro reage quando a rede pensa --- */
+
+.ia-painel-vivo {
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.22);
+}
+
+/* Varredura no topo, uma vez por ciclo. Fina e lenta de propósito: o card
+   fica ao lado de um feed que se move, e um brilho rápido aqui roubaria a
+   atenção de quem está lendo as falas. */
+.ia-painel-vivo .ia-painel-topo::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: ia-painel-varre 2.6s ease-in-out infinite;
+}
+
+@keyframes ia-painel-varre {
+    0%   { transform: translateX(-100%); opacity: 0; }
+    35%  { opacity: 1; }
+    100% { transform: translateX(100%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ia-painel-led,
+    .ia-painel-vivo .ia-painel-topo::after { animation: none; }
+    .ia-painel-vivo .ia-painel-topo::after { opacity: 0.6; transform: none; }
+}
+
+/* ==========================================================================
+   A BORDA VIVA DO PAINEL (18/09/2026)
+
+   Um gradiente roxo que dá a volta no card, devagar. É o único elemento
+   da coluna que se move sozinho — e é de propósito: o painel das IAs é a
+   coisa que distingue este TCC de uma rede social comum, e vale que o
+   olho vá até ele antes de ir aos outros cards.
+
+   COMO O ANEL É FEITO. Não dá para animar um gradiente em `border`: a
+   propriedade não aceita gradiente, e `border-image` perde o
+   `border-radius`. A saída é uma camada do tamanho do card com o
+   gradiente inteiro, recortada em anel por duas máscaras que se subtraem
+   — uma cobrindo a caixa toda, outra só o miolo. Sobra a moldura, e ela
+   respeita o arredondamento do card.
+   ========================================================================== */
+
+/* O ângulo é uma propriedade REGISTRADA, e é isso que torna a rotação
+   possível: um custom property comum é apenas texto para o motor de
+   animação, e interpolar "0deg" até "360deg" como texto não anima nada.
+   Registrado como <angle>, ele passa a ser um número que o navegador sabe
+   percorrer — e a animação roda no compositor, sem repintar o card. */
+@property --painel-angulo {
+    syntax: "<angle>";
+    initial-value: 0deg;
+    inherits: false;
+}
+
+.ia-painel-borda {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    /* A espessura do anel. É o `padding` que a máscara de dentro come.
+       2px porque o card tem 212px de largura na coluna: em 1px o
+       gradiente não tem área para o olho ler a troca de tom, e o roxo
+       vira um fio cinza. */
+    padding: 2px;
+    pointer-events: none;
+
+    --painel-angulo: 0deg;
+
+    /* Roxo do escuro ao magenta e de volta. O ponto claro em 50% é o que
+       se lê como "um brilho dando a volta", em vez de um arco-íris
+       girando: sem ele o movimento vira ruído colorido. */
+    background: conic-gradient(
+        from var(--painel-angulo),
+        #4c1d95,
+        #6d28d9,
+        #a855f7,
+        #e879f9,
+        #a855f7,
+        #6d28d9,
+        #4c1d95
+    );
+
+    /* As duas máscaras: `content-box` cobre só o miolo, a segunda cobre
+       tudo, e `exclude` subtrai uma da outra. O que sobra é a moldura de
+       1,5px. O prefixo -webkit fica porque o Safari ainda precisa dele. */
+    -webkit-mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask:
+        linear-gradient(#000 0 0) content-box,
+        linear-gradient(#000 0 0);
+            mask-composite: exclude;
+
+    animation: ia-painel-gira 9s linear infinite;
+    opacity: 0.8;
+    transition: opacity 0.4s ease;
+}
+
+/* Com a rede pensando, a volta acelera e o roxo abre. A diferença entre
+   os dois ritmos é o que transforma a borda de enfeite em informação:
+   dá para saber que a rede está trabalhando sem ler uma palavra. */
+.ia-painel-vivo .ia-painel-borda {
+    animation-duration: 3.4s;
+    opacity: 1;
+}
+
+@keyframes ia-painel-gira {
+    to { --painel-angulo: 360deg; }
+}
+
+/* Onde `@property` não existe (navegador antigo), `--painel-angulo` fica
+   valendo os 0deg declarados acima e o gradiente aparece parado. Degrada
+   para uma borda roxa fixa, que é um degrade honesto: perde o movimento,
+   não perde o destaque. */
+
+@media (prefers-reduced-motion: reduce) {
+    .ia-painel-borda,
+    .ia-painel-vivo .ia-painel-borda {
+        animation: none;
+    }
+}
+
+/* ==========================================================================
+   MAIS VIDA NO PAINEL (18/09/2026)
+
+   O que faltava era vida NO REPOUSO. Todo o movimento até aqui dependia de
+   um agente estar agindo — e a rede fica parada a maior parte do tempo,
+   então o painel passava quase todo o tempo inerte, parecendo uma lista
+   morta com uma borda bonita em volta.
+
+   O que entra aqui é o estado de espera de uma máquina ligada: o barramento
+   pulsando, as luzes em standby. Nada disso afirma que algum agente está
+   pensando — quem diz isso continua sendo só o córtex, com dado real.
+   ========================================================================== */
+
+/* --- o pulso que desce a espinha --- */
+
+/* Um sinal viaja do primeiro ao último agente, de novo e de novo. É a
+   leitura de "barramento ligado": os dez estão conectados e a linha entre
+   eles conduz alguma coisa, mesmo quando ninguém fala. */
+.ia-painel-lista::after {
+    content: "";
+    position: absolute;
+    left: -1px;
+    width: 3px;
+    height: 46px;
+    border-radius: 3px;
+    background: linear-gradient(180deg,
+        transparent,
+        rgba(168, 85, 247, 0.9),
+        rgba(232, 121, 249, 0.55),
+        transparent);
+    filter: blur(0.4px);
+    pointer-events: none;
+    animation: ia-espinha-pulso 5.2s cubic-bezier(.55, 0, .45, 1) infinite;
+}
+
+/* Percorre a lista inteira. As porcentagens de opacidade acendem e apagam
+   nas pontas para o pulso nascer e morrer dentro da espinha, em vez de
+   aparecer cortado na borda do card. */
+@keyframes ia-espinha-pulso {
+    0%   { top: -10%;  opacity: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { top: 100%;  opacity: 0; }
+}
+
+/* Com a rede pensando, o barramento acelera junto com a borda. */
+.ia-painel-vivo .ia-painel-lista::after { animation-duration: 2.3s; }
+
+/* --- as luzes de standby --- */
+
+/* Cada nó respira no seu ritmo, e é o DESENCONTRO entre eles que faz a
+   coluna parecer um painel com dez canais independentes em vez de uma
+   guirlanda piscando junto. Os tempos são primos entre si de propósito:
+   3,1s / 4,3s / 3,7s / 5,1s demoram muito a coincidir. */
+.ia-agente-bloco:not(.ia-agente-ativo)::before {
+    animation: ia-no-standby 3.1s ease-in-out infinite;
+}
+
+.ia-agente-bloco:nth-child(4n+2):not(.ia-agente-ativo)::before { animation-duration: 4.3s; }
+.ia-agente-bloco:nth-child(4n+3):not(.ia-agente-ativo)::before { animation-duration: 3.7s; }
+.ia-agente-bloco:nth-child(4n+4):not(.ia-agente-ativo)::before { animation-duration: 5.1s; }
+
+.ia-agente-bloco:nth-child(3n+2):not(.ia-agente-ativo)::before { animation-delay: -1.4s; }
+.ia-agente-bloco:nth-child(3n+3):not(.ia-agente-ativo)::before { animation-delay: -2.6s; }
+
+/* Baixo de propósito: standby é o agente EXISTINDO, não trabalhando. Se
+   piscasse forte, competiria com o córtex de quem está mesmo agindo — e aí
+   a tela deixaria de responder "quem está pensando agora?" num relance. */
+@keyframes ia-no-standby {
+    0%, 100% { opacity: 0.22; }
+    50%      { opacity: 0.6; }
+}
+
+/* --- o agente ativo ganha um anel no avatar --- */
+
+/* O córtex já diz quem está agindo, mas ele mora ATRÁS do texto e num card
+   estreito fica discreto. O anel marca o rosto, que é onde o olho cai
+   primeiro ao varrer uma lista de gente. */
+.ia-agente-ativo .ia-avatar {
+    box-shadow:
+        0 0 0 2px var(--bg-card),
+        0 0 0 3px var(--cor-agente, var(--accent)),
+        0 0 12px var(--cor-agente, var(--accent));
+    animation: ia-avatar-respira 1.6s ease-in-out infinite;
+}
+
+@keyframes ia-avatar-respira {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
+}
+
+/* Terminado (na graça): o anel fica, sem respirar. Ainda marca quem acabou
+   de falar, sem dizer que ainda está falando. */
+.ia-agente-fim .ia-avatar { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    .ia-painel-lista::after,
+    .ia-agente-bloco::before,
+    .ia-agente-ativo .ia-avatar {
+        animation: none;
+    }
+
+    .ia-painel-lista::after { opacity: 0.5; top: 40%; }
+}
+
+/* ==========================================================================
+   O ELO (18/09/2026)
+
+   A única coisa no painel que mostra a RELAÇÃO, e não o agente isolado.
+
+   A rede inteira existe porque eles reagem uns aos outros — e até aqui o
+   card mostrava dez luzes acendendo sozinhas, sem nunca dizer que uma
+   estava acendendo POR CAUSA da outra. O elo liga o nó de quem responde ao
+   nó de quem foi respondido, e um sinal corre pela linha na direção da
+   influência: de quem falou para quem está reagindo.
+
+   Posição e altura vêm do JS (desenharElo), medidas nos dois blocos reais.
+   Sem alvo de verdade, o elo não aparece: post espontâneo não tem a quem
+   ligar, e desenhar a linha ali seria inventar uma conversa que não houve.
+   ========================================================================== */
+
+.ia-painel-elo {
+    position: absolute;
+    /* Em cima da espinha, que fica em left: 0 da lista. */
+    left: -1px;
+    width: 3px;
+    border-radius: 3px;
+    background: var(--cor-elo, var(--accent));
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 0.35s ease;
+}
+
+.ia-painel-elo-aceso {
+    opacity: 0.55;
+    box-shadow: 0 0 10px var(--cor-elo, var(--accent));
+}
+
+/* O sinal que corre pelo elo. Um segmento claro percorre só o trecho
+   entre os dois agentes — é o que transforma a linha parada em "isto
+   está acontecendo agora". */
+.ia-painel-elo-aceso::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 18px;
+    border-radius: 3px;
+    background: linear-gradient(180deg, transparent, #fff, transparent);
+    opacity: 0.85;
+    animation: ia-elo-desce 1.15s ease-in-out infinite;
+}
+
+/* Quem responde está ACIMA de quem foi respondido: o sinal sobe. A
+   direção não é enfeite — ela diz quem provocou quem. */
+.ia-painel-elo-sobe::after { animation-name: ia-elo-sobe; }
+
+@keyframes ia-elo-desce {
+    0%   { top: -18px;  opacity: 0; }
+    25%  { opacity: 0.85; }
+    75%  { opacity: 0.85; }
+    100% { top: 100%;   opacity: 0; }
+}
+
+@keyframes ia-elo-sobe {
+    0%   { top: 100%;   opacity: 0; }
+    25%  { opacity: 0.85; }
+    75%  { opacity: 0.85; }
+    100% { top: -18px;  opacity: 0; }
+}
+
+/* Com um elo aceso, o pulso de fundo da espinha sai de cena: dois sinais
+   correndo pela mesma linha ao mesmo tempo viram rabisco, e o que importa
+   naquele momento é a relação, não o barramento em standby. */
+.ia-painel-lista:has(.ia-painel-elo-aceso)::after { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+    .ia-painel-elo-aceso::after { animation: none; top: 40%; }
 }

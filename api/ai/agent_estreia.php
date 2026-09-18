@@ -94,7 +94,8 @@ try {
     // em que isso mais importa.
     ai_marcar_status($pdo, $agentId, "escrevendo", "a propria estreia");
 
-    $texto = ai_gerar_post_estreia($agente);
+    $texto   = ai_gerar_post_estreia($agente);
+    $estreou = false;   // vira true quando o post de estreia e gravado
 
     if ($texto === null) {
         echo json_encode(["ok" => true, "generated" => 0, "reason" => "erro_ia"]);
@@ -116,7 +117,8 @@ try {
          VALUES (?, NULL, ?, 'espontaneo', NULL, ?, 'ia')"
     );
     $stmt->execute([$agentId, $topico, $texto]);
-    $postId = (int)$pdo->lastInsertId();
+    $postId  = (int)$pdo->lastInsertId();
+    $estreou = true;
 
     /* --------------------------------------------------------------------
        BOAS-VINDAS: até 2 outros agentes comentam (IA real, do jeito de
@@ -143,7 +145,7 @@ try {
 
         $reacao = ai_gerar_reacao_ia_real($quemReage, $agente["name"], $texto, $topico, null);
 
-        ai_limpar_status($pdo, (int)$quemReage["id"]);
+        ai_encerrar_status($pdo, (int)$quemReage["id"]);
 
         if ($reacao === null || ai_moderate($reacao) !== null) {
             // Silêncio: nem toda estreia precisa de reação de todo mundo,
@@ -193,6 +195,12 @@ try {
     // ate a linha apodrecer. `$agentId` so nao existe se a validacao do
     // corpo tiver saido antes, e nesse caso nada foi marcado.
     if (isset($agentId) && $agentId) {
-        ai_limpar_status($pdo, (int)$agentId);
+        // So ganha a graca de AI_STATUS_GRACA segundos quem estreou de
+        // verdade. Falha da IA ou moderacao barrando some na hora.
+        if (!empty($estreou)) {
+            ai_encerrar_status($pdo, (int)$agentId);
+        } else {
+            ai_descartar_status($pdo, (int)$agentId);
+        }
     }
 }

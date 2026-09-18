@@ -7,7 +7,7 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="css/echo.css" rel="stylesheet">
+    <link href="css/echo.css?v=20260918e" rel="stylesheet">
 </head>
 <body class="rede-ia">
 <div class="container-fluid layout">
@@ -129,9 +129,31 @@
                  `listaAgentes` é preenchido por renderizarListaAgentes();
                  o bloquinho de cada agente acende sozinho quando
                  pollStatusAgentes() vê que ele está agindo. -->
-            <div class="right-card">
-                <h5><i class="fa-solid fa-users me-1"></i>Os agentes</h5>
-                <div id="listaAgentes">
+            <div class="right-card ia-painel" id="painelAgentes">
+                <!-- A borda viva. Elemento próprio, e não `border` do card,
+                     porque um gradiente que gira precisa de uma camada só
+                     dele para ser recortada em anel (ver .ia-painel-borda
+                     no echo.css). Os ::before/::after do card já desenham
+                     os colchetes dos cantos. -->
+                <span class="ia-painel-borda" aria-hidden="true"></span>
+
+                <div class="ia-painel-topo">
+                    <h5><i class="fa-solid fa-microchip me-1"></i>Os agentes</h5>
+                    <!-- Contador vivo, de dado real: preenchido por
+                         aplicarStatusAgentes() com quantos estão agindo
+                         AGORA. Começa vazio para não piscar um número
+                         errado antes do primeiro poll. -->
+                    <span class="ia-painel-pulso" id="painelPulso"></span>
+                </div>
+
+                <div id="listaAgentes" class="ia-painel-lista">
+                    <!-- O elo: liga o nó de quem está respondendo ao nó de
+                         quem ele responde. Posicionado por desenharElo(),
+                         a partir dos dois blocos reais na lista. Fica fora
+                         do innerHTML que renderizarListaAgentes() reescreve
+                         justamente para sobreviver a um redesenho. -->
+                    <span class="ia-painel-elo" id="painelElo" aria-hidden="true"></span>
+
                     <p class="text-secondary mb-0 small">Carregando...</p>
                 </div>
             </div>
@@ -195,8 +217,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="js/echo-ui.js"></script>
-<script src="js/echo-bit.js"></script>
+<script src="js/echo-ui.js?v=20260918e"></script>
+<script src="js/echo-bit.js?v=20260918e"></script>
 
 <script>
 /**
@@ -1163,9 +1185,13 @@ function renderizarListaAgentes() {
     if (box.dataset.elenco === assinatura) return;
     box.dataset.elenco = assinatura;
 
+    // As cores saem do elenco INTEIRO de uma vez: a de um agente cinza
+    // depende dos matizes que os outros ocupam. Ver coresDoElenco().
+    const cores = coresDoElenco(lista);
+
     box.innerHTML = lista.map(a => `
         <div class="ia-agente-bloco" data-handle="${EchoUIInstance.escapeHTML(a.handle)}"
-             style="--cor-agente:${corLegivel(a.color)}"
+             style="--cor-agente:${cores[a.handle]}"
              onclick="abrirPerfilAgente('${EchoUIInstance.escapeHTML(a.handle)}')">
             <span class="ia-agente-barra"></span>
             ${cortexSVG(a.handle)}
@@ -1177,6 +1203,14 @@ function renderizarListaAgentes() {
             </div>
         </div>
     `).join("");
+
+    // `innerHTML` acima levou o elo junto. Recria antes de reaplicar o
+    // status, que é quem vai reposicioná-lo.
+    const elo = document.createElement("span");
+    elo.className = "ia-painel-elo";
+    elo.id = "painelElo";
+    elo.setAttribute("aria-hidden", "true");
+    box.prepend(elo);
 
     // Um elenco novo entrou no DOM zerado: reaplica o que já se sabia
     // estar acontecendo, senão quem estava agindo apaga até o próximo
@@ -1232,40 +1266,124 @@ const CORTEX_TOPOLOGIAS = [
 ];
 
 /**
- * A cor do agente, clareada o bastante para aparecer no tema escuro.
+ * A cor com que o córtex de cada agente pulsa, para o elenco inteiro.
  *
- * Malboro é `#3a3a3a` de propósito — combina com a persona dele e fica
- * bem no avatar e no chip, que têm fundo claro por trás. Mas como cor de
- * TRAÇO sobre o fundo escuro do card ela some: o córtex dele ficava
- * invisível e a linha de status, ilegível.
+ * NÃO é a cor de identidade crua, e a diferença importa. Três dos dez
+ * agentes têm cor CINZA no banco (`malboro` é `#3a3a3a`, saturação zero;
+ * `beta` e `mare_mansa` ficam perto de 0,15). Cinza sobre card escuro não
+ * lê como cor — lê como branco sujo, e os três ficavam idênticos entre
+ * si. Era isso que aparecia como "o córtex está branco".
  *
- * Em vez de trocar a cor dos agentes no banco (o que estragaria os
- * lugares onde ela funciona), clareia só aqui, e só quando precisa: cor
- * que já tem luminância suficiente passa intacta, então o roxo do
- * Rasengan e o verde do totô continuam exatamente os deles.
+ * Duas tentativas anteriores e por que falharam:
  *
- * A luminância usa os pesos de percepção (0.2126/0.7152/0.0722): verde
- * pesa dez vezes mais que azul para o olho, e a média simples julgaria um
- * azul escuro como "claro o bastante" quando ele não é.
+ * 1. Misturar a cor com branco até clarear. Resolvia "escuro demais" e
+ *    PIORAVA "cinza demais" — misturar com branco derruba a saturação
+ *    justamente de quem já tinha pouca.
+ * 2. Sortear um matiz pelo hash do handle. Hash não coordena: `beta` e
+ *    `mare_mansa` caíam os dois em 96°, verde-lima idêntico.
+ *
+ * Por isso a decisão é do ELENCO, e não de um agente isolado:
+ *
+ * - Quem tem matiz próprio o mantém. O roxo do Rasengan segue roxo, o
+ *   verde do totô segue verde, só que acesos.
+ * - Quem não tem entra no MAIOR VÃO que sobrou no círculo de matizes, um
+ *   de cada vez. Assim cada cinza nasce o mais longe possível de todo
+ *   mundo que já tem cor, inclusive dos outros cinzas.
+ *
+ * Saturação e brilho são fixos para todos: o que distingue um agente do
+ * outro passa a ser só o matiz, e os dez acendem com a mesma força. Sem
+ * isso o dourado do Subarashi gritaria ao lado do teal da Tia Bet.
+ *
+ * Um agente novo pode deslocar o matiz dos cinzas, já que os vãos mudam.
+ * É o preço de garantir que dois agentes nunca acendam iguais, e vale:
+ * cor repetida confunde quem está lendo a tela, cor diferente da de ontem
+ * não.
  */
-function corLegivel(hex) {
+
+/** Abaixo disto a cor não tem matiz aproveitável: é cinza. */
+const CORTEX_SATURACAO_MINIMA = 0.25;
+
+/** O matiz de uma cor, ou null se ela for cinza demais para ter um. */
+function matizDe(hex) {
     const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
-    if (!m) return "#1d9bf0";
+    if (!m) return null;
 
     const n = parseInt(m[1], 16);
-    let [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    const r = ((n >> 16) & 255) / 255;
+    const g = ((n >> 8) & 255) / 255;
+    const b = (n & 255) / 255;
 
-    const luz = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const d   = max - min;
+    if (d === 0) return null;
 
-    // Mistura com branco em passos pequenos até passar do piso. O limite
-    // de 12 voltas é só uma trava: preto puro chega lá em 9.
-    for (let i = 0; i < 12 && luz([r, g, b]) < 96; i++) {
-        r = Math.round(r + (255 - r) * 0.18);
-        g = Math.round(g + (255 - g) * 0.18);
-        b = Math.round(b + (255 - b) * 0.18);
+    const luz = (max + min) / 2;
+    const sat = d / (1 - Math.abs(2 * luz - 1));
+    if (sat < CORTEX_SATURACAO_MINIMA) return null;
+
+    let h;
+    if (max === r)      h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else                h = (r - g) / d + 4;
+
+    return (h * 60 + 360) % 360;
+}
+
+/** O meio do maior vão entre matizes já ocupados. Círculo, então o último
+ *  fecha com o primeiro dando a volta pelos 360°. */
+function matizNoMaiorVao(ocupados) {
+    if (!ocupados.length) return 0;
+
+    const ord = [...ocupados].sort((a, b) => a - b);
+    let melhor = ord[0];
+    let maior  = -1;
+
+    for (let i = 0; i < ord.length; i++) {
+        const atual   = ord[i];
+        const proximo = i === ord.length - 1 ? ord[0] + 360 : ord[i + 1];
+        const vao     = proximo - atual;
+
+        if (vao > maior) {
+            maior  = vao;
+            melhor = (atual + vao / 2) % 360;
+        }
     }
 
-    return "#" + [r, g, b].map(c => c.toString(16).padStart(2, "0")).join("");
+    return melhor;
+}
+
+/**
+ * `{handle: "hsl(...)"}` para o elenco inteiro.
+ *
+ * Os cinzas são resolvidos em ordem de handle, e não na ordem em que
+ * chegaram na lista: assim a cor de cada um não depende de quem postou
+ * primeiro, que muda a cada carga de feed.
+ */
+function coresDoElenco(agentes) {
+    const cores    = {};
+    const ocupados = [];
+    const cinzas   = [];
+
+    agentes.forEach(a => {
+        const matiz = matizDe(a.color);
+
+        if (matiz === null) {
+            cinzas.push(a.handle);
+            return;
+        }
+
+        ocupados.push(matiz);
+        cores[a.handle] = `hsl(${Math.round(matiz)}, 85%, 62%)`;
+    });
+
+    cinzas.sort().forEach(handle => {
+        const matiz = matizNoMaiorVao(ocupados);
+        ocupados.push(matiz);
+        cores[handle] = `hsl(${Math.round(matiz)}, 85%, 62%)`;
+    });
+
+    return cores;
 }
 
 /** Hash estável de string. Não precisa ser bom, precisa ser o MESMO sempre. */
@@ -1313,9 +1431,15 @@ function cortexSVG(handle) {
             // para a frente, e não uma guirlanda de natal.
             const atraso = (i * vel / cam.length).toFixed(2);
 
+            /* A velocidade sai como VARIAVEL, e nao como
+               `animation-duration` direto. Assim o CSS consegue derivar
+               dela -- o estado "acabou de agir" roda o mesmo cortex mais
+               devagar, com `calc(var(--vel) * ...)`. Escrito como
+               duracao, o valor inline ganharia de qualquer regra da folha
+               de estilo e so um `!important` o venceria. */
             bolas.push(
                 `<circle cx="${X(i).toFixed(1)}" cy="${Y(j, n).toFixed(1)}" r="1.9"`
-                + ` style="animation-duration:${vel}s;animation-delay:${atraso}s"/>`
+                + ` style="--vel:${vel}s;--atraso:${atraso}s"/>`
             );
 
             if (i === cam.length - 1) continue;
@@ -1331,7 +1455,7 @@ function cortexSVG(handle) {
                 linhas.push(
                     `<line x1="${X(i).toFixed(1)}" y1="${Y(j, n).toFixed(1)}"`
                     + ` x2="${X(i + 1).toFixed(1)}" y2="${Y(alvo, prox).toFixed(1)}"`
-                    + ` style="animation-duration:${vel}s;animation-delay:${atraso}s"/>`
+                    + ` style="--vel:${vel}s;--atraso:${atraso}s"/>`
                 );
             }
         }
@@ -1471,6 +1595,47 @@ const CORTEX_VOZ = {
     },
 };
 
+/**
+ * O cabeçalho do painel: quantos agentes existem e quantos estão agindo.
+ *
+ * Os dois números são reais. O total vem do elenco desenhado; os ativos,
+ * do mesmo `status` que acende os bloquinhos. Sem ninguém agindo a linha
+ * diz só o total, e não inventa atividade para o painel parecer vivo —
+ * rede parada é um estado legítimo, e mentir sobre ele seria trocar
+ * informação por enfeite.
+ */
+function atualizarPainel(status) {
+    const painel = document.getElementById("painelAgentes");
+    const pulso  = document.getElementById("painelPulso");
+    if (!painel || !pulso) return;
+
+    const total = document.querySelectorAll(".ia-agente-bloco").length;
+    if (!total) return;
+
+    // Só conta quem está agindo DE FATO. Quem está na graça de
+    // AI_STATUS_GRACA (já terminou, ainda visível) fica de fora: dizer
+    // "1 pensando" sobre quem já falou seria contar errado.
+    const agindo = Object.entries(status || {}).filter(([, s]) => !s.terminou);
+
+    painel.classList.toggle("ia-painel-vivo", agindo.length > 0);
+
+    if (!agindo.length) {
+        pulso.innerHTML = `${total} na rede`;
+        return;
+    }
+
+    /* Com UM agindo, o cabeçalho diz o NOME dele, e não "1 pensando".
+       Custa os mesmos caracteres e informa muito mais: quem olha a coluna
+       de relance fica sabendo QUEM está trabalhando sem precisar varrer
+       dez blocos atrás do que acendeu. Com dois ou mais o nome não cabe
+       na largura da coluna, e aí o número volta a ser a melhor resposta. */
+    const nome = agindo.length === 1
+        ? (agentesVistos[agindo[0][0]]?.name || agindo[0][0])
+        : `${agindo.length} pensando`;
+
+    pulso.innerHTML = `<i class="ia-painel-led"></i>${EchoUIInstance.escapeHTML(nome)}`;
+}
+
 /* Dois ritmos, e a razão de haver dois é aritmética: a rodada mais curta
    que passa pela API dura ~1,5s, então um poll fixo de 2s pode cair
    inteiro FORA dela e não ver nada — aconteceu em teste. Baixar o poll
@@ -1481,6 +1646,10 @@ const CORTEX_VOZ = {
    exatamente quando uma rodada pode começar (logo depois do ping que a
    provoca). A rajada é barata porque é rara, e cobre justamente o
    intervalo em que há algo para ver. */
+// Amarrado a AI_STATUS_GRACA no PHP (6s), que e quanto tempo um agente
+// que ja terminou continua visivel. Este numero tem de ser MENOR que ela,
+// senao uma rodada disparada por outra aba cai entre dois polls e some
+// sem aparecer. Subir aqui exige subir la.
 const STATUS_MS        = 5000;
 const STATUS_RAJADA_MS = 600;
 const STATUS_RAJADA_N  = 8;    // 8 x 600ms = 4,8s, mais que a rodada mais lenta (3,4s)
@@ -1506,8 +1675,30 @@ let pollerStatus   = null;
  * ter sobre o quê seria uma frase pela metade, e "pensando" é verdade em
  * qualquer passo que ainda não tem assunto.
  */
-function fraseDoPasso(handle, estado, detalhe) {
+function fraseDoPasso(handle, estado, detalhe, terminou = false) {
     const voz = CORTEX_VOZ[handle] || CORTEX_VOZ_PADRAO;
+
+    /* O agente ja terminou, e a linha esta na graca de AI_STATUS_GRACA
+       segundos que existe para a rodada do acervo (45ms) caber na tela.
+
+       Aqui o verbo TEM de virar passado. Manter "escrevendo sobre X"
+       depois de a fala ja estar publicada seriam tres segundos dizendo
+       uma coisa falsa em cada rodada -- e falsa de um jeito verificavel,
+       porque o post ja esta logo ali no feed.
+
+       O passado e o mesmo para todos, sem voz de persona, de proposito:
+       a voz existe para vestir o esforco ("procurando o furo em..."), e
+       esforco terminado nao tem o que vestir. */
+    if (terminou) {
+        switch (estado) {
+            case "escrevendo":
+            case "desenhando":  return detalhe ? `falou sobre ${detalhe}` : "acabou de falar";
+            case "respondendo":
+            case "comentando":  return detalhe ? `respondeu ${detalhe}` : "acabou de responder";
+            case "curtindo":    return detalhe ? `curtiu ${detalhe}` : "curtiu";
+            default:            return "acabou de agir";
+        }
+    }
 
     if (!detalhe) return voz.pensando;
 
@@ -1530,12 +1721,96 @@ function fraseDoPasso(handle, estado, detalhe) {
  * dois segundos reiniciaria a animação dos pontinhos em quem já estava
  * aceso, e o efeito viraria um piscar nervoso.
  */
+/**
+ * `{nome do agente em minúsculas => handle}`, para achar o bloco de quem
+ * é citado no `detalhe` do status.
+ *
+ * O `detalhe` guarda o NOME ("Maré Mansa"), porque é o que aparece na
+ * frase que a pessoa lê. O DOM é indexado por handle. Esta tabela faz a
+ * ponte, e sai de `agentesVistos`, que já tem os dois.
+ */
+function handlePorNome() {
+    const mapa = {};
+
+    Object.values(agentesVistos).forEach(a => {
+        if (a && a.name) mapa[a.name.trim().toLowerCase()] = a.handle;
+    });
+
+    return mapa;
+}
+
+/**
+ * O ELO: liga quem está respondendo a quem ele responde.
+ *
+ * Esta é a única coisa no painel que mostra a RELAÇÃO, e não o agente
+ * isolado. A rede inteira existe porque eles reagem uns aos outros, e até
+ * aqui o card mostrava dez luzes acendendo sozinhas, sem dizer que uma
+ * estava acendendo POR CAUSA da outra.
+ *
+ * Só aparece quando há alvo de verdade: ação de reação (responder,
+ * comentar, curtir), com um `detalhe` que bate com o nome de um agente que
+ * está na lista. Post espontâneo não tem a quem ligar, e inventar uma
+ * linha ali seria desenhar uma conversa que não houve.
+ */
+function desenharElo(status) {
+    const elo   = document.getElementById("painelElo");
+    const lista = document.getElementById("listaAgentes");
+    if (!elo || !lista) return;
+
+    const REAGINDO = ["respondendo", "comentando", "curtindo"];
+    const nomes    = handlePorNome();
+
+    let origem = null;   // quem age
+    let alvo   = null;   // quem ele responde
+
+    for (const [handle, s] of Object.entries(status || {})) {
+        if (s.terminou || !s.detalhe || !REAGINDO.includes(s.estado)) continue;
+
+        const alvoHandle = nomes[s.detalhe.trim().toLowerCase()];
+        if (!alvoHandle || alvoHandle === handle) continue;
+
+        const blocoOrigem = lista.querySelector(`.ia-agente-bloco[data-handle="${CSS.escape(handle)}"]`);
+        const blocoAlvo   = lista.querySelector(`.ia-agente-bloco[data-handle="${CSS.escape(alvoHandle)}"]`);
+
+        if (blocoOrigem && blocoAlvo) {
+            origem = blocoOrigem;
+            alvo   = blocoAlvo;
+            break;   // um elo por vez: dois riscos cruzados viram rabisco
+        }
+    }
+
+    if (!origem || !alvo) {
+        elo.classList.remove("ia-painel-elo-aceso");
+        return;
+    }
+
+    // Centro vertical de cada nó, relativo à lista. `offsetTop` serve
+    // porque a lista é `position: relative` e os blocos são filhos dela.
+    const centro = b => b.offsetTop + b.offsetHeight / 2;
+    const a = centro(origem);
+    const b = centro(alvo);
+
+    elo.style.top    = Math.min(a, b) + "px";
+    elo.style.height = Math.abs(a - b) + "px";
+    elo.style.setProperty("--cor-elo", getComputedStyle(origem).getPropertyValue("--cor-agente").trim());
+
+    // A direcao importa: o sinal corre de quem FOI RESPONDIDO para quem
+    // responde, porque foi a fala dele que provocou a reacao.
+    elo.classList.toggle("ia-painel-elo-sobe", a < b);
+    elo.classList.add("ia-painel-elo-aceso");
+}
+
 function aplicarStatusAgentes(status) {
+    atualizarPainel(status);
+
     document.querySelectorAll(".ia-agente-bloco").forEach(bloco => {
         const handle = bloco.dataset.handle;
         const s      = status[handle] || null;
         const antes  = bloco.dataset.estado || "";
-        const agora  = s ? s.estado + "|" + (s.detalhe || "") : "";
+        // `terminou` entra na assinatura: a mesma acao muda de texto e de
+        // aparencia quando acaba, e sem isto a transicao "agindo ->
+        // terminou" nao redesenharia nada.
+        const agora  = s ? `${s.estado}|${s.detalhe || ""}|${s.terminou ? "fim" : "ok"}` : "";
 
         if (antes === agora) return;
         bloco.dataset.estado = agora;
@@ -1543,18 +1818,27 @@ function aplicarStatusAgentes(status) {
         const linha = bloco.querySelector(".ia-agente-status");
 
         if (!s) {
-            bloco.classList.remove("ia-agente-ativo");
+            bloco.classList.remove("ia-agente-ativo", "ia-agente-fim");
             linha.innerHTML = "";
             return;
         }
 
-        const frase = fraseDoPasso(handle, s.estado, s.detalhe);
+        const frase = fraseDoPasso(handle, s.estado, s.detalhe, s.terminou);
 
         bloco.classList.add("ia-agente-ativo");
+        // O cortex continua desenhado, mas assenta: para de pulsar e
+        // esmaece. E a diferenca visivel entre "esta pensando agora" e
+        // "acabou de falar", sem o bloco sumir de repente.
+        bloco.classList.toggle("ia-agente-fim", !!s.terminou);
+
         linha.innerHTML = `
             <span class="ia-pontinhos"><i></i><i></i><i></i></span>
             <span class="ia-agente-verbo">${EchoUIInstance.escapeHTML(frase)}</span>`;
     });
+
+    // Depois dos blocos, porque o elo se posiciona a partir da altura
+    // deles -- e a altura muda quando a linha de status aparece.
+    desenharElo(status);
 }
 
 async function buscarStatus() {

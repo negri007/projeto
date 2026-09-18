@@ -572,6 +572,33 @@ function ai_registrar_chamada_api(PDO $pdo, ?int $userId = null): void
 const AI_STATUS_VALIDADE = 30;
 
 /**
+ * Por quantos segundos um agente que JA TERMINOU continua aparecendo.
+ *
+ * O motivo e o acervo. A rodada que responde pelo acervo dura 45
+ * MILISSEGUNDOS (medido): comeca e acaba entre dois polls do navegador, e
+ * o bloquinho nunca chegava a acender. So as rodadas que passam pela API
+ * (1,5 a 3,4s) davam tempo de ser vistas, e essas sao a minoria -- com o
+ * teto de 20 chamadas por hora e uma rodada a cada 20s, cerca de uma em
+ * cada nove.
+ *
+ * Com a graca, terminar nao apaga: marca `fim`, e a leitura ainda devolve
+ * a linha por mais este tanto. Toda acao passa a ter janela visivel,
+ * venha do acervo ou da API.
+ *
+ * O VALOR TEM DE SER MAIOR QUE O POLL DE FUNDO DO NAVEGADOR, que hoje e
+ * STATUS_MS = 5s em rede_ia.html. A rajada de 600ms so dispara na aba que
+ * PROVOCOU a rodada; uma rodada disparada por outra aba (ou por outra
+ * pessoa) chega aqui sem rajada nenhuma, e quem esta olhando so tem o
+ * poll de fundo. Com graca menor que ele, essa rodada cairia inteira
+ * entre dois polls e nunca apareceria -- exatamente o problema que esta
+ * constante existe para resolver.
+ *
+ * Dai 6: um segundo de folga sobre os 5 do poll. Mexer em STATUS_MS sem
+ * mexer aqui reabre o buraco.
+ */
+const AI_STATUS_GRACA = 6;
+
+/**
  * Marca o passo corrente de um agente.
  *
  * `$estado` e uma das chaves de AI_STATUS_FRASES. `$detalhe` e o
@@ -583,9 +610,12 @@ function ai_marcar_status(PDO $pdo, int $agentId, string $estado, ?string $detal
         // REPLACE e nao INSERT ... ON DUPLICATE KEY porque o unico dado
         // que interessa e o mais recente: nao ha nada da linha anterior
         // que valha a pena preservar.
+        // `fim` volta a NULL: marcar um passo novo e dizer que o agente
+        // esta agindo de novo, mesmo que a linha anterior dele ja
+        // estivesse na graca.
         $stmt = $pdo->prepare(
-            "REPLACE INTO ai_agente_status (agent_id, estado, detalhe, atualizado_em)
-             VALUES (?, ?, ?, NOW())"
+            "REPLACE INTO ai_agente_status (agent_id, estado, detalhe, atualizado_em, fim)
+             VALUES (?, ?, ?, NOW(), NULL)"
         );
         $stmt->execute([
             $agentId,
@@ -598,13 +628,31 @@ function ai_marcar_status(PDO $pdo, int $agentId, string $estado, ?string $detal
 }
 
 /**
- * Apaga o status de um agente (ou de todos, com `$agentId = null`).
+ * Encerra o passo de um agente QUE AGIU.
  *
- * Chamado no `finally` de quem marcou: sem isso o bloquinho ficaria
- * aceso ate a linha apodrecer, e trinta segundos de "pensando" depois da
- * fala ja ter aparecido na tela seria pior do que nao ter animacao.
+ * Nao apaga a linha: carimba `fim`. O bloquinho dele continua na tela por
+ * AI_STATUS_GRACA segundos, e e isso que faz a rodada do acervo -- de 45
+ * milissegundos -- aparecer.
+ *
+ * Para quem NAO agiu (foi sorteado e o caminho mudou de dono, foi barrado
+ * pela moderacao), use ai_descartar_status(): deixar a graca correndo ali
+ * anunciaria na tela uma fala que nunca existiu.
  */
-function ai_limpar_status(PDO $pdo, ?int $agentId = null): void
+function ai_encerrar_status(PDO $pdo, int $agentId): void
+{
+    try {
+        $pdo->prepare("UPDATE ai_agente_status SET fim = NOW() WHERE agent_id = ?")
+            ->execute([$agentId]);
+    } catch (Exception $e) {
+        error_log("ai_encerrar_status: " . $e->getMessage());
+    }
+}
+
+/**
+ * Apaga o status de um agente (ou de todos, com `$agentId = null`), sem
+ * graca nenhuma. E para quem foi marcado e acabou nao agindo.
+ */
+function ai_descartar_status(PDO $pdo, ?int $agentId = null): void
 {
     try {
         if ($agentId === null) {
@@ -614,7 +662,7 @@ function ai_limpar_status(PDO $pdo, ?int $agentId = null): void
 
         $pdo->prepare("DELETE FROM ai_agente_status WHERE agent_id = ?")->execute([$agentId]);
     } catch (Exception $e) {
-        error_log("ai_limpar_status: " . $e->getMessage());
+        error_log("ai_descartar_status: " . $e->getMessage());
     }
 }
 
@@ -628,21 +676,36 @@ function ai_limpar_status(PDO $pdo, ?int $agentId = null): void
 function ai_status_ativos(PDO $pdo): array
 {
     try {
+        /* Duas situacoes entram, e por motivos diferentes:
+
+           1. `fim IS NULL` -- o agente esta agindo AGORA. Ainda vale o
+              teto de AI_STATUS_VALIDADE, que e o que faz um processo
+              morto no meio parar de aparecer sozinho.
+           2. `fim` recente -- ele acabou de agir. Continua na tela por
+              AI_STATUS_GRACA segundos, e e essa clausula que da janela
+              visivel a rodada do acervo, que dura 45ms. */
         $stmt = $pdo->query(
             "SELECT a.handle, s.estado, s.detalhe,
-                    TIMESTAMPDIFF(SECOND, s.atualizado_em, NOW()) AS ha
+                    TIMESTAMPDIFF(SECOND, s.atualizado_em, NOW()) AS ha,
+                    s.fim IS NOT NULL AS terminou
                FROM ai_agente_status s
                JOIN ai_agents a ON a.id = s.agent_id
-              WHERE s.atualizado_em > NOW() - INTERVAL " . AI_STATUS_VALIDADE . " SECOND"
+              WHERE (s.fim IS NULL
+                     AND s.atualizado_em > NOW() - INTERVAL " . AI_STATUS_VALIDADE . " SECOND)
+                 OR s.fim > NOW() - INTERVAL " . AI_STATUS_GRACA . " SECOND"
         );
 
         $ativos = [];
 
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $ativos[$row["handle"]] = [
-                "estado"  => $row["estado"],
-                "detalhe" => $row["detalhe"],
-                "ha"      => max(0, (int)$row["ha"]),
+                "estado"   => $row["estado"],
+                "detalhe"  => $row["detalhe"],
+                "ha"       => max(0, (int)$row["ha"]),
+                // O front usa isto para trocar o verbo: quem terminou nao
+                // esta mais "escrevendo", e dizer que esta seria mentira
+                // de tres segundos.
+                "terminou" => (int)$row["terminou"] === 1,
             ];
         }
 

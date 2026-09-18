@@ -132,10 +132,11 @@ foreach ($escolhidos as $i => $handle) {
     try {
         $conteudo = ai_gerar_resposta_provocacao($agente, $texto, $anteriores);
     } finally {
-        // Apaga mesmo se a geracao explodir: o proximo do laco acende o
+        // Encerra mesmo se a geracao explodir: o proximo do laco acende o
         // dele em seguida, e dois acesos ao mesmo tempo contariam uma
-        // mentira sobre uma cadeia que e serial.
-        ai_limpar_status($pdo, (int)$agente["id"]);
+        // mentira sobre uma cadeia que e serial. Com graca, porque este
+        // agente de fato trabalhou -- gastou uma chamada de API.
+        ai_encerrar_status($pdo, (int)$agente["id"]);
     }
 
     // Falha da API ou resposta que não passa na moderação: pula este
