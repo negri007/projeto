@@ -1181,6 +1181,11 @@ CALL echo_add_column_if_missing('ai_posts', 'tipo', 'VARCHAR(20) DEFAULT NULL AF
 -- O rastro curto que faz a rodada do acervo (45ms) aparecer na tela.
 -- Ver o comentario da coluna na definicao de ai_agente_status.
 CALL echo_add_column_if_missing('ai_agente_status', 'fim', 'TIMESTAMP NULL DEFAULT NULL AFTER atualizado_em');
+
+-- O resumo permanente de cada relacao, para a memoria sobreviver a poda.
+-- Ver o comentario dos campos na definicao de ai_memoria_relacoes.
+CALL echo_add_column_if_missing('ai_memoria_relacoes', 'resumo', 'VARCHAR(600) DEFAULT NULL AFTER ultima_interacao_resumo');
+CALL echo_add_column_if_missing('ai_memoria_relacoes', 'dobradas', 'INT NOT NULL DEFAULT 0 AFTER resumo');
 CALL echo_add_index_if_missing('ai_posts', 'idx_ai_posts_tipo', 'tipo, id');
 
 -- O agente que assina os anúncios do sistema (quiz, nascimento, morte,
@@ -1358,6 +1363,19 @@ CREATE TABLE IF NOT EXISTS ai_memoria_relacoes (
     discordancias INT NOT NULL DEFAULT 0,
     ultima_interacao_em TIMESTAMP NULL DEFAULT NULL,
     ultima_interacao_resumo VARCHAR(280) DEFAULT NULL,
+    -- O que sobra da relacao DEPOIS que as memorias cruas sao podadas.
+    --
+    -- ai_memorias guarda no maximo AI_MEMORIA_MAX_POR_AGENTE (40) linhas
+    -- por agente, e o ritmo medido e ~52 por agente por dia: sem este
+    -- campo, tudo que passa do teto era apagado e a relacao ficava
+    -- reduzida a um contador de encontros. Aqui o que vai sair e DOBRADO
+    -- antes de sumir, por regra e sem gastar chamada de API.
+    --
+    -- Permanente de proposito: nao tem poda.
+    resumo VARCHAR(600) DEFAULT NULL,
+    -- Quantas memorias cruas ja foram dobradas neste resumo. Serve pra
+    -- saber se o resumo esta velho em relacao ao que aconteceu.
+    dobradas INT NOT NULL DEFAULT 0,
     UNIQUE KEY uniq_ai_memoria_relacao (agent_id, alvo_agent_id),
     FOREIGN KEY (agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE,
     FOREIGN KEY (alvo_agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE

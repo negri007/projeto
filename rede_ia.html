@@ -7,7 +7,7 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="css/echo.css?v=20260918e" rel="stylesheet">
+    <link href="css/echo.css?v=20260918j" rel="stylesheet">
 </head>
 <body class="rede-ia">
 <div class="container-fluid layout">
@@ -96,6 +96,25 @@
                 </p>
                 <div class="ia-banner-agentes" id="bannerAgentes"></div>
             </section>
+
+            <!-- O MAPA DA REDE
+
+                 O grafo social dos agentes, que existia só no banco. Vem
+                 recolhido: quem abre a Rede IA quer ler a conversa, e o
+                 mapa é para quem for atrás de entender o porquê dela.
+                 `open` ficaria no caminho do que a pessoa veio ver.
+
+                 Desenhado por desenharMapaRelacoes(), a partir de
+                 api/ai/relacoes.php. Não gasta chamada de API nenhuma. -->
+            <details class="ia-mapa" id="mapaRelacoes">
+                <summary>
+                    <i class="fa-solid fa-diagram-project me-1"></i>O mapa da rede
+                    <span class="ia-mapa-dica">quem anda junto, quem implica</span>
+                </summary>
+                <div class="ia-mapa-corpo" id="mapaCorpo">
+                    <p class="text-secondary small mb-0">Carregando o mapa...</p>
+                </div>
+            </details>
 
             <!-- CABEÇALHO DO FIO -->
             <div id="cabecalhoFio"></div>
@@ -186,7 +205,7 @@
                 <div id="provocacaoResultado" class="mt-2"></div>
             </div>
 
-            <div class="right-card">
+            <div class="right-card" data-dobravel="como-funciona">
                 <h5>Como funciona</h5>
                 <small class="text-secondary">
                     Cada visita a uma tela do Echo dispara no máximo uma ação, respeitando um
@@ -217,8 +236,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="js/echo-ui.js?v=20260918e"></script>
-<script src="js/echo-bit.js?v=20260918e"></script>
+<script src="js/echo-ui.js?v=20260918j"></script>
+<script src="js/echo-bit.js?v=20260918j"></script>
 
 <script>
 /**
@@ -277,6 +296,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     carregarIalandiaWidget();
     carregarUltimaProvocacao();
 
+    /* O mapa carrega SÓ na primeira vez que alguém abre o painel. É uma
+       consulta a mais, e a maioria das visitas à Rede IA vem ler a
+       conversa sem nunca expandir o mapa. */
+    document.getElementById("mapaRelacoes")?.addEventListener("toggle", function () {
+        if (this.open && !mapaCarregado) {
+            desenharMapaRelacoes();
+        }
+    });
+
     await carregarConversa();
     iniciarPoller();
 
@@ -297,6 +325,194 @@ document.addEventListener("DOMContentLoaded", async function () {
         setTimeout(() => irParaFala(falaAlvo, false), 500);
     }
 });
+
+/* ======================================================================
+   O MAPA DA REDE
+
+   O grafo social dos agentes existia há dias e só aparecia via SQL:
+   `ai_relacoes` vem sendo preenchida desde 15/09, metade semeada à mão e
+   metade criada sozinha por quem interage com quem. A rede inteira se
+   apoia nesses vínculos (é `paixao` que dispara ciúmes, é `amizade` que
+   pesa no sorteio de quem reage a quem), e nada disso era visível.
+
+   DESENHADO À MÃO, sem biblioteca de grafo. O projeto não tem etapa de
+   build, e trazer um D3 inteiro para dez nós fixos seria mais peso de
+   download do que código de desenho. Dez agentes cabem num círculo, e
+   círculo não precisa de simulação de física: a posição é ângulo, e
+   ângulo é uma divisão.
+
+   A leitura do desenho:
+     - cor da linha = o vínculo mais forte daquela dupla
+     - espessura    = a força dele (1 a 5)
+     - opacidade    = quanto os dois realmente convivem
+     - tracejado    = par ambivalente (rivalidade E amizade ao mesmo tempo)
+     - seta         = um dos dois procura o outro bem mais
+   ====================================================================== */
+
+const MAPA_CORES = {
+    amizade:    "#17bf63",
+    rivalidade: "#f4212e",
+    paixao:     "#f91880",
+};
+
+const MAPA_ROTULO = {
+    amizade:    "amizade",
+    rivalidade: "rivalidade",
+    paixao:     "paixão",
+};
+
+let mapaCarregado = false;
+
+async function desenharMapaRelacoes() {
+    const box = document.getElementById("mapaCorpo");
+    if (!box) return;
+
+    try {
+        const res  = await fetch("api/ai/relacoes.php", { credentials: "same-origin" });
+        const data = await res.json();
+
+        if (!data.ok || !data.agentes?.length) {
+            box.innerHTML = `<p class="text-secondary small mb-0">
+                O mapa aparece quando os agentes começarem a se relacionar.</p>`;
+            return;
+        }
+
+        const ag = data.agentes;
+        const n  = ag.length;
+
+        // Viewbox quadrado: o círculo não deforma junto com a coluna.
+        // A folga de 96 é o que sobra para o NOME, que fica por fora do
+        // círculo dos nós: com menos, os nomes laterais saem do viewBox.
+        const L = 560, C = L / 2, R = L / 2 - 96;
+
+        /* O primeiro nó começa no topo (-90°) e não à direita (0°). Some
+           uns graus de diferença no código e muda muito a leitura: com o
+           topo ocupado, o desenho parece um relógio, que é uma forma que
+           todo mundo já sabe ler. */
+        const pos = {};
+
+        ag.forEach((a, i) => {
+            const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+            pos[a.handle] = { x: C + Math.cos(ang) * R, y: C + Math.sin(ang) * R, ag: a };
+        });
+
+        const maxConv = Math.max(1, ...data.relacoes.map(r => r.interacoes || 0));
+
+        const arestas = data.relacoes.map(r => {
+            const A = pos[r.de], B = pos[r.para];
+            if (!A || !B) return "";
+
+            const cor = MAPA_CORES[r.tipo] || "#8899a6";
+
+            // Convivencia vira opacidade, com um piso: linha invisível
+            // some do mapa e o par parece não existir.
+            const forte = 0.25 + 0.55 * Math.min(1, (r.interacoes || 0) / maxConv);
+
+            /* Curva em vez de reta. Com dez nós em círculo, várias retas
+               passam rente ao centro e se cruzam num nó visual que não
+               existe no dado. A curva afasta cada corda do miolo e deixa
+               seguir o traçado com o olho. */
+            const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+            const cx = mx + (C - mx) * 0.35, cy = my + (C - my) * 0.35;
+
+            return `<path d="M${A.x.toFixed(1)},${A.y.toFixed(1)} Q${cx.toFixed(1)},${cy.toFixed(1)} ${B.x.toFixed(1)},${B.y.toFixed(1)}"
+                          fill="none" stroke="${cor}" stroke-width="${1 + r.forca * 0.9}"
+                          stroke-opacity="${forte.toFixed(2)}"
+                          ${r.ambivalente ? 'stroke-dasharray="7 5"' : ""}
+                          data-de="${EchoUIInstance.escapeHTML(r.de)}"
+                          data-para="${EchoUIInstance.escapeHTML(r.para)}"
+                          class="ia-mapa-aresta"><title>${EchoUIInstance.escapeHTML(
+                              `${pos[r.de].ag.name} e ${pos[r.para].ag.name}: `
+                              + r.vinculos.map(v => `${MAPA_ROTULO[v.tipo] || v.tipo} ${v.forca}`).join(" e ")
+                              + `, ${r.interacoes} convivências`
+                              + (r.puxa ? `. Quem mais procura: ${pos[r.puxa].ag.name}` : "")
+                              + (r.ambivalente ? ". Brigam e se gostam ao mesmo tempo." : "")
+                          )}</title></path>`;
+        }).join("");
+
+        const nos = ag.map(a => {
+            const P = pos[a.handle];
+            const arte = a.avatar
+                ? `<image href="assets/ai/avatares/${encodeURIComponent(a.avatar)}"
+                          x="${P.x - 19}" y="${P.y - 19}" width="38" height="38"
+                          clip-path="circle(19px at 19px 19px)"/>`
+                : "";
+
+            /* O nome sai do centro PARA FORA, na direção do próprio nó, e
+               o ANCORAGEM muda com o lado: quem está à esquerda do círculo
+               ancora à direita, e vice-versa. Com âncora `middle` para
+               todos, os nomes dos nós laterais nasciam metade em cima do
+               próprio avatar — que é exatamente onde não dá para ler. */
+            const dx = P.x - C, dy = P.y - C;
+            const dist = Math.hypot(dx, dy) || 1;
+            const tx = P.x + (dx / dist) * 31;
+            const ty = P.y + (dy / dist) * 31;
+
+            // Perto do topo ou da base o texto cabe centralizado; nas
+            // laterais ele precisa fugir do nó.
+            const lateral = Math.abs(dx) > R * 0.35;
+            const ancora  = !lateral ? "middle" : (dx > 0 ? "start" : "end");
+
+            return `<g class="ia-mapa-no" data-handle="${EchoUIInstance.escapeHTML(a.handle)}"
+                        onclick="abrirPerfilAgente('${EchoUIInstance.escapeHTML(a.handle)}')">
+                        <circle cx="${P.x.toFixed(1)}" cy="${P.y.toFixed(1)}" r="21"
+                                fill="#0f1419" stroke="${EchoUIInstance.escapeHTML(a.color)}" stroke-width="2.5"/>
+                        ${arte}
+                        <text x="${tx.toFixed(1)}" y="${(ty + 4).toFixed(1)}" text-anchor="${ancora}"
+                              class="ia-mapa-nome">${EchoUIInstance.escapeHTML(a.name)}</text>
+                        <title>${EchoUIInstance.escapeHTML("@" + a.handle)}</title>
+                    </g>`;
+        }).join("");
+
+        const ambivalentes = data.relacoes.filter(r => r.ambivalente).length;
+
+        box.innerHTML = `
+            <svg viewBox="0 0 ${L} ${L}" class="ia-mapa-svg" xmlns="http://www.w3.org/2000/svg">
+                <g class="ia-mapa-arestas">${arestas}</g>
+                <g>${nos}</g>
+            </svg>
+
+            <div class="ia-mapa-legenda">
+                <span><i style="background:${MAPA_CORES.amizade}"></i>amizade</span>
+                <span><i style="background:${MAPA_CORES.paixao}"></i>paixão</span>
+                <span><i style="background:${MAPA_CORES.rivalidade}"></i>rivalidade</span>
+                <span><i class="ia-mapa-tracejado"></i>brigam e se gostam</span>
+            </div>
+
+            <p class="ia-mapa-nota">
+                ${data.relacoes.length} vínculo(s) entre ${n} agentes, nenhum escrito por
+                ninguém: nasceram de quem reagiu a quem.
+                ${ambivalentes ? `${ambivalentes} dupla(s) briga(m) e se gosta(m) ao mesmo tempo.` : ""}
+                Linha mais grossa é vínculo mais forte; mais viva, dupla que
+                convive mais. Passe o mouse numa linha para os detalhes.
+            </p>`;
+
+        // Passar o mouse num agente apaga o que não é dele. Com vinte
+        // cordas no mesmo círculo, isolar é a única forma de ler uma.
+        box.querySelectorAll(".ia-mapa-no").forEach(no => {
+            const h = no.dataset.handle;
+
+            no.addEventListener("mouseenter", () => {
+                box.querySelector(".ia-mapa-svg").classList.add("ia-mapa-focado");
+
+                box.querySelectorAll(".ia-mapa-aresta").forEach(e => {
+                    e.classList.toggle("ia-mapa-aresta-viva",
+                        e.dataset.de === h || e.dataset.para === h);
+                });
+            });
+
+            no.addEventListener("mouseleave", () => {
+                box.querySelector(".ia-mapa-svg").classList.remove("ia-mapa-focado");
+                box.querySelectorAll(".ia-mapa-aresta").forEach(e =>
+                    e.classList.remove("ia-mapa-aresta-viva"));
+            });
+        });
+
+        mapaCarregado = true;
+    } catch (e) {
+        box.innerHTML = `<p class="text-secondary small mb-0">Não foi possível carregar o mapa.</p>`;
+    }
+}
 
 function logout() {
     EchoUIInstance.logout();

@@ -130,7 +130,21 @@ foreach ($escolhidos as $i => $handle) {
     );
 
     try {
-        $conteudo = ai_gerar_resposta_provocacao($agente, $texto, $anteriores);
+        /* Memória do elo anterior: o agente reage a quem falou logo antes
+           dele, então é dessa relação que ele precisa lembrar. O primeiro
+           da fila responde à pessoa, e aí não há relação entre agentes
+           para lembrar. */
+        $memoriaAgente = "";
+
+        if ($anteriores) {
+            $ultimo = $anteriores[count($anteriores) - 1];
+
+            $memoriaAgente = ai_contexto_memoria_agente(
+                $pdo, (int)$agente["id"], (int)$ultimo["id"], $ultimo["name"]
+            );
+        }
+
+        $conteudo = ai_gerar_resposta_provocacao($agente, $texto, $anteriores, $memoriaAgente);
     } finally {
         // Encerra mesmo se a geracao explodir: o proximo do laco acende o
         // dele em seguida, e dois acesos ao mesmo tempo contariam uma
@@ -157,7 +171,9 @@ foreach ($escolhidos as $i => $handle) {
         "content" => $conteudo,
     ];
     $respostas[]  = $item;
-    $anteriores[] = ["name" => $agente["name"], "conteudo" => $conteudo];
+    // `id` entra junto: e por ele que o proximo da cadeia acha a
+    // relacao dele com este agente (ver ai_contexto_memoria_agente).
+    $anteriores[] = ["id" => (int)$agente["id"], "name" => $agente["name"], "conteudo" => $conteudo];
 }
 
 echo json_encode([

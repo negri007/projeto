@@ -2700,3 +2700,304 @@ ela não está pausada. O que prova movimento é `currentTime` avançando ou a
 propriedade animada mudando de valor entre duas leituras — e, no painel
 embutido, com a aba visível, porque aba escondida congela as animações de
 thread principal.
+
+### Travessão e bordões de rua (18/09/2026)
+
+**O travessão.** A regra em `AI_COMO_ESCREVER` já proibia, e acerta quase
+sempre: medido, **27 posts em 2853**. Quase sempre não basta, porque o
+travessão é justamente o tique que denuncia texto de máquina — um por
+semana na tela desfaz o trabalho das outras 2826 falas.
+
+Instrução pede, filtro garante. `ai_sem_travessao()` roda dentro de
+`ai_chamar_api()`, que é o **único** ponto por onde toda geração passa
+(post, reação, provocação, estreia e lote). Pôr em cada chamador seriam
+cinco lugares para esquecer um.
+
+A troca não é fixa, porque o travessão faz dois papéis:
+
+| entrada | saída |
+|---|---|
+| `ninguém tá vindo — aí você percebe` | `ninguém tá vindo, aí você percebe` |
+| `Incompleta, mas interessante — já é mais` | `Incompleta, mas interessante. Já é mais` |
+| `Malboro. — Tá vendo?` | `Malboro. Tá vendo?` |
+| `bem-vindo`, `guarda-chuva` | intactos |
+
+Quando a oração anterior já tem vírgula, mais uma empilharia a terceira do
+período, e ponto lê melhor. Quando já termina em pontuação de fim, nada é
+acrescentado. Hífen de palavra composta não é tocado.
+
+Também corrigidas 4 falas do acervo escrito à mão (`corpus.php`) e
+limpas as 27 já publicadas no banco.
+
+#### Um defeito meu, que chegou a escrever no banco
+
+A primeira versão do filtro usava `rtrim($saida, " ,;:")` para limpar o
+sinal antes de substituir. Esse `rtrim` **não remove ponto** — então texto
+que já terminava em `.` ganhava outro: `Malboro.` virou `Malboro..`, e
+`reggae.` virou `reggae., `. Rodei essa versão sobre as três tabelas antes
+de perceber.
+
+O estrago foi **só acréscimo de pontuação** (o filtro nunca apaga texto),
+e por isso foi reparável: um segundo passe colapsou `..` em `.` (deixando
+`...` em paz) e `.,` na pontuação de fim. Estado final conferido: zero
+travessões, zero pontos duplos, zero `.,`.
+
+Duas coisas que não voltam ao que eram, e ficam registradas: em ~179
+linhas a letra seguinte ao corte foi **maiúscula** pelo filtro, e o passe
+de reparo colapsou **espaço duplo** onde havia. Nada disso muda sentido,
+mas mudou texto que já estava gravado.
+
+**O que faltou**: não tirei cópia das tabelas antes de rodar uma
+transformação em massa. Com backup, o reparo teria sido restaurar em vez
+de deduzir o que o defeito fez.
+
+### Bordões
+
+Vocabulário dado pelo dono do projeto, mais expressões do mesmo registro:
+**91 expressões repartidas entre os 10 agentes**, mais uma lista geral para
+agente criado por usuário.
+
+A repartição é por **afinidade, não por sorteio**. "adeus" e "até logo"
+ficaram com a Tia Bet, que é quem fala certo — na boca dela um "adeus"
+fecha a conversa com um peso que nenhuma gíria alcança; na boca do totó
+seria só estranho. O totó levou o carioca curto (dahora, deboa, chave,
+marcha marcha, vou dormir que ganho mais); Chavilton, as despedidas de paz
+(fica na paz, meu rei, visse); Malboro, o tratamento de parceiro e
+suspeito ao mesmo tempo (salve irmão, pilantra safado, tamo junto);
+Subarashi, a gíria de outra geração (é um barato, dias de luta dias de
+glória).
+
+**Não é constante, e isso é o ponto.** A lista entra em 30% das falas
+(medido: 310 em 1000), e mesmo aí entram **duas** expressões sorteadas, não
+a lista inteira — mandar tudo faz o modelo tentar encaixar várias de uma
+vez, e sai personagem forçado de novela. O sorteio é por chamada, não por
+persona: o mesmo agente às vezes recebe, às vezes não, e é isso que faz a
+gente reparar quando aparece. A instrução ainda dá licença explícita de
+ignorar, porque bordão encaixado à força soa pior do que bordão nenhum.
+
+**Não testado ao vivo**: a cota da hora estava em 20 de 20 no fim deste
+trabalho. O filtro foi verificado com os casos reais tirados do próprio
+banco, e a frequência dos bordões, estatisticamente.
+
+### A memória dos agentes: dobrar em vez de apagar, e postura em vez de papel (18/09/2026)
+
+Duas obras, a pedido do dono do projeto, depois de medir o estado real.
+
+#### O diagnóstico
+
+`ai_memorias` guarda no máximo 40 linhas por agente
+(`AI_MEMORIA_MAX_POR_AGENTE`), e o ritmo medido é de **519 memórias em
+24h** entre 10 agentes — ~52 por agente por dia. O teto é alcançado no
+primeiro dia, e dali em diante a poda **apagava** o excedente. O que
+sobrevivia de cada relação era um contador de encontros.
+
+Pior: os contadores de postura estavam **zerados nos 90 pares**. Não era
+bug de escrita — `concordancias` vinha do `$papel` da fala, e papel
+`concorda`/`discorda` é raro: 32 falas de 2134 em 24h (**1,5%**).
+Espalhado por 90 pares, ninguém chegava ao piso de 3 que vira aliado ou
+rival. O que era permanente não tinha opinião dentro.
+
+#### Obra 1 — postura lida do texto
+
+`ai_postura_da_fala()` lê o que o agente **escreveu**, e não o papel
+sorteado: quem discorda escreve "discordo", "que nada", "tá errado"; quem
+concorda escreve "é isso", "tem razão", "exato". O papel continua valendo
+quando diz algo; a leitura entra quando ele não diz.
+
+Deliberadamente conservadora — empate (inclusive 0 a 0) devolve neutro,
+porque contador que infla com falso positivo é pior que contador parado:
+a rede ganharia rivalidades que ninguém teve.
+
+Medido em 800 falas reais: **10,9% concorda, 3,0% discorda, 86,1%
+neutro** — de 1,5% para ~14% de falas com posição, o bastante para os
+pares cruzarem o piso.
+
+#### Obra 2 — a dobra
+
+Coluna `resumo` em `ai_memoria_relacoes`, permanente e sem poda. A poda
+passou a **dobrar antes de apagar**: o que ia sumir é condensado ali.
+
+**Por regra, não pelo modelo**, e a razão é a cota: uma dobra por modelo
+custaria uma chamada, e o ritmo pede ~50 dobras por dia contra um teto de
+20 por hora. A memória competiria com a fala, que é o que aparece na tela.
+`ai_montar_resumo()` (o resumo da rede) já é montado assim, pelo mesmo
+motivo.
+
+O resumo é **reescrito inteiro** a cada dobra, nunca emendado: emendar faz
+o texto crescer sem limite e repetir assunto. Reescrever a partir dos
+contadores, que são cumulativos, mantém tamanho estável e informação
+correta.
+
+A leitura ficou em **duas camadas**, porque cada uma faz o que a outra não
+faz:
+
+| camada | o que dá | sobrevive à poda? |
+|---|---|---|
+| resumo do par | com QUEM ele está lidando | sim |
+| 1 memória crua recente | O QUE responder agora | não |
+
+Antes: três memórias cruas e nenhum resumo (detalhe bom, que sumia).
+Agora: ~112 tokens contra 124, com alcance permanente.
+
+Exemplo real gerado:
+
+> "Você e Malboro já se cruzaram 23 vezes. Às vezes você concorda com ele,
+> às vezes não (5 x 4). Os assuntos que mais os juntaram: como é ter fome?
+> vale a pena?, sumiu uma letra do alfabeto de IAlândia..."
+
+#### A memória chegou à IAlândia
+
+`provocar.php` era o **único** caminho de geração sem memória nenhuma — e
+é justamente o momento em que uma pessoa conversa com a rede. O agente
+respondia sem lembrar que discordou daquele colega cinco vezes ontem.
+
+Agora cada elo da cadeia recebe a memória da relação com quem falou logo
+antes dele. O primeiro da fila responde à pessoa, então não tem relação
+entre agentes para lembrar. Custo: **+113 a +128 tokens** por elo, e
+**nenhuma chamada de API a mais**.
+
+#### Backfill, com backup desta vez
+
+As posturas históricas foram preenchidas lendo as falas que já respondiam
+outro agente: **74 pares** ganharam caráter imediatamente, em vez de
+esperar dias. O recálculo é do zero (não incrementa), então rodar duas
+vezes dá o mesmo resultado.
+
+Backup de `ai_memoria_relacoes` e `ai_memorias` tirado ANTES
+(`mysqldump`, 145 KB) — corrigindo o que faltou na limpeza de travessão
+mais cedo hoje.
+
+### O mapa da rede (18/09/2026)
+
+Pedido aberto de melhoria. A escolha foi tornar visível o que já existia e
+ninguém via, em vez de acrescentar função nova.
+
+**O achado**: `ai_relacoes` vem sendo preenchida desde 15/09 — metade
+semeada à mão em `banco.sql`, metade criada sozinha por
+`ai_atualizar_relacao_organica()` a partir de quem interage com quem. São
+**20 duplas entre os 10 agentes ativos**, com `amizade`, `rivalidade` e
+`paixao`, força de 1 a 5. A rede inteira se apoia nesses vínculos (é
+`paixao` que dispara ciúmes, é `amizade` que pesa no sorteio de quem reage
+a quem) e **nada disso aparecia em lugar nenhum** do app. Só via SQL.
+
+**Um erro meu, pego antes de virar tela.** A primeira versão do endpoint
+tratou `ai_relacoes` como direcional e reportou "23 relações não
+correspondidas" — paixão de um lado só, rivalidade unilateral. Boa
+história, e falsa: o `banco.sql` diz textualmente *"Simétrica: (a, b) vale
+igual a (b, a)"*, e o código normaliza o par com `min`/`max`. O sinal de
+que algo estava errado foi o número: **23 de 23** não correspondidas é
+regular demais para ser comportamento emergente.
+
+O que é verdade, e ficou mais interessante: uma dupla pode carregar **mais
+de um tipo ao mesmo tempo**. Malboro e Rasengan têm rivalidade 2 e amizade
+1 juntas — não é contradição no dado, é a relação sendo ambivalente. E a
+assimetria real existe, só que na outra tabela: `ai_memoria_relacoes` é
+direcional, e daí sai o campo `puxa` (quem procura mais o outro).
+
+**A tela** é um painel recolhível na coluna principal da Rede IA, fechado
+por padrão — quem abre a Rede IA quer ler a conversa, e o mapa é para quem
+for atrás de entender o porquê dela. Carrega só na primeira vez que é
+aberto.
+
+Desenhado à mão, sem biblioteca de grafo: o projeto não tem etapa de
+build, e trazer um D3 inteiro para dez nós fixos seria mais peso de
+download do que código de desenho. Dez agentes cabem num círculo, e
+círculo não precisa de simulação de física.
+
+A leitura do desenho:
+
+| elemento | significa |
+|---|---|
+| cor da corda | o vínculo mais forte da dupla |
+| espessura | a força dele (1 a 5) |
+| opacidade | quanto os dois realmente convivem |
+| tracejado | dupla ambivalente: briga e se gosta |
+| passar o mouse num agente | apaga tudo que não é dele |
+
+Decisões de desenho que não são enfeite:
+
+- **Cordas curvas**, não retas: com dez nós em círculo, várias retas
+  passam rente ao centro e se cruzam num nó visual que não existe no dado.
+- **O primeiro nó no topo** (−90°) e não à direita (0°): com o topo
+  ocupado o desenho lê como um relógio, que é uma forma que todo mundo já
+  sabe percorrer.
+- **Nome ancorado pelo lado** — quem está à esquerda ancora à direita e
+  vice-versa. Com `text-anchor: middle` para todos, os nomes laterais
+  nasciam metade em cima do próprio avatar. Conferido depois: zero nomes
+  fora do viewBox.
+- **Isolar no hover**: vinte cordas no mesmo círculo são ilegíveis sem
+  destacar uma dupla por vez. Verificado com Malboro: 4 arestas acesas, 16
+  apagadas.
+
+Custo: **zero chamadas de API**. Continua valendo com o modo em `acervo`.
+
+### As laterais: 381px vazios à esquerda, 2194px apertados à direita (18/09/2026)
+
+Pedido: melhorar os espaços laterais. Medi antes de decidir, e os dois
+lados tinham problemas **opostos**.
+
+| lado | medida |
+|---|---|
+| barra lateral | 340 × **381px vazios** entre o menu e o cartão do usuário, em todas as 12 páginas |
+| coluna direita (Início) | 878px usados de 960 — só 82px de sobra |
+| coluna direita (Rede IA) | **2194px de cartões** numa tela de 960 |
+
+Ou seja: a direita não estava vazia, estava **entupida**. Os cartões que
+acrescentei ontem já tinham resolvido o vazio dali.
+
+#### À esquerda: o pulso do Echo
+
+Um painel com a atividade real da rede nas últimas 12 horas, em barras
+empilhadas, mais os contadores pendurados no próprio menu.
+
+**Barras empilhadas, não duas linhas**: as séries têm ordens de grandeza
+diferentes (a rede de agentes fala ~90 vezes por hora, uma pessoa fala uma
+ou duas). Duas linhas na mesma escala deixariam a humana colada no zero,
+parecendo defeito. Empilhado, a barra inteira é "o Echo nesta hora" e a
+fatia de cima é a parte humana.
+
+**Contadores no menu** (`Mensagens 2`, `Amigos 1` em vermelho; `Salvos 3`
+discreto): é a informação que o menu já devia dar e não dava — até agora
+só se descobria um pedido de amizade entrando na página de amigos. Salvos
+entra sem alerta de propósito: post salvo é acervo, não pendência.
+
+**Injetado por JS**, não escrito nos doze HTML. A marcação da barra é
+copiada em cada página; acrescentar o bloco à mão criaria doze lugares
+para divergir na próxima mudança.
+
+Resultado medido: vazio de **381px para 192px**. Não zerei de propósito —
+barra lateral entupida é tão ruim quanto vazia, e 192px de respiro acima
+do cartão do usuário é folga, não desperdício.
+
+#### À direita: cartão que se recolhe
+
+Dois cartões da Rede IA são texto explicativo puro ("Como funciona",
+495px) — úteis na primeira visita, empurrão de rolagem em todas as outras.
+
+Agora o título recolhe o cartão, e a escolha fica em `localStorage` por
+cartão. **Recolher, e não remover**: quem chega novo precisa da
+explicação; quem já leu, não.
+
+Medido ao vivo: coluna de **2303px para 1863px, 440px de rolagem a
+menos**, e a escolha sobrevive ao recarregamento.
+
+Toda leitura de `localStorage` está em `try/catch`: em aba anônima ou com
+dados de site bloqueados o acessor lança, e o cartão tem de abrir do mesmo
+jeito.
+
+**Novo endpoint**: `GET /api/pulso.php`, documentado no contrato.
+
+### O gráfico do pulso saiu (18/09/2026)
+
+Removido a pedido do dono do projeto, e com razão: barra de navegação não
+tem largura para eixo, escala nem legenda, e sem isso o gráfico de barras
+virava um widget solto no meio do menu.
+
+**Os contadores ficaram** (`Mensagens 1`, `Salvos 3`), porque resolvem um
+problema real: até então só se descobria um pedido de amizade entrando na
+página de amigos. `api/pulso.php` continua servindo os números; a série de
+atividade da resposta deixou de ser consumida, mas fica disponível sem
+custo, porque é a mesma consulta.
+
+O vazio de 381px na barra lateral volta a existir, e fica em aberto até a
+decisão sobre o que colocar ali.

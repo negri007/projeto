@@ -41,6 +41,112 @@ class EchoUI {
      * Initializes header components (Notification Bell, Mobile Offcanvas Sidebar)
      * @param {string} currentPage - Current active page identifier (e.g., 'inicio', 'explorar', 'perfil')
      */
+    /* ==================================================================
+       CONTADORES NO MENU
+
+       Sobrou do "pulso do Echo", que trazia também um gráfico de barras na
+       barra lateral. O gráfico saiu a pedido do dono do projeto, e com
+       razão: barra de navegação não tem largura para eixo, escala nem
+       legenda, e sem isso o gráfico virava um widget solto no meio do
+       menu. Os contadores ficaram, porque resolvem um problema real de
+       navegação.
+
+       `api/pulso.php` continua servindo os números. A parte de atividade
+       da resposta deixou de ser usada aqui — fica disponível para quem
+       quiser, e não custa nada, porque é a mesma consulta.
+       ================================================================== */
+
+    /** Busca os números e pendura no menu. Falha em silêncio: o menu
+     *  funciona sem contador, e aviso de erro na navegação atrapalha
+     *  mais do que a falta do número. */
+    async carregarContadoresDoMenu() {
+        try {
+            const res  = await fetch("api/pulso.php", { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (data.ok) {
+                this.pendurarContadores(data.contadores);
+            }
+        } catch (e) { /* silêncio de propósito */ }
+    }
+
+    /**
+     * Bolinha com número em cima do item de menu.
+     *
+     * É a informação que o menu já devia dar e não dava: até agora só se
+     * descobria um pedido de amizade entrando na página de amigos.
+     * "Salvos" entra sem bolinha de alerta, com contagem discreta — ter
+     * post salvo não é pendência, é acervo.
+     */
+    pendurarContadores(c) {
+        const mapa = {
+            "chat.html":      { n: c.mensagens, alerta: true },
+            "amigos.html":    { n: c.amigos,    alerta: true },
+            "salvos.html":    { n: c.salvos,    alerta: false },
+        };
+
+        document.querySelectorAll(".sidebar .nav-link").forEach(link => {
+            const arquivo = (link.getAttribute("href") || "").split("/").pop();
+            const info    = mapa[arquivo];
+
+            link.querySelector(".echo-nav-contador")?.remove();
+            if (!info || !info.n) return;
+
+            const b = document.createElement("span");
+            b.className = "echo-nav-contador" + (info.alerta ? " echo-nav-alerta" : "");
+            b.textContent = info.n > 99 ? "99+" : info.n;
+            link.appendChild(b);
+        });
+    }
+
+    /**
+     * Cartão da coluna da direita que a pessoa pode recolher, e que lembra
+     * a escolha dela.
+     *
+     * Na Rede IA a coluna soma 2194px de cartões numa tela de 960: é o
+     * problema inverso do vazio da barra lateral. Dois desses cartões são
+     * TEXTO EXPLICATIVO ("Como funciona", 495px) — útil na primeira
+     * visita, empurrão de scroll em todas as outras.
+     *
+     * Recolher, e não remover: quem chega novo precisa da explicação. A
+     * escolha fica em localStorage por cartão, então quem dobrou uma vez
+     * não dobra de novo, e quem nunca mexeu continua vendo tudo.
+     */
+    tornarCartoesDobraveis() {
+        document.querySelectorAll(".right-card[data-dobravel]").forEach(card => {
+            const chave = "echo_card_" + card.dataset.dobravel;
+            const titulo = card.querySelector("h5");
+            if (!titulo || titulo.dataset.ligado) return;
+
+            titulo.dataset.ligado = "1";
+            titulo.classList.add("right-card-titulo-dobravel");
+
+            const seta = document.createElement("i");
+            seta.className = "fa-solid fa-chevron-up right-card-seta";
+            titulo.appendChild(seta);
+
+            let dobrado = false;
+
+            // localStorage pode explodir em aba anônima ou com dados de
+            // site bloqueados; o cartão tem de abrir do mesmo jeito.
+            try {
+                dobrado = localStorage.getItem(chave) === "1";
+            } catch (e) { /* segue aberto */ }
+
+            const aplicar = () => card.classList.toggle("right-card-dobrado", dobrado);
+            aplicar();
+
+            titulo.addEventListener("click", () => {
+                dobrado = !dobrado;
+                aplicar();
+
+                try {
+                    localStorage.setItem(chave, dobrado ? "1" : "0");
+                } catch (e) { /* a sessão atual já respeitou o clique */ }
+            });
+        });
+    }
+
     initHeader(currentPage) {
         this.injectMobileOffcanvas(currentPage);
         this.setupNotificationDropdown();
@@ -49,6 +155,10 @@ class EchoUI {
         // O campo "Buscar no ECHO" existe no cabeçalho de todas as telas;
         // ligá-lo aqui evita repetir a mesma ligação em cada uma.
         this.initSearchBox();
+        // Preenche o vazio da barra lateral e pendura os contadores no
+        // menu. Vale em todas as páginas, porque a barra é a mesma.
+        this.carregarContadoresDoMenu();
+        this.tornarCartoesDobraveis();
     }
 
     /**

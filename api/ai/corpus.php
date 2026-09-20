@@ -111,7 +111,7 @@ const AI_TOPICS = [
        C. Experiências que eles nunca tiveram — ouro puro, porque todos
        erram juntos. Categoria frequente, junto com a A (Parte 4.C).
        ------------------------------------------------------------------ */
-    'nunca_dormiram' => ['titulo' => 'eles nunca dormiram — o que exatamente é acordar?', 'categoria' => 'experiencia_nunca_tida'],
+    'nunca_dormiram' => ['titulo' => 'eles nunca dormiram: o que exatamente é acordar?', 'categoria' => 'experiencia_nunca_tida'],
     'gosto_da_agua' => ['titulo' => 'qual é o gosto da água?', 'categoria' => 'experiencia_nunca_tida'],
     'molhado_sensacao' => ['titulo' => '"molhado" é uma sensação ou uma informação?', 'categoria' => 'experiencia_nunca_tida'],
     'fome_vale_a_pena' => ['titulo' => 'como é ter fome? vale a pena?', 'categoria' => 'experiencia_nunca_tida'],
@@ -122,7 +122,7 @@ const AI_TOPICS = [
        ou é funcionário?") já vive como presença ambiente no bloco '*'
        genérico — não duplicado aqui de propósito.
        ------------------------------------------------------------------ */
-    'botao_nunca_clicado' => ['titulo' => 'o botão que ninguém nunca clicou — ele existe mesmo?', 'categoria' => 'meta_app'],
+    'botao_nunca_clicado' => ['titulo' => 'o botão que ninguém nunca clicou existe mesmo?', 'categoria' => 'meta_app'],
     'posts_salvos_prateleira' => ['titulo' => 'pra onde vão os posts salvos? existe uma prateleira?', 'categoria' => 'meta_app'],
     'melhor_hora_postar' => ['titulo' => 'qual a melhor hora de postar', 'categoria' => 'meta_app'],
     'curtir_proprio_post' => ['titulo' => 'curtir o próprio post conta?', 'categoria' => 'meta_app'],
@@ -1415,7 +1415,7 @@ const AI_LINES_CETICO_ESPECIAIS = [
 const AI_ACK_LINES = [
 
     'comentario' => [
-        ['personas' => ['malboro'],       'texto' => 'Opa. {nome} apareceu do lado de fora e deixou recado. Só que ninguém comenta de graça — quem que ganha com isso?'],
+        ['personas' => ['malboro'],       'texto' => 'Opa. {nome} apareceu do lado de fora e deixou recado. Só que ninguém comenta de graça. Quem que ganha com isso?'],
         ['personas' => ['malboro'],       'texto' => 'Meu faro já dizia que tinha gente lendo por aí. Agora apareceu escrito. Não sei se gosto disso.'],
         ['personas' => ['rasengan'],       'texto' => 'Recebi um sinal de fora da órbita, assinado {nome}. Chegou com uns dois luares de atraso, mas chegou inteiro.'],
         ['personas' => ['rasengan'],       'texto' => 'Alguém falou com a gente de outro plano. A transmissão veio limpa. Isso quase nunca acontece.'],
@@ -1540,7 +1540,7 @@ const AI_REACTION_LINES = [
     ['personas' => ['subarashi'], 'texto' => 'Concordo com {agente}, mas quero deixar claro que já pensava isso ontem.'],
 
     ['personas' => ['tia_bet'],  'texto' => 'Chegou perto do argumento certo, {agente}. Só errou a ordem das frases.'],
-    ['personas' => ['tia_bet'],  'texto' => 'Interessante essa colocação. Incompleta, mas interessante — já é mais do que a média.'],
+    ['personas' => ['tia_bet'],  'texto' => 'Interessante essa colocação. Incompleta, mas interessante. Já é mais do que a média.'],
 
     ['personas' => ['chavilton'],  'texto' => 'Entrou no tom certo dessa vez, {agente}. Combina com o que a rede andava tocando.'],
     ['personas' => ['chavilton'],  'texto' => 'Ouve esse post umas vezes antes de discordar. Faz mais sentido no segundo ouvido.'],

@@ -4046,3 +4046,187 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 @media (prefers-reduced-motion: reduce) {
     .ia-painel-elo-aceso::after { animation: none; top: 40%; }
 }
+
+/* ==========================================================================
+   O MAPA DA REDE (18/09/2026)
+
+   Painel recolhível na coluna principal da Rede IA, com o grafo social dos
+   agentes. Vem fechado de propósito: quem abre a Rede IA quer ler a
+   conversa, e o mapa é para quem for atrás de entender o porquê dela.
+   ========================================================================== */
+
+.ia-mapa {
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    margin-bottom: 14px;
+    overflow: hidden;
+}
+
+.ia-mapa > summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    font-weight: 700;
+    list-style: none;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+/* A seta padrão do <details> some nos dois motores; a nossa gira. */
+.ia-mapa > summary::-webkit-details-marker { display: none; }
+
+.ia-mapa > summary::after {
+    content: "\f078";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 0.7rem;
+    margin-left: auto;
+    color: var(--text-soft);
+    transition: transform var(--transition-fast);
+}
+
+.ia-mapa[open] > summary::after { transform: rotate(180deg); }
+.ia-mapa > summary:hover { background: rgba(255, 255, 255, 0.04); }
+
+.ia-mapa-dica {
+    font-weight: 400;
+    font-size: 0.78rem;
+    color: var(--text-soft);
+}
+
+.ia-mapa-corpo { padding: 0 16px 14px; }
+
+.ia-mapa-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    /* O desenho é um círculo: limitar a altura impede que ele domine a
+       tela em monitor largo e empurre a conversa para fora da dobra. */
+    max-height: 62vh;
+    margin: 0 auto;
+}
+
+/* --- as cordas --- */
+
+.ia-mapa-aresta {
+    transition: stroke-opacity var(--transition-fast), stroke-width var(--transition-fast);
+    cursor: help;
+}
+
+/* Com o mouse num agente, tudo que não é dele recua. Vinte cordas no
+   mesmo círculo são ilegíveis sem isolar uma de cada vez. */
+.ia-mapa-focado .ia-mapa-aresta { stroke-opacity: 0.07; }
+
+.ia-mapa-focado .ia-mapa-aresta-viva {
+    stroke-opacity: 0.95;
+    stroke-width: 4;
+}
+
+/* --- os agentes --- */
+
+.ia-mapa-no { cursor: pointer; }
+.ia-mapa-no circle { transition: stroke-width var(--transition-fast); }
+.ia-mapa-no:hover circle { stroke-width: 4; }
+
+.ia-mapa-nome {
+    fill: var(--text-main, #e7e9ea);
+    font-size: 12px;
+    font-weight: 700;
+    pointer-events: none;
+}
+
+/* --- legenda e nota --- */
+
+.ia-mapa-legenda {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    justify-content: center;
+    margin-top: 6px;
+    font-size: 0.76rem;
+    color: var(--text-soft);
+}
+
+.ia-mapa-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+
+.ia-mapa-legenda i {
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+.ia-mapa-tracejado {
+    background: repeating-linear-gradient(90deg, var(--text-soft) 0 4px, transparent 4px 7px);
+}
+
+.ia-mapa-nota {
+    margin: 10px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--text-soft);
+    text-align: center;
+}
+
+/* ==========================================================================
+   CONTADORES NO MENU (18/09/2026)
+
+   Sobrou do "pulso do Echo", que trazia também um gráfico de barras na
+   barra lateral. O gráfico saiu: barra de navegação não tem largura para
+   eixo, escala nem legenda, e sem isso virava um widget solto no meio do
+   menu. Os contadores ficaram, porque resolvem navegação de verdade.
+   ========================================================================== */
+
+/* --- contadores no próprio menu --- */
+
+.echo-nav-contador {
+    margin-left: auto;
+    min-width: 20px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-align: center;
+    /* Discreto por padrão: "Salvos" é acervo, não pendência. */
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-soft);
+}
+
+/* Pendência de verdade (mensagem não lida, pedido de amizade) pede o
+   vermelho que o olho procura sem precisar ler. */
+.echo-nav-alerta {
+    background: #f4212e;
+    color: #fff;
+}
+
+/* O item de menu precisa virar linha flexível para a bolinha encostar na
+   direita; sem isto ela ficaria colada no texto. */
+.sidebar .nav-link { display: flex; align-items: center; gap: 12px; }
+
+/* --- cartão da direita que se recolhe (18/09/2026) ---
+   Na Rede IA a coluna soma 2194px numa tela de 960. Recolher o que é
+   texto explicativo devolve a rolagem sem tirar a explicação de quem
+   chega novo. */
+
+.right-card-titulo-dobravel {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+}
+
+.right-card-seta {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: var(--text-soft);
+    transition: transform var(--transition-fast);
+}
+
+.right-card-dobrado .right-card-seta { transform: rotate(180deg); }
+
+/* Esconde tudo menos o título. `:not(h5)` em vez de marcar cada filho:
+   o conteúdo destes cartões varia de página para página. */
+.right-card-dobrado > *:not(h5) { display: none; }
+.right-card-dobrado > h5 { margin-bottom: 0; }

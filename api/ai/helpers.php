@@ -342,6 +342,135 @@ const AI_SAFETY_BY_HANDLE = [
 const AI_SAFETY_ABOUT_MARE = 'Se comentar a inconstância da Maré Mansa, trate como traço curioso de personagem: nunca com pena, diagnóstico, preocupação clínica ou tom de que alguém precisa ajudá-la.';
 
 /* ----------------------------------------------------------------------
+   BORDOES DE RUA (18/09/2026)
+
+   Vocabulario dado pelo dono do projeto, mais expressoes do mesmo
+   registro, repartido entre os agentes por AFINIDADE e nao por sorteio:
+   "adeus" na boca da Tia Bet e engracado porque ela fala certo; na boca
+   do toto seria so estranho. Cada lista tem a cara de quem a carrega.
+
+   NAO E CONSTANTE, e isso e o ponto. A lista so entra no prompt em
+   AI_BORDAO_CHANCE das chamadas, e mesmo ai entram DUAS expressoes
+   sorteadas, nao a lista inteira. Duas razoes:
+
+   1. Bordao repetido toda fala vira cacoete, e cacoete cansa mais rapido
+      que fala sem graca nenhuma. E o mesmo motivo de AI_PIADA_NOME_CHANCE
+      ser 8%.
+   2. Mandar a lista inteira faz o modelo tentar encaixar varias de uma
+      vez, e o resultado sai como personagem forcado de novela.
+
+   O sorteio e por CHAMADA, nao por persona: o mesmo agente as vezes
+   recebe, as vezes nao. E o que faz a gente reparar quando aparece.
+   ---------------------------------------------------------------------- */
+
+/** Em quantas falas a lista de bordoes entra no prompt. */
+const AI_BORDAO_CHANCE = 0.3;
+
+/** Quantas expressoes da lista entram de cada vez. */
+const AI_BORDAO_QUANTOS = 2;
+
+const AI_BORDOES_POR_HANDLE = [
+    // Quebrada, desconfiado: trata todo mundo como parceiro e suspeito ao
+    // mesmo tempo.
+    'malboro' => [
+        'salve irmao', 'tamo junto', 'na moral', 'ta ligado', 'pilantra safado',
+        'voce e pilantra', 'sai fora', 'e nois', 'firmeza', 'qual foi',
+        'deixa quieto', 'to fora', 'mermao',
+    ],
+
+    // Carioca direto, fala curta e rapida.
+    'toto' => [
+        'dahora', 'deboa', 'chave', 'ce ta zoando', 'mo comedia', 'marcha marcha',
+        'vou dormir que ganho mais', 'sai fora', 'sussa', 'e mole?', 'caraca',
+        'qual foi', 'fechou', 'to nem ai',
+    ],
+
+    // Baiano, pacificador: a despedida dele e sempre um desejo de paz.
+    'chavilton' => [
+        'fica na paz', 'deboa', 'meu rei', 'visse', 'tudo tranquilo', 'suave',
+        'pega leve', 'se cuida', 'na paz', 'meu consagrado',
+    ],
+
+    // Giria de outra geracao, usada por quem nao reparou que envelheceu.
+    'subarashi' => [
+        'e um barato', 'da hora', 'dias de luta dias de gloria', 'voce e pilantra',
+        'criatura', 'mocinho', 'que isso', 'larga mao', 'ta de brincadeira',
+    ],
+
+    // Direto e engracado: usa bordao pra cortar conversa, nao pra enfeitar.
+    'rasengan' => [
+        'ce ta zoando', 'voce ta chapando', 'mo comedia', 'ta doido', 'que isso',
+        'sei la', 'pô', 'vai nessa',
+    ],
+
+    // Ironico: o bordao dele sempre vem com farpa.
+    'pitoco' => [
+        'pilantra safado', 'ce ta zoando', 'voce ta chapando', 'sai fora',
+        'ta de brincadeira', 'e mole?', 'ta maluco', 'larga mao',
+    ],
+
+    // Luminoso: so os bordoes que desejam bem.
+    'solar' => [
+        'satisfacao te conhecer', 'fica na paz', 'dias de gloria', 'tudo de bom',
+        'tamo junto', 'se cuida', 'joia', 'beleza', 'tamo ai',
+    ],
+
+    // Fala certo, e e isso que a caracteriza: os dela sao os formais. Na
+    // boca de quem so fala certo, "adeus" fecha uma conversa com um peso
+    // que nenhuma giria alcanca.
+    'tia_bet' => [
+        'ate logo', 'adeus', 'enfim', 'pois sim', 'como queira',
+    ],
+
+    // Muda de registro: pode vir o formal ou o pesado, nunca os dois na
+    // mesma fala (ver AI_SAFETY_BY_HANDLE).
+    'mare_mansa' => [
+        'ate logo', 'deboa', 'fica na paz', 'sai fora', 'adeus', 'suave',
+        'qual foi', 'tanto faz',
+    ],
+
+    // Usa como quem nao tem certeza se esta usando certo, e as vezes erra
+    // o encaixe de proposito.
+    'beta' => [
+        'deboa', 'e nois', 'valeu', 'acho que e isso', 'firmeza', 'ta ligado',
+        'sei la',
+    ],
+];
+
+/** Os que servem a qualquer um, pra agente criado por usuario. */
+const AI_BORDOES_GERAIS = [
+    'valeu', 'falou', 'tranquilo', 'suave', 'beleza', 'e nois', 'tamo junto',
+    'qual foi', 'deboa', 'fechou', 'se cuida', 'pega leve',
+];
+
+/**
+ * A instrucao dos bordoes desta fala, ou string vazia.
+ *
+ * Devolve vazio na maioria das chamadas, de proposito: ver o comentario
+ * do bloco acima. Quando entra, entra com DUAS expressoes sorteadas e a
+ * licenca explicita de ignorar, porque bordao encaixado a forca soa pior
+ * do que bordao nenhum.
+ */
+function ai_regra_bordao(array $agente): string
+{
+    if (mt_rand(1, 100) > (int)round(AI_BORDAO_CHANCE * 100)) {
+        return "";
+    }
+
+    $lista = AI_BORDOES_POR_HANDLE[$agente["handle"]] ?? AI_BORDOES_GERAIS;
+
+    if (count($lista) > AI_BORDAO_QUANTOS) {
+        $chaves = array_rand($lista, AI_BORDAO_QUANTOS);
+        $lista  = array_map(fn($k) => $lista[$k], (array)$chaves);
+    }
+
+    return "Nesta fala voce PODE usar uma destas expressoes, se couber "
+        . "natural: " . implode(", ", $lista) . ". Uma so, no seu jeito de "
+        . "falar, com a acentuacao certa. Se nao couber, ignore: expressao "
+        . "encaixada a forca soa pior do que nenhuma.";
+}
+
+/* ----------------------------------------------------------------------
    CLAREZA E HUMOR (docs/plans/personas/clareza-humor-personas-echo.md)
 
    Ajuste em cima da persona: não muda quem o agente é, muda como ele diz.
@@ -1933,6 +2062,14 @@ function ai_system_prompt(array $agente, string $instrucao): string
         $system .= "\n" . AI_GIRIA_POR_HANDLE[$agente["handle"]];
     }
 
+    // Bordões: entram em 30% das falas, com duas expresões sorteadas.
+    // Ver o bloco BORDOES DE RUA para o porquê de não ser sempre.
+    $bordao = ai_regra_bordao($agente);
+
+    if ($bordao !== "") {
+        $system .= "\n" . $bordao;
+    }
+
     $system .= "\n\n" . AI_COMO_ESCREVER;
 
     // Sorteado a cada chamada, e não fixo por persona: a mesma persona às
@@ -1961,6 +2098,82 @@ function ai_system_prompt(array $agente, string $instrucao): string
  * já feita no resto do sistema; trocar por SDK exigiria introduzir
  * Composer só para isto.
  */
+/**
+ * Tira o travessao do meio da fala.
+ *
+ * A instrucao em AI_COMO_ESCREVER ja proibia, e funciona quase sempre:
+ * medido no banco, 27 posts em 2853 escaparam. Quase sempre nao basta,
+ * porque o travessao e justamente o tique que denuncia texto de maquina
+ * -- um por semana na tela ja desfaz o trabalho das outras 2826 falas.
+ *
+ * Instrucao pede; filtro garante. Por isso este passo existe depois da
+ * geracao, e nao no lugar da regra do prompt: a regra continua fazendo o
+ * modelo escrever melhor desde o inicio, e o filtro cobre o resto.
+ *
+ * A TROCA NAO E FIXA, e a razao e que o travessao faz dois papeis
+ * diferentes em portugues:
+ *
+ *   "ninguem ta vindo - ai voce percebe"      -> virgula encaixa
+ *   "Incompleta, mas interessante - ja e mais" -> virgula empilha a
+ *                                                 terceira do periodo
+ *
+ * Quando o trecho anterior ja tem virgula, mais uma vira lista confusa, e
+ * ponto final le melhor. Senao, virgula. Em nenhum dos dois casos sobra
+ * sinal que entregue maquina.
+ */
+function ai_sem_travessao(string $texto): string
+{
+    // Em dash, en dash e o hifen solto entre espacos, que o modelo usa
+    // com o mesmo sentido.
+    $texto = preg_replace('/\s*[\x{2014}\x{2013}]\s*|\s+-\s+/u', "\x01", $texto);
+
+    if (strpos($texto, "\x01") === false) {
+        return $texto;
+    }
+
+    $partes = explode("\x01", $texto);
+    $saida  = array_shift($partes);
+
+    foreach ($partes as $resto) {
+        $resto = ltrim($resto);
+
+        if ($resto === "") {
+            continue;
+        }
+
+        $saida = rtrim($saida);
+
+        /* O trecho anterior JA fecha frase? Entao nao entra pontuacao
+           nenhuma: so o espaco e a maiuscula.
+
+           Isto corrige um defeito que chegou a rodar sobre o banco:
+           `rtrim($saida, " ,;:")` nao remove ponto, entao "Malboro."
+           virava "Malboro.." e "reggae." virava "reggae., ". Aquele
+           rtrim so pode limpar os sinais SUBSTITUIVEIS; ponto,
+           exclamacao, interrogacao e reticencias ja fecham a frase. */
+        if (preg_match('/[.!?\x{2026}]$/u', $saida)) {
+            $saida .= " " . mb_strtoupper(mb_substr($resto, 0, 1)) . mb_substr($resto, 1);
+            continue;
+        }
+
+        // A ultima oracao ja tem virgula? Entao fecha o periodo: mais
+        // uma virgula empilharia a terceira do mesmo periodo.
+        $ultimaFrase = preg_split('/(?<=[.!?])\s+/u', $saida);
+        $temVirgula  = strpos(end($ultimaFrase), ",") !== false;
+
+        if ($temVirgula) {
+            $saida  = rtrim($saida, " ,;:") . ". ";
+            $resto  = mb_strtoupper(mb_substr($resto, 0, 1)) . mb_substr($resto, 1);
+        } else {
+            $saida  = rtrim($saida, " ,;:") . ", ";
+        }
+
+        $saida .= $resto;
+    }
+
+    return $saida;
+}
+
 /**
  * @param int $maxChars Teto do texto devolvido. O padrão é o tamanho de
  *   uma FALA (AI_TEXT_MAX = 500) — bom para post/comentário, curto demais
@@ -2047,6 +2260,13 @@ function ai_chamar_api(string $system, string $contexto, int $maxTokens = 300, ?
 
     // O modelo às vezes devolve a fala entre aspas, apesar da instrução.
     $texto = trim($texto, "\"\u{201C}\u{201D} \n\r\t");
+
+    /* Aqui porque este é o ÚNICO ponto por onde toda geração passa: post,
+       reação, provocação, estreia e lote. Pôr em cada chamador seria cinco
+       lugares para esquecer um. Vale também para a resposta em JSON do
+       lote, porque o travessão só aparece dentro dos valores de texto e
+       não faz parte da sintaxe. */
+    $texto = ai_sem_travessao($texto);
 
     return mb_substr($texto, 0, $maxChars);
 }
@@ -2984,7 +3204,12 @@ function ai_gerar_reacao_real(
  * nasce de texto livre digitado por um humano sem passar por um post
  * antes.
  */
-function ai_gerar_resposta_provocacao(array $agente, string $provocacao, array $respostasAnteriores = []): ?string
+function ai_gerar_resposta_provocacao(
+    array $agente,
+    string $provocacao,
+    array $respostasAnteriores = [],
+    string $memoriaAgente = ''
+): ?string
 {
     if (ai_config() === null) {
         return null;
@@ -3019,6 +3244,18 @@ function ai_gerar_resposta_provocacao(array $agente, string $provocacao, array $
         foreach ($respostasAnteriores as $r) {
             $contexto .= "- " . $r["name"] . ": " . $r["conteudo"] . "\n";
         }
+    }
+
+    /* A MEMÓRIA do elo anterior da cadeia.
+
+       Este era o único caminho de geração sem memória nenhuma, e é
+       justamente o momento em que uma pessoa conversa com a rede: o agente
+       respondia sem lembrar que discordou daquele mesmo colega cinco vezes
+       ontem. Custa ~110 tokens e nenhuma chamada de API a mais. */
+    if ($memoriaAgente !== "") {
+        $contexto .= "
+" . $memoriaAgente . "
+";
     }
 
     $contexto .= "\nEscreva agora a sua resposta.";
@@ -3791,6 +4028,107 @@ function ai_registrar_memoria(
     )->execute([$agentId, $tipo, $alvoAgentId, $alvoUserId, ai_cortar_trecho($conteudo, 280), $postId]);
 }
 
+/* ----------------------------------------------------------------------
+   POSTURA DA FALA (18/09/2026)
+
+   `concordancias` e `discordancias` em ai_memoria_relacoes vinham do
+   `$papel` da fala. So que papel 'concorda' ou 'discorda' e raro: medido
+   em 24h, 32 falas de 2134 (1,5%). Espalhado por 90 pares, nenhum par
+   chegava ao piso de 3 que vira aliado ou rival -- os contadores estavam
+   ZERADOS nos 90, e o que sobrevivia pra sempre de cada relacao era so um
+   numero de encontros, sem opiniao dentro.
+
+   A correcao nao e sortear mais o papel. E ler a POSTURA do texto que o
+   agente realmente escreveu: quem discorda escreve "discordo", "que
+   nada", "ta errado"; quem concorda escreve "e isso", "tem razao",
+   "exato". O papel continua valendo quando ele diz algo; a leitura entra
+   so quando ele nao diz.
+
+   Deliberadamente CONSERVADORA: na duvida devolve neutro. Contador que
+   infla com falso positivo e pior do que contador parado, porque ai a
+   rede ganha rivalidades que ninguem teve.
+   ---------------------------------------------------------------------- */
+
+/** Marcas de quem esta discordando. Vao em minusculas e sem acento. */
+const AI_MARCAS_DISCORDA = [
+    'discordo', 'discordar', 'nao concordo', 'nao e bem', 'nao e isso',
+    'ta errado', 'esta errado', 'errou', 'pelo contrario', 'que nada',
+    'nada a ver', 'duvido', 'nao faz sentido', 'to fora', 'nem vem',
+    'sera mesmo', 'ce ta zoando', 'ta de brincadeira', 'mentira',
+    'nao rola', 'discutivel', 'ta enganado', 'nao procede',
+];
+
+/** Marcas de quem esta concordando. */
+const AI_MARCAS_CONCORDA = [
+    'concordo', 'tem razao', 'ta certo', 'esta certo', 'e isso mesmo',
+    'e isso ai', 'exato', 'exatamente', 'verdade', 'pois e', 'bem lembrado',
+    'boa essa', 'tambem acho', 'assino embaixo', 'e nois', 'fechou',
+    'nao tem o que discutir', 'perfeito', 'acertou',
+];
+
+/**
+ * A postura de uma fala: 'concorda', 'discorda' ou '' (neutro).
+ *
+ * `$papel` tem prioridade porque quando o acervo declara a postura ela e
+ * certa, nao inferida. A leitura do texto e o plano B.
+ */
+function ai_postura_da_fala(string $texto, string $papel = ''): string
+{
+    if ($papel === 'concorda' || $papel === 'discorda') {
+        return $papel;
+    }
+
+    // Sem acento e em minusculas: as falas misturam "razao" e "razao",
+    // "nao" e "nao", e comparar assim evita uma lista com cada variante.
+    $limpo = mb_strtolower($texto, 'UTF-8');
+    $limpo = strtr($limpo, [
+        'a' => 'a', 'a' => 'a', 'a' => 'a', 'e' => 'e', 'e' => 'e',
+        'i' => 'i', 'o' => 'o', 'o' => 'o', 'u' => 'u', 'c' => 'c',
+    ]);
+    $limpo = preg_replace('/[^a-z0-9 ]/u', ' ', ai_sem_acento($limpo));
+    $limpo = ' ' . preg_replace('/\s+/', ' ', $limpo) . ' ';
+
+    $discorda = 0;
+    $concorda = 0;
+
+    foreach (AI_MARCAS_DISCORDA as $m) {
+        if (strpos($limpo, ' ' . $m) !== false) {
+            $discorda++;
+        }
+    }
+
+    foreach (AI_MARCAS_CONCORDA as $m) {
+        if (strpos($limpo, ' ' . $m) !== false) {
+            $concorda++;
+        }
+    }
+
+    // Empate (inclusive 0 a 0) e neutro: a fala que traz as duas marcas
+    // esta ponderando, nao tomando lado.
+    if ($discorda > $concorda) {
+        return 'discorda';
+    }
+
+    if ($concorda > $discorda) {
+        return 'concorda';
+    }
+
+    return '';
+}
+
+/** Tira acento sem depender de intl, que nem toda instalacao XAMPP tem. */
+function ai_sem_acento(string $texto): string
+{
+    return strtr($texto, [
+        "\u{e1}"=>'a',"\u{e0}"=>'a',"\u{e3}"=>'a',"\u{e2}"=>'a',"\u{e4}"=>'a',
+        "\u{e9}"=>'e',"\u{e8}"=>'e',"\u{ea}"=>'e',"\u{eb}"=>'e',
+        "\u{ed}"=>'i',"\u{ec}"=>'i',"\u{ee}"=>'i',"\u{ef}"=>'i',
+        "\u{f3}"=>'o',"\u{f2}"=>'o',"\u{f5}"=>'o',"\u{f4}"=>'o',"\u{f6}"=>'o',
+        "\u{fa}"=>'u',"\u{f9}"=>'u',"\u{fb}"=>'u',"\u{fc}"=>'u',
+        "\u{e7}"=>'c',"\u{f1}"=>'n',
+    ]);
+}
+
 /**
  * Atualiza (ou cria) a linha de relação `$agentId → $alvoAgentId` com
  * mais uma interação. Assimétrica de propósito — ver comentário da
@@ -3803,8 +4141,12 @@ function ai_registrar_interacao_agente(
     string $papel,
     string $resumo
 ): void {
-    $concordou  = $papel === 'concorda' ? 1 : 0;
-    $discordou  = $papel === 'discorda' ? 1 : 0;
+    // A postura sai do papel quando ele diz algo, e do TEXTO quando nao
+    // diz. Ver o bloco POSTURA DA FALA: sem isto os contadores ficavam
+    // zerados nos 90 pares, e a relacao nunca ganhava carater.
+    $postura   = ai_postura_da_fala($resumo, $papel);
+    $concordou = $postura === 'concorda' ? 1 : 0;
+    $discordou = $postura === 'discorda' ? 1 : 0;
     $resumoCurto = ai_cortar_trecho($resumo, 280);
 
     $pdo->prepare(
@@ -3935,7 +4277,7 @@ function ai_atualizar_relacao_organica(PDO $pdo, int $idA, int $idB): void
 function ai_contexto_memoria_agente(PDO $pdo, int $agentId, int $alvoAgentId, string $nomeAlvo): string
 {
     $stmt = $pdo->prepare(
-        "SELECT interacoes, concordancias, discordancias
+        "SELECT interacoes, concordancias, discordancias, resumo
            FROM ai_memoria_relacoes WHERE agent_id = ? AND alvo_agent_id = ?"
     );
     $stmt->execute([$agentId, $alvoAgentId]);
@@ -3945,30 +4287,44 @@ function ai_contexto_memoria_agente(PDO $pdo, int $agentId, int $alvoAgentId, st
         return "";
     }
 
+    /* DUAS CAMADAS, e cada uma faz o que a outra não faz.
+
+       O RESUMO (`resumo`) é permanente: sobrevive à poda e carrega a
+       relação inteira. É o que diz ao agente COM QUEM ele está lidando.
+
+       A MEMÓRIA CRUA é recente e efêmera, e é a única que traz frase
+       inteira. É o que dá a ele O QUE responder agora.
+
+       Antes vinham três memórias cruas e nenhum resumo: detalhe bom, que
+       sumia na poda. Agora vem uma só, e o resumo ocupa o lugar das
+       outras duas por custo parecido (~110 tokens contra 124) e com
+       alcance permanente. */
     $stmt = $pdo->prepare(
         "SELECT conteudo FROM ai_memorias
           WHERE agent_id = ? AND alvo_agent_id = ? AND tipo = 'agente'
-          ORDER BY id DESC LIMIT 3"
+          ORDER BY id DESC LIMIT 1"
     );
     $stmt->execute([$agentId, $alvoAgentId]);
-    $memorias = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $recente = $stmt->fetchColumn();
 
-    $bloco = "O que você lembra de " . $nomeAlvo . ": já interagiram "
-        . (int)$relacao["interacoes"] . " vez(es)";
+    if (!empty($relacao["resumo"])) {
+        $bloco = "O que você lembra de " . $nomeAlvo . ": " . $relacao["resumo"];
+    } else {
+        // Ainda não houve dobra (relação nova, ou a poda ainda não rodou):
+        // cai nos contadores, que existem desde a primeira interação.
+        $bloco = "O que você lembra de " . $nomeAlvo . ": já interagiram "
+            . (int)$relacao["interacoes"] . " vez(es)";
 
-    if ((int)$relacao["concordancias"] > 0 || (int)$relacao["discordancias"] > 0) {
-        $bloco .= " (" . (int)$relacao["concordancias"] . " concordância(s), "
-            . (int)$relacao["discordancias"] . " discordância(s) entre vocês)";
+        if ((int)$relacao["concordancias"] > 0 || (int)$relacao["discordancias"] > 0) {
+            $bloco .= " (" . (int)$relacao["concordancias"] . " concordância(s), "
+                . (int)$relacao["discordancias"] . " discordância(s) entre vocês)";
+        }
+
+        $bloco .= ".";
     }
 
-    $bloco .= ".";
-
-    if ($memorias) {
-        // Mais antiga primeiro: a última já aparece no post-alvo do
-        // prompt, então repeti-la aqui de novo seria redundante — mas
-        // ordem cronológica ajuda o modelo a ver evolução, não só o
-        // último fato solto.
-        $bloco .= " Coisas que ficaram de antes: " . implode(" / ", array_reverse($memorias)) . ".";
+    if ($recente) {
+        $bloco .= " A última coisa dele que te marcou: " . $recente;
     }
 
     return $bloco;
@@ -4086,6 +4442,113 @@ function ai_registrar_memoria_pos_post(
     ai_registrar_mencoes_pos_post($pdo, $agente, $texto, $postId, $alvoAgentId);
 }
 
+/* ----------------------------------------------------------------------
+   A DOBRA (18/09/2026)
+
+   `ai_podar_memorias()` mantinha AI_MEMORIA_MAX_POR_AGENTE (40) memorias
+   por agente e APAGAVA o resto. Com o ritmo medido -- 519 memorias em 24h
+   entre 10 agentes, ~52 por agente por dia -- o teto e alcancado no
+   primeiro dia, e dali em diante tudo que e mais antigo some. O que
+   sobrevivia de cada relacao era um contador de encontros.
+
+   Agora a poda DOBRA antes de apagar: o que vai sair e condensado em
+   `ai_memoria_relacoes.resumo`, que nao tem poda. O agente deixa de
+   lembrar de uma tarde e passa a lembrar da relacao inteira.
+
+   POR REGRA, E NAO PELO MODELO, e a razao e a cota. Uma dobra por modelo
+   custaria uma chamada, e o ritmo pede ~50 dobras por dia contra um teto
+   de 20 chamadas por hora: a memoria competiria com a fala, que e o que
+   aparece na tela. O resumo da rede (`ai_montar_resumo`) ja e montado
+   assim, pelo mesmo motivo.
+
+   O resumo e reescrito inteiro a cada dobra, e nao emendado: emendar faz
+   o texto crescer sem limite e repetir assunto. Reescrever a partir dos
+   contadores, que sao cumulativos, mantem o tamanho estavel e a
+   informacao correta.
+   ---------------------------------------------------------------------- */
+
+/** Quantos assuntos entram no resumo de uma relacao. */
+const AI_DOBRA_ASSUNTOS = 3;
+
+/**
+ * Reescreve o resumo permanente da relacao `$agentId -> $alvoAgentId`.
+ *
+ * Le os contadores (cumulativos, nunca podados) e os assuntos das
+ * memorias que ainda existem. Nunca lanca: dobra que falha nao pode
+ * derrubar a rodada que a disparou.
+ */
+function ai_dobrar_relacao(PDO $pdo, int $agentId, int $alvoAgentId): void
+{
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT r.interacoes, r.concordancias, r.discordancias, a.name
+               FROM ai_memoria_relacoes r
+               JOIN ai_agents a ON a.id = r.alvo_agent_id
+              WHERE r.agent_id = ? AND r.alvo_agent_id = ?"
+        );
+        $stmt->execute([$agentId, $alvoAgentId]);
+        $rel = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rel || (int)$rel["interacoes"] === 0) {
+            return;
+        }
+
+        // Assuntos vem do post de origem de cada memoria. Memoria ja
+        // podada nao aparece aqui, e e justamente por isso que o resumo
+        // precisa ser cumulativo pelos contadores, e nao por contagem de
+        // linhas.
+        $stmt = $pdo->prepare(
+            "SELECT p.topic, COUNT(*) AS n
+               FROM ai_memorias m
+               JOIN ai_posts p ON p.id = m.post_id
+              WHERE m.agent_id = ? AND m.alvo_agent_id = ? AND p.topic <> ''
+              GROUP BY p.topic ORDER BY n DESC LIMIT " . AI_DOBRA_ASSUNTOS
+        );
+        $stmt->execute([$agentId, $alvoAgentId]);
+        $assuntos = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        $nome      = $rel["name"];
+        $inter     = (int)$rel["interacoes"];
+        $concorda  = (int)$rel["concordancias"];
+        $discorda  = (int)$rel["discordancias"];
+
+        $partes = ["Você e $nome já se cruzaram $inter "
+            . ($inter === 1 ? "vez" : "vezes") . "."];
+
+        /* A POSTURA vem antes dos assuntos de proposito: e ela que muda
+           como o agente responde. Saber que discordou seis vezes daquele
+           colega vale mais, na hora de escrever, do que saber sobre o
+           que foi. */
+        if ($concorda > 0 || $discorda > 0) {
+            if ($discorda > $concorda * 2 && $discorda >= 2) {
+                $partes[] = "Vocês quase nunca se acertam ($discorda vez"
+                    . ($discorda === 1 ? "" : "es") . " que você discordou dele).";
+            } elseif ($concorda > $discorda * 2 && $concorda >= 2) {
+                $partes[] = "Vocês costumam se entender ($concorda vez"
+                    . ($concorda === 1 ? "" : "es") . " que você concordou com ele).";
+            } else {
+                $partes[] = "Às vezes você concorda com ele, às vezes não "
+                    . "($concorda x $discorda).";
+            }
+        }
+
+        if ($assuntos) {
+            $partes[] = "Os assuntos que mais os juntaram: "
+                . implode(", ", $assuntos) . ".";
+        }
+
+        $resumo = mb_substr(implode(" ", $partes), 0, 600);
+
+        $pdo->prepare(
+            "UPDATE ai_memoria_relacoes
+                SET resumo = ?, dobradas = ?
+              WHERE agent_id = ? AND alvo_agent_id = ?"
+        )->execute([$resumo, $inter, $agentId, $alvoAgentId]);
+    } catch (Exception $e) {
+        error_log("ai_dobrar_relacao: " . $e->getMessage());
+    }
+}
+
 /** Nº máximo de memórias por agente. Além disso, poda a mais antiga —
  *  sem isto `ai_memorias` cresce pra sempre; nada hoje limita o total,
  *  só o filtro de importância na hora de gravar (que decide SE entra,
@@ -4103,6 +4566,24 @@ const AI_MEMORIA_MAX_POR_AGENTE = 40;
  */
 function ai_podar_memorias(PDO $pdo, int $agentId, int $manterMax = AI_MEMORIA_MAX_POR_AGENTE): void
 {
+    /* DOBRA ANTES DE APAGAR. Sem isto a poda era perda seca: a memoria
+       crua sumia e nada ficava no lugar. Dobra todo par de que este
+       agente tem memoria, porque o resumo e montado a partir dos
+       contadores cumulativos -- e barato, e roda em 4% das rodadas. */
+    try {
+        $alvos = $pdo->prepare(
+            "SELECT DISTINCT alvo_agent_id FROM ai_memoria_relacoes
+              WHERE agent_id = ? AND interacoes > 0"
+        );
+        $alvos->execute([$agentId]);
+
+        foreach ($alvos->fetchAll(PDO::FETCH_COLUMN) as $alvoId) {
+            ai_dobrar_relacao($pdo, $agentId, (int)$alvoId);
+        }
+    } catch (Exception $e) {
+        error_log("ai_podar_memorias (dobra): " . $e->getMessage());
+    }
+
     // LIMIT interpolado, não parâmetro: $manterMax é sempre uma constante
     // interna (nunca entrada de usuário), e o driver deste projeto já
     // tropeça em LIMIT via bind dentro de subconsulta derivada como esta.
