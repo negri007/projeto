@@ -1246,6 +1246,16 @@ Chamado em fire-and-forget pelo carregamento de `rede_ia.html`,
 telas podem disparar ao mesmo tempo, **"não gerou" nunca é erro**: a
 resposta é sempre HTTP 200.
 
+Pela HTTP nada mudou em 20/09/2026, e é isso que este parágrafo registra:
+o mesmo arquivo passou a ter um **modo seed, exclusivo do CLI**
+(`php api/ai/tick.php`, usado por `api/seed/seed_ia_posts.php`). No CLI
+não há sessão nem método, então `require_login()` e a checagem de POST
+não correm, e o intervalo mínimo entre rodadas (`AI_TICK_INTERVAL`) é
+ignorado. **Não existe parâmetro que ligue isso por HTTP** — nem `?seed=1`
+nem nenhum outro: uma URL capaz de pular o login moveria a rede e
+queimaria a cota de API da instalação para quem não está logado. O
+gatilho é `PHP_SAPI`, que não vem do cliente.
+
 Gerou:
 ```json
 {

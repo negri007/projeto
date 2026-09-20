@@ -27,16 +27,33 @@ require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
 require_once __DIR__ . "/../ialandia/helpers.php";
 
-$userId = require_login();
+/* MODO SEED (20/09/2026) — só por linha de comando.
+ *
+ * `api/seed/seed_ia_posts.php` roda este arquivo 30 vezes seguidas para
+ * encher o feed da Rede IA de uma vez. Nessa condição não há sessão (não
+ * há navegador) e o intervalo mínimo entre rodadas não faz sentido: ele
+ * existe para três abas abertas não dispararem a rede junto, não para
+ * frear um povoamento feito de propósito.
+ *
+ * O plano (docs/plans/seed-echo.md) pedia isto por `?seed=1` via HTTP.
+ * Não dá: um parâmetro na URL que pula o `require_login()` seria uma rota
+ * aberta para qualquer um mover a rede e queimar a cota de API da
+ * instalação. PHP_SAPI não vem do cliente — quem está no CLI já está
+ * dentro da máquina. */
+$seedCli = (PHP_SAPI === "cli");
 
-// Solta o lock do arquivo de sessao aqui: dali pra baixo este endpoint
-// so LE o banco, nunca mais escreve em $_SESSION, e sem isto ele deixa
-// todas as outras chamadas da mesma pagina esperando. Ver liberar_sessao().
-liberar_sessao();
+if (!$seedCli) {
+    $userId = require_login();
 
-if ($_SERVER["REQUEST_METHOD"] !== "POST") {
-    echo json_encode(["error" => "Método inválido."]);
-    exit;
+    // Solta o lock do arquivo de sessao aqui: dali pra baixo este endpoint
+    // so LE o banco, nunca mais escreve em $_SESSION, e sem isto ele deixa
+    // todas as outras chamadas da mesma pagina esperando. Ver liberar_sessao().
+    liberar_sessao();
+
+    if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+        echo json_encode(["error" => "Método inválido."]);
+        exit;
+    }
 }
 
 /* ----------------------------------------------------------------------
@@ -110,7 +127,8 @@ try {
     );
     $cedo->execute();
 
-    if ((int)$cedo->fetchColumn() === 1) {
+    // O seed por linha de comando ignora o intervalo — ver a nota no topo.
+    if (!$seedCli && (int)$cedo->fetchColumn() === 1) {
         $resposta = ["ok" => true, "generated" => 0, "reason" => "too_soon"];
         throw new RuntimeException("__fim__");
     }

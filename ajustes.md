@@ -3185,3 +3185,227 @@ leva memória e sugestões junto. `user_agent_memoria` fica de propósito —
 ela veio da atividade real da conta, não do teste.
 
 A API segue **desligada** (`mode = 'acervo'`), como pedido.
+
+---
+
+## 20/09/2026 — acabamento das telas novas (espaço, largura, exemplos, Enter)
+
+Cinco pedidos do dono, todos sobre as telas da última rodada (Criar seu
+Echo, Comércio, perfil da loja, conversa com o agente). Nenhum toca
+back-end: `docs/API_CONTRACT.md` fica como está, porque nenhuma
+assinatura, formato de resposta ou endpoint mudou.
+
+### 1. Campos colados na parede
+
+`.main-col` não tem padding próprio — quem tem é cada bloco dentro dela
+(`.main-header`, `.echo-chips`, `.loja-post`, todos com 16px). As telas
+novas nasceram sem esse recuo: `.echo-passo` era `18px 0`, `.loja-secao`
+e `.loja-chat-*` eram `0`, e o conteúdo encostava na borda da coluna
+enquanto o cabeçalho logo acima respirava.
+
+Virou variável, `--gutter-tela` (22px, 16px no celular), aplicada em
+`.echo-passo`, `.loja-capa`, `.loja-secao`, `.loja-categorias` e nos três
+blocos do chat da loja. Variável e não número repetido porque o recuo tem
+de ser **o mesmo** nas quatro telas e cair de uma vez no celular, onde
+22px de cada lado são 12% de uma tela de 360px.
+
+### 2. Campo e botão largos demais para o que carregam
+
+Um campo "Nome do seu Echo" esticado por 760px promete um texto que o
+campo nem aceita, e "Salvar alterações" em largura total dá à ação o
+mesmo peso visual do feed inteiro.
+
+- `--medida-form: 640px` limita bloco de campo, formulário curto, cartão
+  de status e lista de sugestões.
+- `.echo-campo-medio` (440px) em nome e saudação; `.echo-campo-curto`
+  (300px) em WhatsApp e preço.
+- `.echo-acoes`: linha com traço em cima, botão do tamanho do texto
+  (piso de 200px) e uma frase curta ao lado dizendo o que a ação faz
+  ("Vale a partir da próxima sugestão dele."). No celular o botão volta a
+  ocupar a largura toda — lá não há coluna ao lado para desequilibrar.
+- `w-100` saiu também de "Gerar sugestão de post agora" e "Adicionar
+  produto", que são ações secundárias.
+
+### 3. Exemplos que não somem — o pedido principal
+
+O exemplo de preenchimento estava só no `placeholder`, que some no
+primeiro caractere digitado. Quem trava na metade do texto perde a
+referência justamente quando precisa dela.
+
+Cada campo ganhou uma fila de chips fixa embaixo (`.echo-exemplos`), com
+contorno tracejado para não se confundir com `.echo-chip`, que é filtro.
+Clicar escreve no campo. Duas formas, conforme o tamanho do exemplo:
+
+- campo curto — o chip **é** o exemplo ("Echo do Gabriel");
+- texto longo — o chip é o assunto ("Horário", "Entrega", "Pagamento") e
+  a frase inteira vem em `data-texto`, senão a fila não cabe numa linha.
+
+Clique em textarea já preenchida **acrescenta** numa linha nova, porque
+o campo de instruções é feito de várias frases dessas. Em campo de uma
+linha já preenchido não faz nada além de focar: trocar o que a pessoa
+escreveu por um clique seria perder texto dela.
+
+### 4. Vida nos campos, sem exagero
+
+Ícone no rótulo, risco curto em degradê embaixo do título da tela, fio de
+destaque no topo dos cartões de número, anel de foco nos campos, título
+dentro dos formulários curtos ("Novo produto") e contagem de itens ao
+lado de "Produtos" no perfil da loja.
+
+O contador de caracteres nasce no primeiro foco de textarea com limite e
+morre no blur — aceso o tempo todo em seis campos seria ruído. Ele é
+**absoluto**, na linha do rótulo: em fluxo normal empurrava os exemplos
+para baixo ao aparecer, e o bloco pulava a cada foco. Isso apareceu no
+teste, não no papel.
+
+Em "Publicações" do perfil da loja **não** tem contagem: o feed vem
+paginado e o número seria o da primeira página, não o total.
+
+### 5. Enter envia
+
+`data-enter="#idDoBotao"` no bloco, e um listener delegado no fim de
+`js/echo-ui.js` clica esse botão quando alguém tecla Enter num campo de
+**uma linha** dentro dele (em textarea, Enter é parágrafo). Delegado
+porque os formulários do Echo e da loja são redesenhados por `innerHTML`
+a cada carga, e listener presos ao elemento morrem junto com ele.
+
+Marcados: login, criar conta, recuperar senha, nova senha (`reset.html`),
+Echo Pessoal, Echo da Loja, edição dos dois e o formulário de produto.
+`reset.html` repete o listener inline pelo mesmo motivo que já repetia
+`toggleSenhaVisibilidade`: ela não carrega `js/echo-ui.js`.
+
+### Verificado
+
+`node --check` nos três arquivos de JS. No navegador, com o servidor de
+pé: recuo e larguras nas quatro telas; chips escrevendo no campo (um
+preenchendo, dois acrescentando em linhas novas); contador subindo sem
+empurrar nada; Enter disparando o botão em `meu_echo.html` (parou na
+validação "Dê um nome ao seu Echo.", sem gravar nada), no markup real do
+login (`index.html` lido por `fetch` e montado fora da sessão) e em
+`reset.html?token=...`; e 360px de largura num iframe, com botão em
+largura total e chips quebrando linha.
+
+A edição do agente e a da loja foram desenhadas com estado de mentira
+injetado no `estado` da página — nenhuma conta foi alterada para tirar
+essas fotos.
+
+---
+
+## 20/09/2026 — seed do banco
+
+Executado de `docs/plans/seed-echo.md`. Seis módulos em `api/seed/` mais
+o `seed_completo.php`, todos só CLI. Documentação de uso: o README da
+própria pasta.
+
+### O que ficou no banco
+
+Números do resumo que o próprio seed imprime, nesta máquina:
+
+| | |
+|---|---|
+| usuários de teste | 20 (`@echo.local`, senha `senha123`) |
+| amizades aceitas | 296 linhas (os dois lados de cada amizade) |
+| posts no feed humano | 204 |
+| curtidas / comentários | 1723 / 404 |
+| lojas | 20, cada uma de um dono diferente |
+| produtos no catálogo | 80 |
+| posts no feed de comércio | 100 |
+| agentes pessoais | 20 |
+| memórias dos agentes | 314 |
+| posts no feed da Rede IA | 144 no total da tabela (94 antes do seed) |
+| chamadas de API | **0** |
+
+### Por que zero chamada de API
+
+`api/ai/ai_config.php` não existe nesta instalação — só o `.example`. Sem
+chave, `ai_config_valida()` é falso e todo texto saiu do fallback fixo:
+um banco de frases por área de interesse para os posts de gente, e um
+template por nicho para agente, catálogo e posts de loja. A rede fica
+cheia e navegável; o texto fica mais genérico. Custo: US$ 0,00.
+
+Com chave, a conta muda de um jeito que o plano não previu. Ele estima
+~115 chamadas e "8 a 15 minutos", mas o projeto limita **20 chamadas de
+API por hora** (`AI_TETO_CHAMADAS_HORA`) e o seed respeita esse teto
+parando até a janela virar. 115 chamadas a 18 por hora são **cerca de
+seis horas**, quase todas dormindo. Está escrito no README e avisado na
+primeira linha que o seed imprime quando a chave existe.
+
+O teto vale contra `ai_api_uso`, a mesma tabela que o tick usa, e cada
+chamada do seed é registrada lá por `ai_registrar_chamada_api()` — senão
+o seed furaria por baixo um teto que o resto do sistema acha que está
+respeitando.
+
+### Idempotência, inclusive no que é sorteado
+
+Rodar duas vezes seguidas devolve o mesmo resumo, número por número.
+Parar de duplicar linha é a parte fácil (chave única, contagem antes de
+inserir); a parte que deu trabalho foi o que é sorteado, e ela só
+apareceu porque rodei o seed duas vezes e comparei:
+
+- **Amizades** ganhavam 2 a 6 pontes novas por pessoa a cada execução.
+  Em três ou quatro rodadas, todo mundo seria amigo de todo mundo — e o
+  feed "Amigos" deixaria de ser diferente do "Todos", que é justamente a
+  diferença que as duas abas existem para mostrar. Agora há teto de 12.
+- **Curtidas** sorteavam um alvo novo (2 a 15) toda vez e empurravam
+  todo post para 15. Agora post que já tem curtida não recebe mais.
+- **Comentários** sorteavam 40% dos posts a cada execução, e os 60% que
+  escaparam eram sorteados de novo na seguinte. Agora a escolha é pelo
+  id (`id % 10 < 4`): é sempre o mesmo conjunto.
+- **Rede IA** rodava mais 30 ticks por execução. Agora só roda enquanto
+  o feed tiver menos de 120 posts.
+
+### Três coisas que saíram diferentes do plano
+
+1. **Foto da Pexels não vira URL no banco.** O plano manda gravar a URL
+   direta em `users.avatar` e `posts.image`. O front monta
+   `uploads/${encodeURIComponent(valor)}` (js/echo-ui.js:1299,
+   js/echo-feed.js:182), então a URL viraria
+   `uploads/https%3A%2F%2F...` — imagem quebrada em toda foto do seed. O
+   projeto já tinha decidido isso uma vez, em `ai_buscar_foto_pexels()`:
+   baixa, confere o MIME real, guarda o arquivo. O seed faz igual,
+   gravando em `uploads/`.
+2. **Sem vídeo no feed de comércio.** O plano pede 20% dos posts em
+   vídeo, com `video:<url>` na coluna `imagem`, dizendo que "o front-end
+   detecta e renderiza `<video>`". Ele não detecta — não há nenhuma
+   referência a vídeo em `loja-feed.js`, `loja-perfil.js` ou
+   `echo-feed.js`. Um post em cada cinco sairia com imagem quebrada. Os
+   posts saem com foto ou só texto; religar é um `if` no módulo 4 depois
+   que o `<video>` existir.
+3. **O modo seed do `tick.php` é só CLI.** O plano pedia `?seed=1` por
+   HTTP para pular o intervalo entre rodadas. Um parâmetro de URL que
+   também pula o `require_login()` seria uma rota aberta para qualquer
+   um mover a rede e queimar a cota de API da instalação. O gatilho é
+   `PHP_SAPI`, que não vem do cliente. Registrado no API_CONTRACT: pela
+   HTTP, nada mudou.
+
+Também ajustei a assinatura do que o plano chamava de `seed_ai_chamar()`:
+a `ai_chamar_api()` real é `(system, contexto, maxTokens, timeout,
+maxChars, modelo)`, e ela **corta o texto devolvido em `maxChars`** (500
+por padrão). Com o `max_tokens: 500` que o plano pedia, todo lote de 10
+posts voltaria JSON truncado e cairia no fallback sem ninguém perceber.
+
+### Categorias das lojas
+
+Quatro lojas do plano vinham com categoria que o filtro do Comércio não
+conhece (Pets, Varejo, Presentes, Arte — `js/comercio.js` só tem
+Alimentação, Moda, Tecnologia, Beleza, Serviços, Saúde e Outro). Elas
+sumiriam de qualquer filtro e só apareceriam em "Tudo". O nicho do plano
+ficou inteiro (é ele que guia o texto do agente, dos produtos e dos
+posts) e a coluna `categoria` recebeu a categoria que a interface sabe
+filtrar.
+
+### Verificado
+
+Sintaxe (`php -l`) nos nove arquivos novos e no `tick.php` alterado. Seed
+rodado inteiro, e depois mais duas vezes seguidas para conferir que o
+resumo não muda. Pela API, logado como `lucas@echo.local`:
+`posts/list.php` no escopo de amigos traz posts de gente com contador de
+curtida e comentário; `lojas/feed.php` traz os posts de comércio com
+loja, tipo e preço; `user_agent/status.php` traz o agente com
+personalidade e 14 memórias. No navegador, o Comércio abriu com os cards
+das lojas e o "Lojas em destaque" cheio, e o "Assuntos em alta" do Início
+passou a listar etiquetas vindas dos posts do seed.
+
+**Uma coisa que o seed não conserta**: `api/ai/ai_config.php` continua
+sem existir. Enquanto não existir, nem o seed nem a Rede IA chamam a API
+de verdade — a rede segue no acervo.
