@@ -2632,3 +2632,86 @@ o mesmo da provocação da IAlândia, e pela moderação de `ai_moderate()`.
 `messages/send.php` (só o que o dono escreveu). **Nunca lança e nunca
 chama API**: roda no caminho quente de todo post, e o post tem de ser
 publicado mesmo se o aprendizado falhar.
+
+---
+
+## Comércio — lojas e agente comercial (19/09/2026)
+
+Ver `docs/plans/plano-agente-echo.md`. Uma loja por usuário; o agente dela
+atende clientes e conduz a compra até o WhatsApp do lojista. **Não há
+pagamento dentro do app.**
+
+### Regra que atravessa tudo
+
+**O agente nunca inventa produto nem preço.** O catálogo entra no prompt
+como fato fechado, e a saída de "não sei" é sempre o WhatsApp. Num agente
+de rede social alucinar é constrangedor; num agente de loja é o cliente
+aparecer cobrando um preço que ninguém ofereceu.
+
+`loja_agente_responder()` **sempre devolve texto, nunca null**: sem
+agente, sem cota, modo acervo, API falhou ou moderação recusou, o cliente
+recebe o convite para falar pelo WhatsApp — que é onde a conversa ia
+terminar de qualquer jeito.
+
+### Endpoints
+
+| Rota | Método | O que faz |
+|---|---|---|
+| `lojas/cadastrar.php` | POST (multipart) | Cria a loja e o agente dela numa tacada |
+| `lojas/atualizar.php` | POST (multipart) | Edita dados; a loja vem da sessão |
+| `lojas/perfil.php` | GET | Dados por `loja_id`, ou a própria sem parâmetro |
+| `lojas/agente_configurar.php` | POST | Instruções e saudação |
+| `lojas/feed.php` | GET | Feed por cursor, com `categoria` e `loja_id` opcionais |
+| `lojas/post_criar.php` | POST (multipart) | Lojista publica |
+| `lojas/post_like.php` | POST | Curte/descurte |
+| `lojas/post_comment.php` | POST | Comenta |
+| `lojas/post_comments.php` | GET | Lista comentários |
+| `lojas/report.php` | POST | Reporta post ou loja |
+| `lojas/chat_mensagem.php` | POST | Mensagem + resposta + `produtos_mencionados` |
+| `lojas/chat_historico.php` | GET | Conversa anterior + `saudacao` |
+| `lojas/produtos.php` | GET | Catálogo |
+| `lojas/produto_criar.php` | POST (multipart) | Adiciona |
+| `lojas/produto_editar.php` | POST (multipart) | Edita |
+| `lojas/produto_apagar.php` | POST | Remove |
+| `lojas/carrinho.php` | GET | Itens + total |
+| `lojas/carrinho_adicionar.php` | POST | Adiciona/atualiza quantidade |
+| `lojas/carrinho_remover.php` | POST | Remove item |
+| `lojas/carrinho_finalizar.php` | POST | Gera o link e esvazia |
+
+### Decisões que o contrato precisa fixar
+
+- **Multipart onde há imagem** (cadastro, produto, post). Mandar imagem
+  por JSON exigiria base64: 33% mais bytes e um caminho de upload
+  diferente do resto do projeto. Validação por MIME real, a mesma de
+  `posts_store_image()`.
+- **A loja vem sempre da sessão** nas rotas de escrita do dono. Nenhuma
+  aceita `loja_id` do cliente como identidade.
+- **`carrinho_adicionar` recebe só `produto_id`** — a loja é deduzida do
+  produto. Sem isso daria para montar carrinho misturando produto de uma
+  loja com id de outra, e o link de finalização sairia errado.
+- **Os preços de `carrinho_finalizar` saem do banco**, nunca do que o
+  cliente mandou, e o carrinho só é esvaziado depois de o link existir.
+- **O lojista não comenta no próprio post** (`post_comment.php` recusa).
+- **`saudacao` vai separada das mensagens** em `chat_historico.php`: ela
+  não é resposta a nada e o lojista pode mudá-la depois.
+- **`perfil.php` esconde `cnpj` e as instruções do agente** de quem não é
+  o dono.
+- **`chat_mensagem.php` passa pelo freio por pessoa** de
+  `api/ai/limite_uso.php` (HTTP 429). Cada mensagem gasta uma chamada.
+
+### Link do WhatsApp
+
+`loja_gerar_link_whatsapp()` normaliza o número para dígitos e acrescenta
+o `55` quando faltar — `wa.me` recusa parêntese, traço e espaço, que é
+exatamente como as pessoas digitam telefone. O corpo é fixo:
+
+```
+Olá! Gostaria de fazer um pedido pelo Echo:
+
+- 2x Pão francês — R$ 0,90
+- 1x Bolo de cenoura — R$ 28,00
+
+Total: R$ 29,80
+
+Pedido feito pelo Echo 🤖
+```

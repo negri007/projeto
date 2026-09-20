@@ -1487,6 +1487,164 @@ CALL echo_add_index_if_missing('user_agent_sugestoes', 'idx_uas_pendentes', 'use
 CALL echo_add_index_if_missing('user_agent_sugestoes', 'idx_uas_expiracao', 'status, expires_at');
 
 
+
+-- =====================================================================
+-- COMERCIO: LOJAS E AGENTE COMERCIAL (19/09/2026)
+--
+-- Ver docs/plans/plano-agente-echo.md. Uma loja por usuario, com agente
+-- proprio que atende cliente, catalogo de produtos, feed separado do
+-- humano e carrinho que termina no WhatsApp.
+--
+-- POR QUE FEED SEPARADO, e nao um tipo a mais em `posts`: post de loja
+-- tem preco, tipo (promocao/novidade), produto ligado e dono que e uma
+-- LOJA, nao uma pessoa. Enfiar isso em `posts` obrigaria toda consulta
+-- do feed humano a filtrar comercio, e toda consulta de comercio a
+-- filtrar gente -- em duas telas que ja sao as mais quentes do app.
+--
+-- NAO HA PAGAMENTO AQUI. O carrinho existe para montar a lista e gerar
+-- o link de WhatsApp; a compra acontece fora, entre cliente e lojista.
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS lojas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    -- Uma loja por usuario nesta fase (ver "o que fica de fora" no plano).
+    user_id INT NOT NULL UNIQUE,
+    nome VARCHAR(150) NOT NULL,
+    descricao TEXT,
+    categoria VARCHAR(100),
+    cnpj VARCHAR(18) NULL,
+    telefone VARCHAR(20) NULL,
+    -- Para onde o cliente e levado ao finalizar o pedido.
+    whatsapp VARCHAR(20) NULL,
+    site VARCHAR(255) NULL,
+    logo VARCHAR(255) NULL,
+    banner VARCHAR(255) NULL,
+    ativo TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS loja_agente (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    loja_id INT NOT NULL UNIQUE,
+    -- Tudo que o lojista quer que o agente saiba: produtos, horarios,
+    -- formas de pagamento, politica de troca.
+    instrucoes TEXT,
+    saudacao VARCHAR(500) DEFAULT 'Olá! Como posso ajudar?',
+    modelo ENUM('haiku','sonnet') NOT NULL DEFAULT 'haiku',
+    ativo TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (loja_id) REFERENCES lojas(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS loja_produtos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    loja_id INT NOT NULL,
+    nome VARCHAR(200) NOT NULL,
+    descricao TEXT NULL,
+    preco DECIMAL(10,2) NULL,
+    imagem VARCHAR(255) NULL,
+    disponivel TINYINT NOT NULL DEFAULT 1,
+    ordem INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (loja_id) REFERENCES lojas(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS loja_posts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    loja_id INT NOT NULL,
+    conteudo TEXT NOT NULL,
+    imagem VARCHAR(255) NULL,
+    tipo ENUM('produto','promocao','novidade','info') NOT NULL DEFAULT 'produto',
+    preco DECIMAL(10,2) NULL,
+    produto_id INT NULL,
+    ativo TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (loja_id) REFERENCES lojas(id) ON DELETE CASCADE,
+    -- SET NULL e nao CASCADE: apagar um produto nao pode apagar o post
+    -- que falou dele, que ja tem curtida e comentario de gente.
+    FOREIGN KEY (produto_id) REFERENCES loja_produtos(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS loja_post_likes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    loja_post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_lpl (loja_post_id, user_id),
+    FOREIGN KEY (loja_post_id) REFERENCES loja_posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS loja_post_comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    loja_post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    conteudo TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (loja_post_id) REFERENCES loja_posts(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS loja_reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    -- Um dos dois vem preenchido: report de post ou report de loja.
+    loja_post_id INT NULL,
+    loja_id INT NULL,
+    user_id INT NOT NULL,
+    motivo ENUM('spam','conteudo_inapropriado','produto_falso','golpe','outro') NOT NULL,
+    descricao TEXT NULL,
+    status ENUM('pendente','revisado','resolvido') NOT NULL DEFAULT 'pendente',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- SET NULL: o report sobrevive ao post apagado, que e justamente o
+    -- caso em que alguem vai querer olhar o historico depois.
+    FOREIGN KEY (loja_post_id) REFERENCES loja_posts(id) ON DELETE SET NULL,
+    FOREIGN KEY (loja_id) REFERENCES lojas(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS loja_chats (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    loja_id INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Uma conversa por par: o cliente volta e continua de onde parou.
+    UNIQUE KEY uk_lc (loja_id, user_id),
+    FOREIGN KEY (loja_id) REFERENCES lojas(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS loja_chat_mensagens (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    chat_id INT NOT NULL,
+    role ENUM('user','agent') NOT NULL,
+    conteudo TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (chat_id) REFERENCES loja_chats(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS loja_carrinho (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    loja_id INT NOT NULL,
+    produto_id INT NOT NULL,
+    quantidade INT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_lcar (user_id, loja_id, produto_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (loja_id) REFERENCES lojas(id) ON DELETE CASCADE,
+    FOREIGN KEY (produto_id) REFERENCES loja_produtos(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CALL echo_add_index_if_missing('loja_posts', 'idx_loja_posts_feed', 'ativo, id');
+CALL echo_add_index_if_missing('loja_posts', 'idx_loja_posts_loja', 'loja_id, ativo, id');
+CALL echo_add_index_if_missing('loja_produtos', 'idx_loja_produtos_loja', 'loja_id, disponivel, ordem');
+CALL echo_add_index_if_missing('loja_chat_mensagens', 'idx_lcm_chat', 'chat_id, id');
+CALL echo_add_index_if_missing('lojas', 'idx_lojas_categoria', 'categoria, ativo');
+
+
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_fk_if_missing;
