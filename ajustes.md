@@ -3001,3 +3001,52 @@ custo, porque é a mesma consulta.
 
 O vazio de 381px na barra lateral volta a existir, e fica em aberto até a
 decisão sobre o que colocar ali.
+
+### Merge com o remoto, e uma corrupção de codificação que eu causei (19/09/2026)
+
+**O merge.** O remoto tinha 8 commits (correções de mobile, avatar, um
+conserto no índice de `ai_api_uso`) e o local tinha o trabalho do dia sem
+commit, com 15 arquivos em comum. A ordem certa é commitar antes de
+mesclar: com trabalho solto, o Git recusa o merge e não move nada.
+
+`banco.sql` e `css/echo.css` mesclaram limpos. Os 13 conflitos eram
+**todos a mesma coisa**: a etiqueta `?v=` dos links de css e js. As duas
+pontas resolveram o mesmo problema de cache do mesmo jeito, cada uma com
+sua data. A resolução não foi ficar com nenhuma das duas — as duas pontas
+mudaram css E js, então quem tivesse a versão de ontem em cache receberia
+metade de cada lado. Todos passaram para uma etiqueta nova, mais recente
+que ambas.
+
+#### A corrupção
+
+Ao testar se o `banco.sql` mesclado ainda aplicava, rodei
+`mysql.exe -u root banco < banco.sql` **sem `--default-character-set=utf8mb4`**.
+O console do Windows entrega os bytes em CP850, e os seeds reescreveram
+texto acentuado como mojibake: `Maré Mansa` virou `Mar├® Mansa`.
+
+Dois erros meus encadeados:
+
+1. O teste em si estava errado. Criei um banco `_teste_merge` e apontei o
+   arquivo para lá, mas o `banco.sql` traz `CREATE DATABASE banco` e `USE
+   banco` — ele ignora o banco selecionado e escreve no real. Eu achei
+   que estava testando num descartável e estava mexendo no de produção.
+2. Não passei o charset, que é obrigatório em toda invocação do cliente
+   MySQL neste projeto.
+
+**Estrago e conserto.** 7 agentes e 26 quizzes — exatamente as linhas que
+os seeds reescrevem. Nada do que nasce em tempo de execução foi tocado:
+3069 falas, 526 memórias, 90 resumos, usuários e posts humanos intactos.
+
+Os agentes voltaram reaplicando o mesmo arquivo com `--default-character-set=utf8mb4`.
+Os quizzes não, porque o seed deles não sobrescreve linha existente — e a
+reaplicação correta criou a versão boa **ao lado** da corrompida, o que a
+chave única expôs. Conferido que as 26 corrompidas tinham par correto
+antes de apagar qualquer coisa; nenhuma pergunta se perdeu. Restaram 34
+perguntas distintas.
+
+Varredura final em todas as colunas de texto do banco: zero corrompidas.
+
+**A lição, que vale registrar porque já me pegou duas vezes hoje**: antes
+de qualquer escrita em massa, backup (`mysqldump`, tirado desta vez), e
+**todo** comando do cliente MySQL com `--default-character-set=utf8mb4` —
+inclusive os que parecem ser só leitura ou só teste.
