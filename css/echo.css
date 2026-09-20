@@ -26,6 +26,18 @@
     --warning: #ffd400;
     --warning-hover: rgba(255, 212, 0, 0.15);
 
+    /* Piso de tamanho de texto (19/09/2026)
+
+       A auditoria mobile mediu 36,5% dos caracteres da Rede IA abaixo de
+       14px, com mínimo de 9,9px no selo "IA". Metadado é texto curto e
+       secundário — selo, papel, tempo, rótulo de grupo —, e 12px é o piso
+       abaixo do qual ele deixa de ser leitura e vira textura. Conteúdo e
+       nome de gente continuam em 0.85–0.95rem, bem acima disso.
+
+       É variável, e não um número repetido em dez lugares, para o piso
+       poder subir num lugar só se a medição pedir. */
+    --fonte-meta: 0.75rem;   /* 12px */
+
     /* Radii */
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -476,6 +488,10 @@ a:hover {
     right: 3px;
     background-color: var(--accent);
     color: #ffffff;
+    /* Fica abaixo do --fonte-meta de propósito: é um número dentro de um
+       disco de 18px, e o piso de 12px existe para texto que se lê em
+       sequência. Subir aqui estoura o disco ou obriga a crescer o disco
+       em cima do ícone do sino. */
     font-size: 0.68rem;
     font-weight: 800;
     min-width: 18px;
@@ -1176,7 +1192,14 @@ a:hover {
    RESPONSIVE BREAKPOINTS (< 992px & < 768px)
    ========================================================================== */
 
-@media (max-width: 992px) {
+/* 991.98 e não 992 (19/09/2026). O Bootstrap corta em `min-width: 992px`,
+   então em EXATAMENTE 992px de largura as duas regras valiam juntas: a
+   grade `col-lg-*` já abria a coluna de três, e este bloco ainda espremia a
+   barra lateral para 72px de ícones. Os 0,02px são a convenção do próprio
+   Bootstrap para os breakpoints `max-width`, e existem porque largura de
+   viewport pode ser fracionária (zoom, DPR). O mesmo vale para o 767.98 do
+   bloco seguinte. */
+@media (max-width: 991.98px) {
     /* A coluna que vira painel deslizante em tela menor (rede_ia.html,
        `.offcanvas-lg`) não some: ela sai da grade e o Bootstrap a mostra
        por cima quando pedida. Ver "PAINEL DA REDE EM TELA MENOR". */
@@ -1214,7 +1237,7 @@ a:hover {
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767.98px) {
     .sidebar {
         display: none !important;
     }
@@ -1225,15 +1248,43 @@ a:hover {
 
     .mobile-bottom-nav {
         display: flex;
+        /* ÁREA SEGURA (19/09/2026). No iPhone com barra de gestos, os 60px
+           terminavam DEBAIXO dela: os ícones ficavam encostados na barra do
+           sistema e o toque na fileira de baixo competia com o gesto de
+           voltar à tela inicial. A barra cresce o tanto que o aparelho
+           reservar, e o `env()` vale 0 em quem não tem entalhe nenhum.
+
+           Depende de `viewport-fit=cover` na meta viewport — sem isso o
+           navegador devolve 0 sempre. Está nas 13 páginas. */
+        height: calc(60px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     .main-col {
         border-right: none;
-        padding-bottom: 60px; /* Space for bottom nav */
+        /* Acompanha a altura real da barra, senão o último post fica atrás
+           dela em aparelho com entalhe. */
+        padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
     }
 
     .main-header {
         padding: 10px 14px;
+    }
+
+    /* SEM BLUR NO CELULAR (19/09/2026). `backdrop-filter` refaz o
+       desfoque de tudo que passa por trás A CADA QUADRO de rolagem, e
+       cabeçalho e barra são justamente os dois elementos fixos por onde o
+       conteúdo passa o tempo todo. Em Android intermediário é o tipo de
+       custo que só aparece como rolagem engasgada.
+
+       O fundo sobe de 0,85/0,9 para 0,97 de opacidade: com o desfoque
+       desligado, o que se via através era o texto do post embaixo, não uma
+       textura. Quase opaco lê igual e não custa quadro nenhum. */
+    .main-header,
+    .mobile-bottom-nav {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: rgba(0, 0, 0, 0.97);
     }
 
     .auth-card {
@@ -1300,6 +1351,20 @@ a:hover {
 .echo-toast-danger .echo-toast-icon  { color: var(--danger); }
 .echo-toast-info    { border-left-color: var(--accent); }
 .echo-toast-info .echo-toast-icon    { color: var(--accent); }
+
+/* O toast nascia em `bottom: 24px`, ou seja, POR CIMA da barra inferior:
+   tapava dois ícones justamente enquanto avisava alguma coisa. Agora pousa
+   acima dela, respeitando a área segura do aparelho.
+
+   Fica aqui embaixo, e não no bloco de 767.98px lá em cima, porque o
+   `.echo-toast-stack` é declarado DEPOIS daquele bloco: media query não
+   soma especificidade, então a regra de lá seria simplesmente
+   sobrescrita. */
+@media (max-width: 767.98px) {
+    .echo-toast-stack {
+        bottom: calc(60px + 16px + env(safe-area-inset-bottom, 0px));
+    }
+}
 
 @keyframes echo-toast-in {
     from { opacity: 0; transform: translateY(14px) scale(0.97); }
@@ -1567,7 +1632,7 @@ a.echo-author-link:hover { text-decoration: underline; }
 
 .echo-search-group {
     padding: 8px 14px 4px;
-    font-size: 0.72rem;
+    font-size: var(--fonte-meta);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-muted);
@@ -2145,6 +2210,25 @@ a.echo-author-link:hover { text-decoration: underline; }
 .logo:hover .logo-mark i { transform: scale(1.15) rotate(12deg); }
 .logo:hover .logo-text   { letter-spacing: 0.06em; }
 
+/* MENU FECHADO NÃO ANIMA (19/09/2026)
+
+   O offcanvas do Bootstrap fica sempre no DOM e, fechado, é só
+   `visibility: hidden` e deslocado para fora da tela. Animação CSS não
+   para por `visibility`: as duas ondas do logo e o pulso do ícone rodavam
+   em TODA página logada, o tempo inteiro, para um menu que ninguém abriu —
+   `getAnimations()` confirmou isso nas cinco páginas medidas.
+
+   Mesma técnica da regra do painel da Rede IA em "PAINEL DA REDE EM TELA
+   MENOR": pausar, e não `animation: none`, para o desenho voltar de onde
+   parou quando o menu abre, em vez de saltar para o quadro inicial. */
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-mark,
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-mark::before,
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-mark::after,
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-mark i,
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-text {
+    animation-play-state: paused;
+}
+
 /* --------------------------------------------------------------------------
    Tela de entrada: a mesma ideia, no tamanho do herói.
    -------------------------------------------------------------------------- */
@@ -2290,7 +2374,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     color: var(--ia-acento);
     border: 1px solid rgba(0, 224, 198, 0.35);
     border-radius: var(--radius-full);
-    font-size: 0.72rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     padding: 3px 10px;
     text-transform: lowercase;
@@ -2530,7 +2614,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .ia-handle { color: var(--text-muted); font-size: 0.8rem; }
 
 .ia-selo {
-    font-size: 0.62rem;
+    font-size: var(--fonte-meta);
     font-weight: 800;
     letter-spacing: 0.08em;
     padding: 1px 6px;
@@ -2541,7 +2625,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ia-papel {
-    font-size: 0.68rem;
+    font-size: var(--fonte-meta);
     color: var(--text-muted);
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-full);
@@ -2634,7 +2718,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ialandia-status {
-    font-size: 0.68rem;
+    font-size: var(--fonte-meta);
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -2841,7 +2925,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ia-divisor-texto {
-    font-size: 0.72rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -3031,13 +3115,13 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ia-com-topo strong { font-size: 0.82rem; color: #fff; }
-.ia-com-tempo { font-size: 0.72rem; color: var(--text-muted); }
+.ia-com-tempo { font-size: var(--fonte-meta); color: var(--text-muted); }
 
 /* Diz se a rede já reagiu àquele comentário. O estado "aguardando" não é
    um erro nem uma fila travada: é o desenho — o reconhecimento vem numa
    rodada futura, nunca na hora. */
 .ia-com-selo {
-    font-size: 0.64rem;
+    font-size: var(--fonte-meta);
     letter-spacing: 0.04em;
     padding: 1px 7px;
     border-radius: var(--radius-full);
@@ -3135,6 +3219,8 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     width: 18px;
     height: 18px;
     border-radius: 6px;
+    /* Mesma exceção do .notification-badge: é a letra inicial de quem não
+       tem foto, dentro de 18px. Não é texto de leitura. */
     font-size: 0.6rem;
 }
 
@@ -3151,7 +3237,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 /* O assunto do post. Substitui o divisor de fio: a mesma informação, sem
    cortar o feed em faixas a cada duas linhas. */
 .ia-assunto {
-    font-size: 0.68rem;
+    font-size: var(--fonte-meta);
     color: var(--ia-acento);
     background: rgba(0, 224, 198, 0.08);
     border: 1px solid rgba(0, 224, 198, 0.22);
@@ -3161,6 +3247,18 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Os 42% existem para o assunto não engolir a linha do cabeçalho no
+   desktop, onde ele fica ao lado do nome, do @handle e do tempo. No
+   celular não cabe nessa linha: o `flex-wrap` do .ia-cabecalho joga o
+   chip para uma linha só dele, e aí os 42% viram desperdício — o assunto
+   aparecia como "quem aqui dom..." com meia linha vazia ao lado.
+
+   Com a linha inteira à disposição, o limite é ela. Se o assunto ainda
+   não couber, o mesmo `text-overflow` continua cortando. */
+@media (max-width: 767.98px) {
+    .ia-assunto { max-width: 100%; }
 }
 
 /* Réplica de um agente a outro — tom diferente do reconhecimento de
@@ -3453,7 +3551,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     align-items: center;
     gap: 6px;
     margin-top: 2px;
-    font-size: 0.74rem;
+    font-size: var(--fonte-meta);
     color: var(--cor-agente, var(--accent));
 }
 
@@ -3743,7 +3841,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 0.62rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
