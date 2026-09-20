@@ -2,10 +2,18 @@
 
 **Data:** 19/09/2026 · **Branch:** `feature/ia-agentes`
 **Base da comparação:** commit `f2522e9`, o estado auditado em `relatorio.md`
-**Estado avaliado:** árvore de trabalho, com `css/echo.css` e `rede_ia.html`
-modificados e ainda não commitados.
 
-**Escopo do diff:** só dois arquivos foram tocados.
+Este documento é o registro vivo das 21 correções priorizadas: o corpo,
+item a item, é a verificação da **1ª rodada**; os itens que a **2ª rodada**
+fechou trazem uma nota em citação logo abaixo do título, com o que mudou e
+o que foi medido. O Placar sempre reflete o estado atual.
+
+| Rodada | Commit | O que entrou |
+|---|---|---|
+| 1ª | `b97cace` | `css/echo.css`, `rede_ia.html` e o `?v=` das 13 páginas — os 5 ALTOS |
+| 2ª | `e4e906a` | `css/echo.css`, `assets/favicon.svg` e o `<head>` das 13 páginas — 7 baratos de CSS |
+
+O escopo da 1ª rodada foi de dois arquivos:
 
 ```
  css/echo.css | 368 ++++++++++++++++++++++++++++++-----------
@@ -13,35 +21,59 @@ modificados e ainda não commitados.
  2 files changed, 420 insertions(+), 76 deletions(-)
 ```
 
-Isso já define o alcance da rodada: **tudo que a lista original apontava em
+Isso define o alcance dela: **tudo que a lista original apontava em
 `js/echo-bit.js`, `js/echo-ui.js`, `js/echo-feed.js`, `inicio.html`,
-`explorar.html`, `index.html`, no banco e nos assets continua como estava.**
-Nenhum desses arquivos aparece no `git status`.
+`explorar.html`, `index.html`, no banco e nos assets continuou como
+estava** — e continua depois da 2ª, que também não tocou nenhum deles.
 
 ---
 
 ## Placar
 
+Duas rodadas de correção até agora. A **1ª** (commit `b97cace`) fechou os
+ALTOS; a **2ª** (commit `e4e906a`, mesmo dia) varreu os baratos de CSS.
+
 | Veredito | Itens | Total |
 |---|---|---|
-| **RESOLVIDO** | 1, 2, 3, 4, 5, 7, 14 | **7** |
-| **PARCIALMENTE RESOLVIDO** | 6, 16, 18 | **3** |
-| **PENDENTE** | 8, 9, 10, 11, 12, 13, 15, 17, 19, 20, 21 | **11** |
+| **RESOLVIDO** | 1, 2, 3, 4, 5, 7, 14 *(1ª rodada)* · 9, 10, 15, 18, 19, 20, 21 *(2ª)* | **14** |
+| **PARCIALMENTE RESOLVIDO** | 6, 16 | **2** |
+| **PENDENTE** | 8, 11, 12, 13, 17 | **5** |
 
 Por severidade, que é a leitura que interessa:
 
 | Severidade | Resolvido | Parcial | Pendente |
 |---|---|---|---|
 | **ALTO** (1–6) | 5 | 1 | 0 |
-| MÉDIO (7–14) | 2 | 0 | 6 |
-| BAIXO (15–21) | 0 | 2 | 5 |
+| MÉDIO (7–14) | 4 | 0 | 4 |
+| BAIXO (15–21) | 5 | 1 | 1 |
 
 **Os cinco problemas ALTOS que quebravam uso — barra cortada, menu com o
 "Sair" atrás dela, Rede IA sem metade das funções no celular, polling para um
 painel invisível e animação infinita de `color` por post — estão fechados.**
-O sexto ALTO (long task / CLS) teve as causas atacadas, mas não foi remedido.
-O que sobrou é quase todo MÉDIO/BAIXO e mora nos arquivos que esta rodada não
-tocou.
+O sexto ALTO (long task / CLS) teve as causas atacadas, mas **não foi
+remedido**, e essa medição é o que falta para fechar o item com número.
+
+Os 5 pendentes restantes moram todos em arquivos que nenhuma das duas
+rodadas tocou: `js/echo-bit.js`, `js/echo-ui.js`, `js/echo-feed.js`,
+`inicio.html`, `explorar.html`, `index.html`, o banco e os assets.
+
+### O que a 2ª rodada mediu
+
+Chrome headless a 360×800, DPR 2, com `--fonte-meta` como sentinela de que
+o `echo.css` já tinha sido aplicado antes de cada sonda — sem isso a fila
+de um worker só do `php -S` faz a medição pegar a página ainda sem CSS.
+
+| Item | Antes | Depois |
+|---|---|---|
+| 10 | mínimo 9,9px; 36,5% dos caracteres < 14px | **zero elementos < 12px** na tela; selo e assunto em 12px |
+| 9 | `blur(12px)` no cabeçalho e na barra | `none` abaixo de 768px, fundo em 0,97 de opacidade |
+| 18 | a 768 e a 992, os dois regimes valendo juntos | uma largura, um regime; nenhuma fronteira em conflito |
+| 15 | 7 animações do logo rodando com o menu fechado | as 7 em `paused`; voltam a `running` ao abrir |
+| 19 | toast em `bottom: 24px`, por cima da barra | base em 724 contra topo da barra em 740: 16px de folga |
+| 21 | `favicon.ico` 404 em toda página | `<link rel="icon">` nas 13 páginas, nenhuma mensagem no console |
+
+Nenhuma largura testada (767, 768, 991, 992, 1200) tem overflow horizontal,
+em nenhuma das duas páginas medidas.
 
 ---
 
@@ -236,13 +268,30 @@ chamadas do Início (`hashtags/trending`, `circles/list`, `profile/get`,
 `ai/feed` com repetição de 45 s, `friends/suggestions`) e as 2 do Explorar
 continuam saindo no celular para alimentar uma coluna `display:none`.
 
-### 9 — `backdrop-filter: blur(12px)` no cabeçalho fixo e na barra inferior · **PENDENTE**
+### 9 — `backdrop-filter: blur(12px)` no cabeçalho fixo e na barra inferior · **RESOLVIDO** (2ª rodada)
+
+> **19/09, `e4e906a`:** abaixo de 768px os dois vão para `backdrop-filter: none`
+> com o fundo em `rgba(0,0,0,.97)`. Medido a 360×800: `backdropFilter` computa
+> `none` no cabeçalho e na barra. Do `md` para cima o blur continua.
+
+O que estava pendente na 1ª rodada:
 
 `css/echo.css:357-358` (barra inferior) e `:408-409` (cabeçalho) seguem com
 `blur(12px)` e sem nenhuma regra abaixo de 768 px que o desligue. A única
 alteração na barra inferior foi de layout e `z-index`.
 
-### 10 — Legibilidade: textos de 9,9–13,6 px · **PENDENTE**
+### 10 — Legibilidade: textos de 9,9–13,6 px · **RESOLVIDO** (2ª rodada)
+
+> **19/09, `e4e906a`:** piso declarado em `--fonte-meta: 0.75rem` (12px) no
+> `:root`, aplicado em 11 seletores. Selo 9,92 → **12px**, assunto 10,88 →
+> **12px**, badge "observando" 11,52 → **12px**. Varredura da tela da Rede IA:
+> **zero elementos com texto abaixo de 12px**, sem overflow horizontal.
+> Conteúdo e nomes já passavam (`.ia-texto` em 15,2px) e não foram tocados.
+> Duas exceções documentadas no código: contador do sino e letra inicial de
+> avatar, caractere solto em disco de 18px. Junto foi o `max-width` do chip
+> de assunto, que com a fonte maior truncava cedo demais numa linha vazia.
+
+O que estava pendente na 1ª rodada:
 
 Nenhum dos seletores citados mudou: `.ia-selo` continua em `0.62rem`
 (≈ 9,9 px, `:2533`), `.ia-handle` em `0.8rem` (`:2530`), `.ia-tempo` em
@@ -304,7 +353,14 @@ gira igual. Visualmente confirmada em
 `pos_correcao/grupo2/rede_ia_375x812_painel_agentes.png` (anel roxo no card
 "Os agentes") e no desktop.
 
-### 15 — Animações infinitas invisíveis no offcanvas fechado (logo) · **PENDENTE**
+### 15 — Animações infinitas invisíveis no offcanvas fechado (logo) · **RESOLVIDO** (2ª rodada)
+
+> **19/09, `e4e906a`:** `animation-play-state: paused` em
+> `.offcanvas:not(.show):not(.showing):not(.hiding)`, o mesmo molde do painel
+> da Rede IA que já existia. Medido com `getAnimations()`: menu fechado, as 7
+> animações do logo em `paused`; abrindo, voltam a `running`.
+
+O que estava pendente na 1ª rodada:
 
 O item era sobre o `.logo-mark` do menu lateral móvel: `echo-onda` ×2 e
 `echo-pulsa-icone` rodando com o menu fechado, porque o Bootstrap usa
@@ -334,19 +390,42 @@ nada disso está no diff.
 
 `js/echo-feed.js` não está no diff.
 
-### 18 — Breakpoints desencontrados com o Bootstrap · **PARCIALMENTE RESOLVIDO**
+### 18 — Breakpoints desencontrados com o Bootstrap · **RESOLVIDO** (2ª rodada)
+
+> **19/09, `e4e906a`:** os dois blocos antigos viraram `991.98px` e `767.98px`.
+> Conferido com `matchMedia` nos dois lados de cada fronteira, em duas
+> páginas: a 768 a barra lateral vira coluna de 72px e a barra inferior some;
+> a 992 a lateral volta a 165px com rótulos e a coluna direita abre. Nenhuma
+> largura com os dois regimes valendo juntos, nenhuma com overflow.
+
+O que estava pendente na 1ª rodada:
 
 O bloco novo do painel usa o valor certo: `@media (max-width: 991.98px)`
 (`css/echo.css:4229`). Os blocos antigos seguem em `max-width: 992px`
 (`:1179`) e `max-width: 768px` (`:1217`), então em exatamente 768 e 992 px as
 duas regras continuam valendo juntas.
 
-### 19 — Toasts por cima da barra inferior no celular · **PENDENTE**
+### 19 — Toasts por cima da barra inferior no celular · **RESOLVIDO** (2ª rodada)
+
+> **19/09, `e4e906a`:** `bottom: calc(60px + 16px + env(safe-area-inset-bottom))`
+> abaixo de 768px. Medido a 360×800: base do toast em 724, topo da barra em
+> 740, **16px de folga**. A regra ficou junto da declaração do toast, e não no
+> bloco de 767.98px lá em cima, porque `.echo-toast-stack` é declarado depois
+> dele e media query não soma especificidade.
+
+O que estava pendente na 1ª rodada:
 
 `.echo-toast-stack` continua em `bottom: 24px` (`css/echo.css:1252`), sem
 regra para telas pequenas.
 
-### 20 — Barra inferior sem `env(safe-area-inset-bottom)` · **PENDENTE**
+### 20 — Barra inferior sem `env(safe-area-inset-bottom)` · **RESOLVIDO** (2ª rodada)
+
+> **19/09, `e4e906a`:** `height: calc(60px + env(safe-area-inset-bottom))` e
+> `padding-bottom` na barra; o `padding-bottom` da `.main-col` acompanha, senão
+> o último post fica atrás dela. `viewport-fit=cover` entrou na meta viewport
+> das 13 páginas, sem o qual o `env()` devolve 0 sempre.
+
+O que estava pendente na 1ª rodada:
 
 A `.mobile-bottom-nav` segue com `height: 60px` e sem `padding-bottom` de área
 segura. As duas ocorrências novas de `env(safe-area-inset-bottom)` no diff
@@ -355,7 +434,15 @@ item 2) e no painel deslizante (`:4241`, item 3). E o `<meta name="viewport">`
 continua sem `viewport-fit=cover`, que é pré-requisito para o `env()` valer
 alguma coisa.
 
-### 21 — `favicon.ico` 404 · **PENDENTE**
+### 21 — `favicon.ico` 404 · **RESOLVIDO** (2ª rodada)
+
+> **19/09, `e4e906a`:** `assets/favicon.svg` novo, a marca da barra lateral
+> redesenhada em SVG, com `<link rel="icon">` nas 13 páginas. É o link
+> declarado que mata o 404: o navegador só pede `/favicon.ico` sozinho quando
+> a página não declara ícone nenhum. Conferido: nenhuma mensagem de favicon no
+> console.
+
+O que estava pendente na 1ª rodada:
 
 Nenhum `<link rel="icon">` em nenhum `.html`, e não há favicon na raiz.
 
@@ -397,18 +484,22 @@ Três coisas que valem registro, nenhuma delas um defeito encontrado:
 
 ---
 
-## O que não foi verificado nesta rodada
+## O que ainda não foi verificado
 
-- **Medição de performance.** Não há long task, TBT, CLS, FPS nem console na
-  `pos_correcao/`. Sem isso, o item 6 fica sem número e o efeito real das
-  correções 5, 7 e 14 na thread principal é dedução a partir do código, não
-  medida. **É a próxima coisa a fazer:** repetir a etapa 2 do `relatorio.md`
-  (Puppeteer, CPU 4×, as três viewports) e comparar contra a tabela de lá.
-- **Console e rede pós-correção.** Os 9–10 erros por carga da Rede IA (500 +
-  404 dos avatares) não foram recontados.
-- **O painel deslizante em uso real.** Foi capturado aberto nos três cartões,
-  mas não houve teste de envio de provocação nem de criação de agente pelo
-  painel no celular.
+- **Medição de performance — o que falta para fechar o item 6.** Nenhuma das
+  duas rodadas mediu long task, TBT, CLS ou FPS. Sem isso o item 6 fica sem
+  número, e o efeito real das correções 5, 7, 9 e 14 na thread principal é
+  dedução a partir do código, não medida. **É a próxima coisa a fazer:**
+  repetir a etapa 2 do `relatorio.md` (CPU 4×, as três viewports) e comparar
+  contra a tabela de lá.
+- **Console e rede pós-correção.** A 2ª rodada viu **um** erro de console na
+  Rede IA a 360×800, o 500 do `provocacoes.php`. Os 404 dos avatares `_gen2`
+  não apareceram nessa carga, mas a conversa capturada não trazia agente
+  `_gen2` nenhum — não é prova de que sumiram, e o item 11 continua aberto.
+- **O painel deslizante em uso real.** Foi capturado aberto nos três cartões
+  e continua abrindo depois da mudança de breakpoint (medido: `left: 0`,
+  360px de largura), mas não houve teste de envio de provocação nem de
+  criação de agente pelo painel no celular.
 - **Regressão no desktop além do topo.** Há uma captura
   (`rede_ia_1366x900_desktop_topo.png`) e ela está correta, mas cobre só a
   primeira tela.
