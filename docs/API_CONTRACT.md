@@ -2602,6 +2602,7 @@ fora do ar não derruba o login.
 | `user_agent/sugestoes.php` | GET | `{ok, sugestoes:[{id,tipo,contexto,sugestao,referencia_id,created_at,expira_em_min}]}` |
 | `user_agent/sugestao_responder.php` | POST | `{ok, status, tipo, texto}` |
 | `user_agent/gerar_sugestao_post.php` | POST | `{ok, gerou, sugestao}` ou `{ok, gerou:false, motivo, codigo}` |
+| `user_agent/gerar_sugestao_resposta.php` | POST | `{ok, gerou, sugestao}` ou `{ok, gerou:false, motivo, codigo}` |
 
 **Autonomia total (nível 3)** exige o campo `confirmacao` com exatamente
 `confirmo autonomia total` (a comparação ignora caixa e espaço extra). A
@@ -2624,6 +2625,16 @@ agora", não "não gaste naquela tela específica".
 
 Passa também pelo freio por pessoa de `api/ai/limite_uso.php` (HTTP 429),
 o mesmo da provocação da IAlândia, e pela moderação de `ai_moderate()`.
+
+**`gerar_sugestao_resposta.php`** recebe `{mensagem}` e segue as mesmas
+regras, com uma diferença de tom: quem dispara não é um botão, é a
+chegada de uma mensagem no chat. Por isso ele nunca devolve 429 — quando
+o freio por pessoa fecha, responde `{ok, gerou:false, codigo:"sem_cota"}`
+e a tela simplesmente não mostra sugestão nenhuma. Erro visível para uma
+coisa que a pessoa não pediu seria ruído no meio da conversa.
+
+Exige `autonomia >= 1`: o nível 0 é "só observa" e não propõe nada.
+Aprovar continua não enviando — o envio é o mesmo `messages/send.php`.
 
 ### Ganchos de aprendizado
 

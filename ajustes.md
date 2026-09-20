@@ -3050,3 +3050,138 @@ Varredura final em todas as colunas de texto do banco: zero corrompidas.
 de qualquer escrita em massa, backup (`mysqldump`, tirado desta vez), e
 **todo** comando do cliente MySQL com `--default-character-set=utf8mb4` —
 inclusive os que parecem ser só leitura ou só teste.
+
+### O Echo de cada um, e o Echo de cada loja (20/09/2026)
+
+Implementação de `docs/plans/plano-agente-echo.md` na branch
+`feature/agente-echo`, em três partes. É a maior adição desde o upgrade:
+13 tabelas, 26 endpoints, 4 páginas novas.
+
+A ideia que atravessa as três é a mesma: **o agente propõe, a pessoa
+dispõe.** Nenhuma das telas novas publica, envia ou fecha nada sozinha.
+
+#### Parte 1 — o agente pessoal
+
+Cada pessoa passa a ter um Echo que aprende o jeito dela e sugere o que
+publicar e o que responder. Tabelas `user_agents`, `user_agent_memoria` e
+`user_agent_sugestoes`; endpoints em `api/user_agent/`.
+
+**O aprendizado não custa API.** Foi a primeira pergunta do dono do
+projeto, e a resposta é que `user_agent_registrar_acao()` só escreve
+linha: ela é chamada de `posts/create.php`, `comments/create.php`,
+`posts/like.php` (só na curtida nova) e `messages/send.php` (só o que o
+dono escreveu), e **nunca lança exceção nem chama modelo nenhum**. Roda
+no caminho quente de todo post do site; o post tem de ser publicado mesmo
+que o aprendizado quebre. API só é gasta quando alguém pede uma sugestão.
+
+**Autonomia em quatro níveis** (0 só observa, 1 sugere, 2 sugere e
+rascunha, 3 age sozinho). O nível 3 exige digitar `confirmo autonomia
+total`, e a conferência é **no servidor**: validação que mora só no
+JavaScript é decoração, e o que está em jogo é um agente agindo em nome
+de alguém sem ninguém ler antes.
+
+**Aprovar uma sugestão não publica.** Marca como aprovada e devolve o
+texto; quem publica é a tela, pelo mesmo `posts/create.php` que a pessoa
+usaria escrevendo à mão. Um caminho só para um post nascer, uma moderação
+só, um gancho de notificação só, um lugar só para quebrar.
+
+#### Parte 2 — o agente comercial
+
+Uma loja por usuário, com catálogo, feed próprio e um agente que atende.
+10 tabelas `loja*`, 20 endpoints em `api/lojas/`, páginas `comercio.html`,
+`loja_perfil.html` e `loja_chat.html`.
+
+**Não existe pagamento dentro do app.** O carrinho é montado aqui e o
+pedido sai pronto no WhatsApp do lojista, com itens e total. O Echo não
+toca em dinheiro — era o ponto de partida do plano e continua sendo o
+limite do módulo.
+
+**`loja_agente_responder()` nunca devolve `null`.** Quando não sabe, não
+inventa e não cala: entrega o WhatsApp. Um chat de loja que fica mudo faz
+a pessoa fechar a aba; um que chuta preço faz o lojista perder a venda no
+balcão. O fallback é a resposta, não o tratamento de erro.
+
+**O carrinho é servidor + tela, e a divisão importa.** Quantidade e total
+são recalculados em JS para o `+`/`−` responder na hora, mas quem monta o
+pedido é `carrinho_finalizar.php`, com os preços lidos do banco. A tela é
+rápida; o servidor é a verdade.
+
+#### Parte 3 — as telas
+
+`meu_echo.html` (criar e configurar o próprio Echo, ver as sugestões
+pendentes), `comercio.html`, `loja_perfil.html`, `loja_chat.html`, mais
+duas integrações nas telas que já existiam.
+
+**No `chat.html`**, quando chega mensagem de outra pessoa e o dono tem
+autonomia ≥ 1, o Echo propõe uma resposta em cinza embaixo do campo, com
+"Usar essa resposta" e "Ignorar". *Usar* escreve no campo e para por aí —
+o envio continua sendo o mesmo botão de sempre. Um agente que manda
+mensagem em nome de alguém sem ninguém ler antes não é assistente, é
+ventriloquismo.
+
+Três cuidados que o código carrega por escrito, porque não são óbvios
+olhando a tela:
+
+- **A sugestão é pedida uma vez por mensagem**, não uma por ciclo do
+  poller. O chat recarrega de 3 em 3 segundos; sem o `Map` de "já pedi
+  para esta mensagem nesta conversa", cada mensagem recebida viraria 20
+  chamadas por minuto.
+- **Resposta atrasada é descartada.** A chamada demora, e nesse tempo a
+  pessoa pode ter trocado de conversa ou começado a escrever a resposta
+  dela. Sugestão que chega na conversa errada é pior do que sugestão
+  nenhuma.
+- **"Não deu" não vira erro na tela.** Modo acervo, sem cota, sem
+  memória: a caixa simplesmente não aparece. Toast de erro para uma coisa
+  que a pessoa não pediu seria ruído no meio de uma conversa com gente de
+  verdade — e é por isso que `gerar_sugestao_resposta.php` é o único
+  endpoint do módulo que não devolve 429 quando o freio por pessoa fecha.
+
+**No `inicio.html`**, um cartão discreto no topo da coluna da direita,
+com três estados: sem agente vira convite, com sugestão pendente vira
+botão, em dia vira uma linha com memórias e nível de autonomia. Ele é o
+primeiro da coluna porque é o único cartão dali que às vezes **pede uma
+decisão**; os outros só informam. Título "Seu agente", e não "Seu Echo",
+porque esse nome já é do cartão dos números da conta, logo abaixo — dois
+títulos iguais um em cima do outro viram um só na leitura.
+
+#### Um furo que se repetiu, e a regra que ficou
+
+`ai_generation_state.mode` nasceu como freio das rodadas automáticas da
+Rede IA. Os dois endpoints novos que gastam API passaram por cima dele:
+com o seletor em **só acervo**, `gerar_sugestao_post.php` chamou a API
+assim mesmo, e `gerar_sugestao_resposta.php` teria feito o mesmo.
+
+A regra que fica: **quem põe o seletor em "só acervo" está dizendo "não
+gaste API agora", não "não gaste naquela tela específica"**. Todo caminho
+novo que chama modelo confere `ai_estado($pdo)["mode"]` antes. Um botão
+de desligar que não desliga tudo é pegadinha.
+
+#### Verificado, e o que não deu para verificar
+
+Sintaxe conferida em todos os 26 endpoints (`php -l`) e nos 6 arquivos de
+JS (`node --check`). Os cinco estados do cartão do Início foram exercidos
+no navegador com `fetch` trocado por dublê — inclusive singular e plural
+("1 sugestão esperando" / "3 sugestões esperando") e o sumiço do cartão
+quando a chamada falha. O corte por modo foi exercido direto no helper:
+com o modo em acervo, devolve `modo_acervo` e **não gasta chamada**.
+
+**O que ficou sem teste de ponta a ponta**: as telas logadas. Não tenho
+como entrar na conta para percorrer o fluxo real de criar o Echo,
+cadastrar produto e conversar com o agente da loja. Isso precisa de uma
+passada à mão.
+
+**Dado de teste deixado para trás**: o agente do usuário 1 está
+configurado como "Echo da Alice", autonomia 3, personalidade "Fala curto,
+direto, usa gíria." — foi eu testando. Para limpar:
+
+```sql
+DELETE FROM user_agents         WHERE user_id = 1;
+DELETE FROM user_agent_sugestoes WHERE user_id = 1;
+```
+
+Duas linhas, e não uma: as FKs das tabelas do agente apontam para
+`users(id)`, não para `user_agents`, então apagar a configuração **não**
+leva memória e sugestões junto. `user_agent_memoria` fica de propósito —
+ela veio da atividade real da conta, não do teste.
+
+A API segue **desligada** (`mode = 'acervo'`), como pedido.

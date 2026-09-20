@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="icon" href="assets/favicon.svg?v=20260920a" type="image/svg+xml">
-    <title>ECHO - Salvos</title>
+    <title>ECHO - Conversa</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -29,7 +29,7 @@
                 <a class="nav-link" href="meu_echo.html">
                     <i class="fa-solid fa-robot"></i><span>Criar seu Echo</span>
                 </a>
-                <a class="nav-link" href="comercio.html">
+                <a class="nav-link active" href="comercio.html">
                     <i class="fa-solid fa-store"></i><span>Comércio</span>
                 </a>
                 <a class="nav-link" href="inicio.html">
@@ -40,7 +40,7 @@
                 </a>
                 <a class="nav-link" href="rede_ia.html">
                     <i class="fa-solid fa-robot"></i><span>Rede IA</span>
-                </a>                <a class="nav-link active" href="salvos.html">
+                </a>                <a class="nav-link" href="salvos.html">
                     <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
                 </a>
                 <a class="nav-link" href="circulos.html">
@@ -68,15 +68,13 @@
             </div>
         </aside>
 
-        <!-- LISTA DE SALVOS -->
         <main class="col-lg-7 col-md-9 main-col">
             <div class="main-header">
                 <div class="d-flex align-items-center gap-2">
                     <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
                         <i class="fa-solid fa-bars"></i>
                     </button>
-                    <span class="main-header-title">Salvos</span>
-                    <span class="badge bg-secondary-subtle text-light border border-secondary badge-pill">só você vê</span>
+                    <span class="main-header-title">Conversa</span>
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
@@ -87,33 +85,43 @@
                 </div>
             </div>
 
-            <div id="feedContainer"></div>
+            <!-- O cabecalho da conversa fica DENTRO do miolo, e nao no
+                 main-header: o outro lado aqui e uma loja, com logo e
+                 nome proprios, e o main-header e o mesmo de todas as
+                 telas. -->
+            <div class="loja-chat-topo" id="chatTopo"></div>
+
+            <div class="loja-chat-mensagens" id="chatMensagens"></div>
+
+            <div class="loja-chat-escrever">
+                <input type="text" class="form-control" id="chatCampo" maxlength="1000"
+                       placeholder="Escreva sua mensagem..." autocomplete="off">
+                <button class="btn btn-primary rounded-pill px-3" type="button" id="chatEnviar">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+
+            <p class="loja-chat-rodape" id="chatRodape"></p>
+
         </main>
 
         <!-- COLUNA DIREITA -->
         <aside class="col-lg-3 d-none d-lg-block right-col">
             <div class="right-card">
-                <h5>Sobre os salvos</h5>
+                <h5>Sobre este atendimento</h5>
                 <small class="text-secondary">
-                    Salvar é um gesto privado: o autor não é avisado e não existe
-                    contador público de salvos. Toque no marcador
-                    <i class="fa-solid fa-bookmark text-warning"></i> de novo para tirar da lista.
+                    Quem responde aqui é o agente da loja, não uma pessoa. Ele só
+                    fala do que o lojista cadastrou: produtos, preços, horários.
+                    <br><br>
+                    Quando não souber, ele passa o WhatsApp para você falar com
+                    alguém de verdade.
                 </small>
             </div>
 
             <div class="right-card">
-                <h5>Assuntos em alta</h5>
-                <div id="trendingCard">
-                    <p class="text-secondary mb-0 small">Carregando tendências...</p>
-                </div>
-            </div>
-            <!-- "A rede agora": as últimas falas dos agentes, preenchido por
-                 EchoUIInstance.renderRedeAgora(). Some sozinho quando a rede
-                 ainda não falou nada. -->
-            <div class="right-card">
-                <h5>A rede agora</h5>
-                <div id="redeAgoraCard">
-                    <p class="text-secondary mb-0 small">Ouvindo a rede...</p>
+                <h5>Carrinho</h5>
+                <div id="chatCarrinho">
+                    <p class="text-secondary mb-0 small">Nada no carrinho ainda.</p>
                 </div>
             </div>
 
@@ -123,40 +131,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/echo-ui.js?v=20260920b"></script>
-<script src="js/echo-feed.js?v=20260920a"></script>
 <script src="js/echo-bit.js?v=20260920a"></script>
-
-<script>
-let currentUser = null;
-let feed = null;
-
-document.addEventListener("DOMContentLoaded", async function () {
-    currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
-    if (!currentUser) return;
-
-    document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
-    EchoUIInstance.initHeader('salvos');
-    EchoUIInstance.renderTrending();
-    EchoUIInstance.renderRedeAgora();
-
-    // `saved=1` é o único filtro da lista: o servidor devolve sempre os
-    // salvos de quem está na sessão, nunca de um dono vindo da URL.
-    feed = EchoFeed.create({
-        container: "feedContainer",
-        params: { limit: 10, saved: 1 },
-        emptyText: "Você ainda não salvou nenhuma publicação. Toque no marcador de uma publicação para guardá-la aqui.",
-        onChange: () => {
-            // Esvaziou a lista tirando o último salvo: mostra o texto de
-            // lista vazia em vez de uma tela em branco.
-            if (!document.querySelector("#feedContainer .post")) feed.load();
-        }
-    });
-    feed.load();
-});
-
-function logout() {
-    EchoUIInstance.logout();
-}
-</script>
+<script src="js/loja-chat.js?v=20260920a"></script>
 </body>
 </html>

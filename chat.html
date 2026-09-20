@@ -105,6 +105,42 @@
             gap: 10px;
             background: var(--bg-card-alt);
         }
+
+        /* SUGESTAO DO ECHO
+
+           Cinza de proposito. Ela divide a tela com as mensagens de uma
+           pessoa de verdade, e se tivesse a cor de uma bolha competiria
+           com elas. O contorno tracejado diz "isto ainda nao foi dito". */
+        .echo-sugestao-chat {
+            padding: 12px 16px 14px;
+            border-top: 1px dashed var(--border-soft);
+            background: var(--bg-card-alt);
+        }
+
+        .echo-sugestao-chat-topo {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+            font-size: var(--fonte-meta);
+            color: var(--text-soft);
+        }
+
+        .echo-sugestao-chat-texto {
+            margin: 0 0 8px;
+            padding: 10px 14px;
+            border: 1px dashed var(--border-hover);
+            border-radius: var(--radius-lg);
+            background: var(--bg-card);
+            color: var(--text-soft);
+            word-break: break-word;
+        }
+
+        .echo-sugestao-chat-acoes {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
@@ -121,6 +157,8 @@
 
             <nav class="nav flex-column mb-3">
                 <a class="nav-link" href="explorar.html"><i class="fa-solid fa-magnifying-glass"></i><span>Explorar</span></a>
+                <a class="nav-link" href="meu_echo.html"><i class="fa-solid fa-robot"></i><span>Criar seu Echo</span></a>
+                <a class="nav-link" href="comercio.html"><i class="fa-solid fa-store"></i><span>Comércio</span></a>
                 <a class="nav-link" href="inicio.html"><i class="fa-solid fa-house"></i><span>Início</span></a>
                 <a class="nav-link" href="perfil.html"><i class="fa-solid fa-user"></i><span>Perfil</span></a>
                 <a class="nav-link" href="rede_ia.html">
@@ -183,6 +221,25 @@
                             <i class="fa-solid fa-paper-plane me-1"></i>Enviar
                         </button>
                     </div>
+
+                    <!-- Sugestao do Echo da pessoa. Fica ABAIXO do campo,
+                         nunca dentro dele: texto que aparece sozinho no
+                         campo e texto que a pessoa pode mandar sem ler. -->
+                    <div class="echo-sugestao-chat" id="sugestaoChat" hidden>
+                        <div class="echo-sugestao-chat-topo">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>Seu Echo sugere</span>
+                        </div>
+                        <p class="echo-sugestao-chat-texto" id="sugestaoChatTexto"></p>
+                        <div class="echo-sugestao-chat-acoes">
+                            <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" id="sugestaoChatUsar">
+                                Usar essa resposta
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link text-secondary" id="sugestaoChatIgnorar">
+                                Ignorar
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
@@ -190,7 +247,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="js/echo-ui.js?v=20260920a"></script>
+<script src="js/echo-ui.js?v=20260920b"></script>
 <script src="js/echo-bit.js?v=20260920a"></script>
 
 <script>
@@ -205,6 +262,16 @@ let lastMessageId = 0;
 // Recarrega a lista lateral de tempos em tempos para o badge de nao
 // lidas acompanhar mensagem que chega enquanto a tela esta aberta.
 let intervalConversas = null;
+
+/* SUGESTAO DE RESPOSTA DO ECHO DA PESSOA.
+   `echoAutonomia` vem de status.php uma vez so: nivel 0 e "so observa" e
+   nao sugere nada, entao nem vale pedir. `sugestaoPedida` guarda, por
+   conversa, o id da ultima mensagem que ja gerou pedido -- sem isso o
+   poller de 3s pediria de novo a cada ciclo para a mesma mensagem. */
+let echoAutonomia = 0;
+let sugestaoAtual = null;
+let pedindoSugestao = false;
+const sugestaoPedida = new Map();
 
 document.addEventListener("DOMContentLoaded", async function () {
     // Checagem de autenticação via sessão PHP (GET /api/auth/me.php)
@@ -226,6 +293,17 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     intervalConversas = setInterval(loadFriends, 15000);
+
+    carregarEcho();
+
+    document.getElementById("sugestaoChatUsar").addEventListener("click", usarSugestao);
+    document.getElementById("sugestaoChatIgnorar").addEventListener("click", () => responderSugestao("rejeitar"));
+
+    // Quem comecou a escrever a propria resposta nao precisa mais da
+    // sugestao, e assim "Usar" nunca apaga texto digitado.
+    document.getElementById("msgInput").addEventListener("input", function () {
+        if (this.value.trim() !== "") limparSugestao();
+    });
 });
 
 function logout() {
@@ -302,6 +380,7 @@ function atualizarTituloNaoLidas(total) {
 function openChat(friendId, name) {
     currentFriendId = Number(friendId);
     lastMessageId = 0;
+    limparSugestao();
     document.getElementById("chatTitle").textContent = name || "Conversa";
     document.getElementById("messagesBox").innerHTML = "";
 
@@ -374,6 +453,15 @@ async function loadMessages() {
 
         if (grudadoNoFim) box.scrollTop = box.scrollHeight;
 
+        // A sugestao so faz sentido para a ULTIMA fala, e so se ela for
+        // do outro lado: sugerir resposta para o que eu mesmo escrevi
+        // seria o agente conversando sozinho.
+        const ultima = messages[messages.length - 1];
+
+        if (Number(ultima.user_id) !== Number(currentUser.id)) {
+            pedirSugestao(Number(ultima.id), ultima.body);
+        }
+
         // Mensagem nova de outra conversa tambem precisa aparecer na
         // lista lateral, nao so na conversa aberta.
         loadFriends();
@@ -405,12 +493,126 @@ async function sendMessage() {
         }
 
         input.value = "";
+        // Respondi com as minhas palavras: a sugestao virou passado.
+        limparSugestao();
         loadMessages();
     } catch (e) {
         EchoUIInstance.toastError("Erro ao enviar mensagem. Tente novamente.");
     } finally {
         btn.disabled = false;
         input.focus();
+    }
+}
+
+/* ======================================================================
+   SUGESTAO DE RESPOSTA DO ECHO DA PESSOA
+
+   Ela NUNCA e enviada sozinha. Aparece embaixo do campo, em cinza, com
+   duas saidas explicitas -- e "Usar essa resposta" so escreve no campo,
+   deixando o envio no mesmo botao de sempre. Um agente que manda
+   mensagem em nome de alguem sem ninguem ler antes nao e assistente, e
+   ventriloquismo.
+   ====================================================================== */
+
+async function carregarEcho() {
+    try {
+        const res  = await fetch("api/user_agent/status.php", { credentials: "same-origin" });
+        const data = await res.json();
+
+        if (data.ok && data.existe && data.agente.ativo) {
+            echoAutonomia = Number(data.agente.autonomia) || 0;
+        }
+    } catch (e) {
+        // Sem Echo a tela e exatamente a de antes. Falhar calado aqui e
+        // o certo: isto e um extra, nao o chat.
+    }
+}
+
+async function pedirSugestao(mensagemId, texto) {
+    // Nivel 0 e "so observa". Nao gasta chamada nem ocupa a tela.
+    if (echoAutonomia < 1 || pedindoSugestao || !currentFriendId) return;
+    if (sugestaoPedida.get(currentFriendId) === mensagemId) return;
+
+    sugestaoPedida.set(currentFriendId, mensagemId);
+    pedindoSugestao = true;
+
+    const conversa = currentFriendId;
+
+    try {
+        const res = await fetch("api/user_agent/gerar_sugestao_resposta.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ mensagem: texto })
+        });
+        const data = await res.json();
+
+        /* A chamada demora, e nesse tempo a pessoa pode ter trocado de
+           conversa ou comecado a escrever. Sugestao que chega atrasada
+           na conversa errada e pior do que sugestao nenhuma. */
+        if (conversa !== currentFriendId) return;
+        if (document.getElementById("msgInput").value.trim() !== "") return;
+
+        // "Nao gerou" e estado normal: modo acervo, sem cota, sem
+        // memoria. Nada na tela, nenhum toast.
+        if (!data.ok || !data.gerou) return;
+
+        mostrarSugestao(data.sugestao);
+    } catch (e) {
+        // idem: extra que falhou nao vira erro visivel.
+    } finally {
+        pedindoSugestao = false;
+    }
+}
+
+function mostrarSugestao(sugestao) {
+    sugestaoAtual = sugestao;
+
+    document.getElementById("sugestaoChatTexto").textContent = sugestao.sugestao;
+    document.getElementById("sugestaoChat").hidden = false;
+}
+
+function limparSugestao() {
+    sugestaoAtual = null;
+    document.getElementById("sugestaoChat").hidden = true;
+    document.getElementById("sugestaoChatTexto").textContent = "";
+}
+
+function usarSugestao() {
+    if (!sugestaoAtual) return;
+
+    const input = document.getElementById("msgInput");
+
+    input.value = sugestaoAtual.sugestao;
+    input.focus();
+
+    /* O cursor vai para o fim porque o proximo gesto natural e ajustar a
+       frase, nao reescreve-la do zero. */
+    input.setSelectionRange(input.value.length, input.value.length);
+
+    responderSugestao("aprovar");
+}
+
+/* Aprovar ou rejeitar tira a sugestao da fila de pendentes do Echo. Sem
+   isso ela continuaria aparecendo na aba "Meu Echo" depois de ja ter
+   sido usada aqui. */
+async function responderSugestao(acao) {
+    const id = sugestaoAtual?.id;
+
+    limparSugestao();
+
+    if (!id) return;
+
+    try {
+        await fetch("api/user_agent/sugestao_responder.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ sugestao_id: id, acao: acao })
+        });
+    } catch (e) {
+        // A sugestao expira sozinha em 24h; perder este registro nao
+        // quebra nada.
     }
 }
 </script>

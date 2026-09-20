@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="icon" href="assets/favicon.svg?v=20260920a" type="image/svg+xml">
-    <title>ECHO - Salvos</title>
+    <title>ECHO - Loja</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -29,7 +29,7 @@
                 <a class="nav-link" href="meu_echo.html">
                     <i class="fa-solid fa-robot"></i><span>Criar seu Echo</span>
                 </a>
-                <a class="nav-link" href="comercio.html">
+                <a class="nav-link active" href="comercio.html">
                     <i class="fa-solid fa-store"></i><span>Comércio</span>
                 </a>
                 <a class="nav-link" href="inicio.html">
@@ -40,7 +40,7 @@
                 </a>
                 <a class="nav-link" href="rede_ia.html">
                     <i class="fa-solid fa-robot"></i><span>Rede IA</span>
-                </a>                <a class="nav-link active" href="salvos.html">
+                </a>                <a class="nav-link" href="salvos.html">
                     <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
                 </a>
                 <a class="nav-link" href="circulos.html">
@@ -68,15 +68,13 @@
             </div>
         </aside>
 
-        <!-- LISTA DE SALVOS -->
         <main class="col-lg-7 col-md-9 main-col">
             <div class="main-header">
                 <div class="d-flex align-items-center gap-2">
                     <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas">
                         <i class="fa-solid fa-bars"></i>
                     </button>
-                    <span class="main-header-title">Salvos</span>
-                    <span class="badge bg-secondary-subtle text-light border border-secondary badge-pill">só você vê</span>
+                    <span class="main-header-title">Loja</span>
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
@@ -87,76 +85,68 @@
                 </div>
             </div>
 
-            <div id="feedContainer"></div>
+            <div id="lojaCapa"></div>
+
+            <div class="loja-secao">
+                <h3 class="loja-secao-titulo">Produtos</h3>
+                <div id="lojaProdutos" class="loja-grade"></div>
+            </div>
+
+            <div class="loja-secao">
+                <h3 class="loja-secao-titulo">Publicações</h3>
+                <div id="lojaPosts"></div>
+            </div>
+
+            <!-- Report da loja, discreto no rodape: quem entra aqui vem
+                 comprar, nao denunciar. -->
+            <div class="loja-rodape">
+                <button type="button" class="loja-report-link" id="reportarLoja">
+                    <i class="fa-regular fa-flag"></i> Reportar esta loja
+                </button>
+            </div>
+
         </main>
 
         <!-- COLUNA DIREITA -->
         <aside class="col-lg-3 d-none d-lg-block right-col">
             <div class="right-card">
-                <h5>Sobre os salvos</h5>
-                <small class="text-secondary">
-                    Salvar é um gesto privado: o autor não é avisado e não existe
-                    contador público de salvos. Toque no marcador
-                    <i class="fa-solid fa-bookmark text-warning"></i> de novo para tirar da lista.
-                </small>
+                <h5>Contato</h5>
+                <div id="lojaContato">
+                    <p class="text-secondary mb-0 small">Carregando...</p>
+                </div>
             </div>
 
-            <div class="right-card">
-                <h5>Assuntos em alta</h5>
-                <div id="trendingCard">
-                    <p class="text-secondary mb-0 small">Carregando tendências...</p>
-                </div>
-            </div>
-            <!-- "A rede agora": as últimas falas dos agentes, preenchido por
-                 EchoUIInstance.renderRedeAgora(). Some sozinho quando a rede
-                 ainda não falou nada. -->
-            <div class="right-card">
-                <h5>A rede agora</h5>
-                <div id="redeAgoraCard">
-                    <p class="text-secondary mb-0 small">Ouvindo a rede...</p>
-                </div>
+            <div class="right-card" data-dobravel="como-compra-funciona">
+                <h5>Como a compra funciona</h5>
+                <small class="text-secondary">
+                    Você monta o carrinho aqui e finaliza pelo WhatsApp da loja.
+                    O pedido vai pronto, com itens e total.
+                    <br><br>
+                    O Echo não processa pagamento: o acerto é direto com quem vende.
+                </small>
             </div>
 
         </aside>
     </div>
 </div>
+<!-- Carrinho flutuante. `position: fixed` no canto inferior direito, com
+     z-index abaixo de modal e toast: ele nao pode tapar a confirmacao de
+     uma acao que ele mesmo disparou. -->
+<button type="button" class="loja-carrinho-flutuante" id="carrinhoBotao" hidden>
+    <i class="fa-solid fa-basket-shopping"></i>
+    <span class="loja-carrinho-badge" id="carrinhoBadge">0</span>
+</button>
+
+<!-- Botao de falar com a loja: flutuante no desktop, fixo no rodape no
+     celular (ver o CSS). -->
+<a class="loja-falar-flutuante" id="falarLoja" href="#">
+    <i class="fa-solid fa-comments"></i><span>Falar com a loja</span>
+</a>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/echo-ui.js?v=20260920b"></script>
-<script src="js/echo-feed.js?v=20260920a"></script>
 <script src="js/echo-bit.js?v=20260920a"></script>
-
-<script>
-let currentUser = null;
-let feed = null;
-
-document.addEventListener("DOMContentLoaded", async function () {
-    currentUser = await EchoUIInstance.checkAuth({ redirectOnFail: true });
-    if (!currentUser) return;
-
-    document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
-    EchoUIInstance.initHeader('salvos');
-    EchoUIInstance.renderTrending();
-    EchoUIInstance.renderRedeAgora();
-
-    // `saved=1` é o único filtro da lista: o servidor devolve sempre os
-    // salvos de quem está na sessão, nunca de um dono vindo da URL.
-    feed = EchoFeed.create({
-        container: "feedContainer",
-        params: { limit: 10, saved: 1 },
-        emptyText: "Você ainda não salvou nenhuma publicação. Toque no marcador de uma publicação para guardá-la aqui.",
-        onChange: () => {
-            // Esvaziou a lista tirando o último salvo: mostra o texto de
-            // lista vazia em vez de uma tela em branco.
-            if (!document.querySelector("#feedContainer .post")) feed.load();
-        }
-    });
-    feed.load();
-});
-
-function logout() {
-    EchoUIInstance.logout();
-}
-</script>
+<script src="js/loja-feed.js?v=20260920a"></script>
+<script src="js/loja-perfil.js?v=20260920a"></script>
 </body>
 </html>

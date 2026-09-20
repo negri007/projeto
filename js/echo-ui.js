@@ -580,6 +580,12 @@ class EchoUI {
                         <a class="nav-link ${activePage === 'inicio' ? 'active' : ''}" href="inicio.html">
                             <i class="fa-solid fa-house"></i><span>Início</span>
                         </a>
+                        <a class="nav-link ${activePage === 'meu_echo' ? 'active' : ''}" href="meu_echo.html">
+                            <i class="fa-solid fa-robot"></i><span>Criar seu Echo</span>
+                        </a>
+                        <a class="nav-link ${activePage === 'comercio' ? 'active' : ''}" href="comercio.html">
+                            <i class="fa-solid fa-store"></i><span>Comércio</span>
+                        </a>
                         <a class="nav-link ${activePage === 'perfil' ? 'active' : ''}" href="perfil.html">
                             <i class="fa-solid fa-user"></i><span>Perfil</span>
                         </a>
@@ -2019,6 +2025,80 @@ class EchoUI {
                     <small>${Number(n) === 1 ? um : muitos}</small>
                 </div>
             `).join("") + `</div>`;
+        } catch (e) {
+            this.esconderCartaoVazio(box);
+        }
+    }
+
+    /**
+     * "Seu agente": o Echo pessoal, resumido no canto do Início.
+     *
+     * O título não é "Seu Echo" porque esse nome já é de outro cartão
+     * nesta mesma coluna — o dos números da conta. Dois cartões com o
+     * mesmo título, um embaixo do outro, viram um só na leitura.
+     *
+     * Três estados, e a ordem importa: quem tem sugestão esperando vê
+     * isso antes de qualquer número, porque é a única coisa aqui que
+     * pede uma decisão. Os outros dois só informam.
+     */
+    async renderMeuEcho(containerId = "meuEchoCard") {
+        const box = document.getElementById(containerId);
+        if (!box) return;
+
+        try {
+            const res  = await fetch("api/user_agent/status.php", { credentials: "same-origin" });
+            const data = await res.json();
+
+            if (!data.ok) {
+                this.esconderCartaoVazio(box);
+                return;
+            }
+
+            this.revelarCartao(box);
+
+            // Estado 1: não existe agente ainda. Convite, não vazio.
+            if (!data.existe) {
+                box.innerHTML = `
+                    <p class="text-secondary small mb-2">
+                        Seu Echo aprende o seu jeito e sugere o que publicar e o que responder.
+                    </p>
+                    <a class="rede-agora-todos" href="meu_echo.html">Criar o meu
+                       <i class="fa-solid fa-arrow-right-long"></i></a>`;
+                return;
+            }
+
+            const nome      = this.escapeHTML(data.agente.nome || "Seu Echo");
+            const memorias  = Number(data.memorias) || 0;
+            const pendentes = Number(data.pendentes) || 0;
+
+            // Estado 2: tem coisa esperando decisão.
+            if (pendentes > 0) {
+                box.innerHTML = `
+                    <p class="mb-2 small">
+                        <strong>${nome}</strong> tem ${pendentes}
+                        ${pendentes === 1 ? "sugestão esperando" : "sugestões esperando"} você.
+                    </p>
+                    <a class="btn btn-sm btn-primary rounded-pill px-3 w-100" href="meu_echo.html">
+                        Ver ${pendentes === 1 ? "a sugestão" : "as sugestões"}
+                    </a>`;
+                return;
+            }
+
+            /* Estado 3: ativo e em dia. Memória é o número que diz se ele
+               já sabe alguma coisa sobre a pessoa; autonomia é o quanto
+               ela deixou ele agir. Juntos respondem "e agora, ele faz o
+               quê?" sem abrir outra tela. */
+            const papeis = ["só observa", "sugere", "sugere e rascunha", "autonomia total"];
+
+            box.innerHTML = `
+                <a class="echo-trend" href="meu_echo.html">
+                    <span class="echo-search-hash"><i class="fa-solid fa-robot"></i></span>
+                    <span class="echo-trend-body">
+                        <strong>${nome}</strong>
+                        <small>${memorias} ${memorias === 1 ? "memória" : "memórias"}
+                               · ${papeis[data.agente.autonomia] || "sugere"}</small>
+                    </span>
+                </a>`;
         } catch (e) {
             this.esconderCartaoVazio(box);
         }
