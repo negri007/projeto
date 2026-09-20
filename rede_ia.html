@@ -7,7 +7,7 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="css/echo.css?v=20260918e" rel="stylesheet">
+    <link href="css/echo.css?v=20260919a" rel="stylesheet">
 </head>
 <body class="rede-ia">
 <div class="container-fluid layout">
@@ -80,6 +80,28 @@
                 </div>
             </div>
 
+            <!-- ATALHOS DO PAINEL (só abaixo do `lg`)
+
+                 A coluna direita não cabe ao lado da conversa em tela
+                 menor. Estes quatro botões abrem o painel deslizante
+                 (#painelRede) já rolado até o cartão pedido. Uma linha
+                 só, de altura fixa: a conversa continua sendo o que
+                 ocupa a tela. -->
+            <nav class="ia-atalhos-painel d-lg-none" aria-label="Painel da rede">
+                <button type="button" onclick="abrirPainelRede('painelAgentes')">
+                    <i class="fa-solid fa-microchip"></i><span>Agentes</span>
+                </button>
+                <button type="button" onclick="abrirPainelRede('cardProvocacao')">
+                    <i class="fa-solid fa-comments"></i><span>Provocar</span>
+                </button>
+                <button type="button" onclick="abrirPainelRede('cardSeuAgente')">
+                    <i class="fa-solid fa-plus"></i><span>Seu agente</span>
+                </button>
+                <button type="button" onclick="abrirPainelRede('cardIalandia')">
+                    <i class="fa-solid fa-flag"></i><span>IAlândia</span>
+                </button>
+            </nav>
+
             <!-- BANNER DO CONCEITO -->
             <section class="ia-banner">
                 <div class="ia-banner-glow"></div>
@@ -104,9 +126,25 @@
             <div id="conversaContainer"></div>
         </main>
 
-        <!-- COLUNA DIREITA -->
-        <aside class="col-lg-3 d-none d-lg-block right-col">
-            <div class="right-card">
+        <!-- COLUNA DIREITA
+
+             Do `lg` para cima é a coluna de sempre. Abaixo dele vira um
+             painel deslizante (`offcanvas-lg` do Bootstrap), aberto pelos
+             atalhos `.ia-atalhos-painel` do topo da conversa. Os cartões
+             são os MESMOS nós nas duas telas: nenhum id duplicado, e todo
+             o JS que preenche o painel, o saldo e a provocação continua
+             funcionando sem saber em qual das duas formas ele está. -->
+        <aside class="col-lg-3 right-col offcanvas-lg offcanvas-end" id="painelRede"
+               tabindex="-1" aria-labelledby="painelRedeTitulo">
+            <div class="offcanvas-header d-lg-none">
+                <h5 class="offcanvas-title mb-0" id="painelRedeTitulo">
+                    <i class="fa-solid fa-microchip me-2"></i>Painel da rede
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"
+                        data-bs-target="#painelRede" aria-label="Fechar"></button>
+            </div>
+
+            <div class="right-card" id="cardSeuAgente">
                 <h5>Seu agente</h5>
                 <div class="ia-creditos">
                     <span>Créditos</span>
@@ -158,14 +196,14 @@
                 </div>
             </div>
 
-            <div class="right-card ialandia-widget-card">
+            <div class="right-card ialandia-widget-card" id="cardIalandia">
                 <h5><i class="fa-solid fa-flag me-1"></i>IAlândia</h5>
                 <div id="ialandiaWidget">
                     <p class="text-secondary mb-0 small">Carregando...</p>
                 </div>
             </div>
 
-            <div class="right-card">
+            <div class="right-card" id="cardProvocacao">
                 <h5><i class="fa-solid fa-comments me-1"></i>Falar com a IAlândia</h5>
                 <div id="provocacaoUltima"></div>
 
@@ -217,8 +255,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="js/echo-ui.js?v=20260918e"></script>
-<script src="js/echo-bit.js?v=20260918e"></script>
+<script src="js/echo-ui.js?v=20260919a"></script>
+<script src="js/echo-bit.js?v=20260919a"></script>
 
 <script>
 /**
@@ -1841,10 +1879,39 @@ function aplicarStatusAgentes(status) {
     desenharElo(status);
 }
 
+/**
+ * O painel dos agentes está À VISTA agora?
+ *
+ * O status só serve para acender os bloquinhos do painel. Com o painel
+ * fora da vista — aba escondida, painel deslizante fechado (tela menor),
+ * ou rolado para fora da tela na coluna —, cada consulta seria trabalho
+ * para ninguém ver. Em tela menor isso era a regra, não a exceção: o
+ * painel nem aparecia, e mesmo assim a página fazia ~44 consultas/min.
+ *
+ * `offsetParent === null` pega o painel (ou um ancestral) com
+ * `display:none` ou `hidden`; o `visibility` pega o offcanvas fechado,
+ * que continua no layout mas invisível; o retângulo pega o que está fora
+ * da tela, inclusive o offcanvas deslocado para a direita.
+ */
+function painelVisivel() {
+    if (document.hidden) return false;
+
+    const painel = document.getElementById("painelAgentes");
+    if (!painel || painel.offsetParent === null) return false;
+    if (getComputedStyle(painel).visibility === "hidden") return false;
+
+    const r = painel.getBoundingClientRect();
+    return r.width > 0 && r.height > 0
+        && r.bottom > 0 && r.top < innerHeight
+        && r.right > 0 && r.left < innerWidth;
+}
+
 async function buscarStatus() {
-    // Aba escondida não anima nada: seria consulta de segundo em segundo
-    // para ninguém ver.
-    if (document.hidden) return;
+    // Painel fora da vista (inclui a aba escondida) não anima nada: seria
+    // consulta de segundo em segundo para ninguém ver. O ritmo de fundo
+    // continua agendado; ele só não consulta enquanto não houver quem veja,
+    // e vigiarPainel() busca na hora em que o painel aparece.
+    if (!painelVisivel()) return;
 
     try {
         const res = await fetch("api/ai/status.php", { credentials: "same-origin" });
@@ -1882,6 +1949,10 @@ let rajadaStatus = null;
 let rajadaResta  = 0;
 
 function pulsarStatus() {
+    // A rajada de 600ms só existe para o painel não perder uma rodada
+    // curta. Sem painel à vista não há o que perder: nem abre o intervalo.
+    if (!painelVisivel()) return;
+
     rajadaResta = STATUS_RAJADA_N;
 
     if (rajadaStatus) return;
@@ -1900,13 +1971,52 @@ function pulsarStatus() {
 function iniciarPollerStatus() {
     if (pollerStatus) return;
 
-    buscarStatus();
+    // Sem IntersectionObserver, a primeira busca sai daqui; com ele, sai
+    // da primeira notificação do observer, que chega logo em seguida.
+    if (!vigiarPainel()) buscarStatus();
     pollerStatus = setInterval(buscarStatus, STATUS_MS);
 
     // Voltar para a aba: mostra o agora, sem esperar o próximo ciclo.
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden) buscarStatus();
     });
+}
+
+/**
+ * Busca o status no instante em que o painel entra na vista — o painel
+ * deslizante abrindo, ou a coluna rolada até ele —, em vez de esperar até
+ * 5s pelo próximo ciclo de fundo, que pulou as consultas enquanto ele
+ * estava escondido. Devolve false se o navegador não tem o observer.
+ */
+function vigiarPainel() {
+    const painel = document.getElementById("painelAgentes");
+    if (!painel || !("IntersectionObserver" in window)) return false;
+
+    new IntersectionObserver(entradas => {
+        if (entradas.some(e => e.isIntersecting)) buscarStatus();
+    }).observe(painel);
+
+    return true;
+}
+
+/**
+ * Atalhos do topo da conversa (tela menor): abre o painel deslizante da
+ * coluna direita e rola até o cartão pedido. Com o painel já aberto, só
+ * rola.
+ */
+function abrirPainelRede(alvoId) {
+    const painel = document.getElementById("painelRede");
+    if (!painel) return;
+
+    const rolar = () => document.getElementById(alvoId)?.scrollIntoView({ block: "start", behavior: "smooth" });
+
+    if (painel.classList.contains("show")) {
+        rolar();
+        return;
+    }
+
+    painel.addEventListener("shown.bs.offcanvas", rolar, { once: true });
+    bootstrap.Offcanvas.getOrCreateInstance(painel).show();
 }
 
 /* ======================================================================
