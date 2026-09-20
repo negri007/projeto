@@ -26,6 +26,18 @@
     --warning: #ffd400;
     --warning-hover: rgba(255, 212, 0, 0.15);
 
+    /* Piso de tamanho de texto (19/09/2026)
+
+       A auditoria mobile mediu 36,5% dos caracteres da Rede IA abaixo de
+       14px, com mínimo de 9,9px no selo "IA". Metadado é texto curto e
+       secundário — selo, papel, tempo, rótulo de grupo —, e 12px é o piso
+       abaixo do qual ele deixa de ser leitura e vira textura. Conteúdo e
+       nome de gente continuam em 0.85–0.95rem, bem acima disso.
+
+       É variável, e não um número repetido em dez lugares, para o piso
+       poder subir num lugar só se a medição pedir. */
+    --fonte-meta: 0.75rem;   /* 12px */
+
     /* Radii */
     --radius-sm: 8px;
     --radius-md: 12px;
@@ -309,6 +321,42 @@ a:hover {
     filter: invert(1);
 }
 
+/* O menu móvel repete a navegação da barra lateral, mas não tem a classe
+   `.sidebar` — e todo o estilo dos links era `.sidebar .nav-link`. Dentro
+   do offcanvas eles caíam no padrão do Bootstrap: azul de link, sem
+   espaço entre ícone e nome, e sem destaque no item ativo. */
+.offcanvas-dark .nav-link {
+    color: var(--text-main);
+    border-radius: var(--radius-full);
+    padding: 12px 18px;
+    font-size: 1.1rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.offcanvas-dark .nav-link i {
+    font-size: 1.35rem;
+    width: 24px;
+    text-align: center;
+}
+
+.offcanvas-dark .nav-link:hover,
+.offcanvas-dark .nav-link.active {
+    background: var(--accent-hover);
+    color: var(--accent);
+    font-weight: 700;
+}
+
+/* O bloco do perfil (nome + Sair) fica no pé do menu. A folga de baixo
+   respeita a área segura do aparelho (home indicator do iPhone), para o
+   botão Sair nunca ficar sob a barra do sistema. */
+.offcanvas-dark .offcanvas-body {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Mobile bottom nav bar for quick actions under 768px */
 .mobile-bottom-nav {
     display: none;
@@ -321,16 +369,27 @@ a:hover {
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--border-soft);
-    z-index: 1050;
-    justify-content: space-around;
-    align-items: center;
+    /* ABAIXO do offcanvas do Bootstrap (1045): com 1050 a barra ficava por
+       cima do menu móvel aberto e cobria o bloco do perfil — nome e botão
+       Sair. 1040 ainda cobre o conteúdo da página (z-index baixo) e fica
+       sob os fundos de modal e offcanvas, que é onde ela deve ficar. */
+    z-index: 1040;
+    align-items: stretch;
 }
 
+/* Sete itens dividem a largura por igual. Com `padding: 8px 16px` fixo
+   cada um media ~55px, e os sete somavam 389px: em 360–390px o último
+   (Mensagens) saía da tela. Agora a célula é 1/7 da barra (51px em 360,
+   ainda acima dos 48px mínimos de alvo de toque) e o ícone centra nela. */
 .mobile-bottom-nav a {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--text-soft);
-    font-size: 1.35rem;
-    padding: 8px 16px;
-    border-radius: var(--radius-full);
+    font-size: 1.25rem;
+    padding: 0;
     position: relative;
 }
 
@@ -429,6 +488,10 @@ a:hover {
     right: 3px;
     background-color: var(--accent);
     color: #ffffff;
+    /* Fica abaixo do --fonte-meta de propósito: é um número dentro de um
+       disco de 18px, e o piso de 12px existe para texto que se lê em
+       sequência. Subir aqui estoura o disco ou obriga a crescer o disco
+       em cima do ícone do sino. */
     font-size: 0.68rem;
     font-weight: 800;
     min-width: 18px;
@@ -1129,29 +1192,42 @@ a:hover {
    RESPONSIVE BREAKPOINTS (< 992px & < 768px)
    ========================================================================== */
 
-@media (max-width: 992px) {
-    .right-col {
+/* 991.98 e não 992 (19/09/2026). O Bootstrap corta em `min-width: 992px`,
+   então em EXATAMENTE 992px de largura as duas regras valiam juntas: a
+   grade `col-lg-*` já abria a coluna de três, e este bloco ainda espremia a
+   barra lateral para 72px de ícones. Os 0,02px são a convenção do próprio
+   Bootstrap para os breakpoints `max-width`, e existem porque largura de
+   viewport pode ser fracionária (zoom, DPR). O mesmo vale para o 767.98 do
+   bloco seguinte. */
+@media (max-width: 991.98px) {
+    /* A coluna que vira painel deslizante em tela menor (rede_ia.html,
+       `.offcanvas-lg`) não some: ela sai da grade e o Bootstrap a mostra
+       por cima quando pedida. Ver "PAINEL DA REDE EM TELA MENOR". */
+    .right-col:not(.offcanvas-lg) {
         display: none;
     }
-    
+
     .sidebar {
         flex: 0 0 72px;
         max-width: 72px;
         padding: 12px 8px;
     }
-    
-    .logo-text,
+
+    /* Só a barra lateral estreita vira coluna de ícones. Sem o `.sidebar`
+       na frente, a regra apagava também o "ECHO" e o nome do usuário do
+       menu móvel (offcanvas), que usa as mesmas classes. */
+    .sidebar .logo-text,
     .sidebar .nav-link span,
-    .prof-info {
+    .sidebar .prof-info {
         display: none !important;
     }
-    
+
     .sidebar .nav-link {
         justify-content: center;
         padding: 12px;
     }
 
-    .sidebar-profile {
+    .sidebar .sidebar-profile {
         justify-content: center;
         padding: 8px;
     }
@@ -1161,7 +1237,7 @@ a:hover {
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767.98px) {
     .sidebar {
         display: none !important;
     }
@@ -1172,15 +1248,43 @@ a:hover {
 
     .mobile-bottom-nav {
         display: flex;
+        /* ÁREA SEGURA (19/09/2026). No iPhone com barra de gestos, os 60px
+           terminavam DEBAIXO dela: os ícones ficavam encostados na barra do
+           sistema e o toque na fileira de baixo competia com o gesto de
+           voltar à tela inicial. A barra cresce o tanto que o aparelho
+           reservar, e o `env()` vale 0 em quem não tem entalhe nenhum.
+
+           Depende de `viewport-fit=cover` na meta viewport — sem isso o
+           navegador devolve 0 sempre. Está nas 13 páginas. */
+        height: calc(60px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     .main-col {
         border-right: none;
-        padding-bottom: 60px; /* Space for bottom nav */
+        /* Acompanha a altura real da barra, senão o último post fica atrás
+           dela em aparelho com entalhe. */
+        padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
     }
 
     .main-header {
         padding: 10px 14px;
+    }
+
+    /* SEM BLUR NO CELULAR (19/09/2026). `backdrop-filter` refaz o
+       desfoque de tudo que passa por trás A CADA QUADRO de rolagem, e
+       cabeçalho e barra são justamente os dois elementos fixos por onde o
+       conteúdo passa o tempo todo. Em Android intermediário é o tipo de
+       custo que só aparece como rolagem engasgada.
+
+       O fundo sobe de 0,85/0,9 para 0,97 de opacidade: com o desfoque
+       desligado, o que se via através era o texto do post embaixo, não uma
+       textura. Quase opaco lê igual e não custa quadro nenhum. */
+    .main-header,
+    .mobile-bottom-nav {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        background: rgba(0, 0, 0, 0.97);
     }
 
     .auth-card {
@@ -1247,6 +1351,20 @@ a:hover {
 .echo-toast-danger .echo-toast-icon  { color: var(--danger); }
 .echo-toast-info    { border-left-color: var(--accent); }
 .echo-toast-info .echo-toast-icon    { color: var(--accent); }
+
+/* O toast nascia em `bottom: 24px`, ou seja, POR CIMA da barra inferior:
+   tapava dois ícones justamente enquanto avisava alguma coisa. Agora pousa
+   acima dela, respeitando a área segura do aparelho.
+
+   Fica aqui embaixo, e não no bloco de 767.98px lá em cima, porque o
+   `.echo-toast-stack` é declarado DEPOIS daquele bloco: media query não
+   soma especificidade, então a regra de lá seria simplesmente
+   sobrescrita. */
+@media (max-width: 767.98px) {
+    .echo-toast-stack {
+        bottom: calc(60px + 16px + env(safe-area-inset-bottom, 0px));
+    }
+}
 
 @keyframes echo-toast-in {
     from { opacity: 0; transform: translateY(14px) scale(0.97); }
@@ -1514,7 +1632,7 @@ a.echo-author-link:hover { text-decoration: underline; }
 
 .echo-search-group {
     padding: 8px 14px 4px;
-    font-size: 0.72rem;
+    font-size: var(--fonte-meta);
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-muted);
@@ -2092,6 +2210,25 @@ a.echo-author-link:hover { text-decoration: underline; }
 .logo:hover .logo-mark i { transform: scale(1.15) rotate(12deg); }
 .logo:hover .logo-text   { letter-spacing: 0.06em; }
 
+/* MENU FECHADO NÃO ANIMA (19/09/2026)
+
+   O offcanvas do Bootstrap fica sempre no DOM e, fechado, é só
+   `visibility: hidden` e deslocado para fora da tela. Animação CSS não
+   para por `visibility`: as duas ondas do logo e o pulso do ícone rodavam
+   em TODA página logada, o tempo inteiro, para um menu que ninguém abriu —
+   `getAnimations()` confirmou isso nas cinco páginas medidas.
+
+   Mesma técnica da regra do painel da Rede IA em "PAINEL DA REDE EM TELA
+   MENOR": pausar, e não `animation: none`, para o desenho voltar de onde
+   parou quando o menu abre, em vez de saltar para o quadro inicial. */
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-mark,
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-mark::before,
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-mark::after,
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-mark i,
+.offcanvas:not(.show):not(.showing):not(.hiding) .logo-text {
+    animation-play-state: paused;
+}
+
 /* --------------------------------------------------------------------------
    Tela de entrada: a mesma ideia, no tamanho do herói.
    -------------------------------------------------------------------------- */
@@ -2135,16 +2272,19 @@ a.echo-author-link:hover { text-decoration: underline; }
    fraco que a marca: ela é o nome da rede e tem que continuar sendo a
    primeira coisa que pulsa.
 
-   Aqui é pulso de `color`, não o recorte de gradiente do `.logo-text`: num
-   ícone de 24px ou numa palavra curta, a faixa do gradiente às vezes cai
-   fora do glifo (testado — o ícone simplesmente não acendia) porque a
-   posição do recorte depende da largura da caixa. Cor direta acende o
-   elemento inteiro sempre, sem depender de largura. Ciclo de 10 s (contra
-   3,2 s da marca), e o pico é rápido (a maior parte do ciclo fica branco).
+   19/09/2026: era um pulso de `color` (branco → azul → branco). `color`
+   não anima no compositor: cada quadro de cada elemento pulsando passava
+   pela thread principal (estilo + repintura), para sempre, e a regra
+   pegava todo nome de autor de post — uma animação infinita por post.
+   Agora é só `opacity`, que o navegador anima fora da thread principal:
+   o texto baixa o brilho por um instante e volta. O desenho mudou de
+   "acende em azul" para "respira", que é o que dá para fazer só com
+   opacidade. Ciclo de 10 s (contra 3,2 s da marca), com o pico rápido: a
+   maior parte do ciclo fica em brilho cheio.
    -------------------------------------------------------------------------- */
 @keyframes echo-pulso-branco {
-    0%, 85%, 100% { color: var(--text-main); }
-    92%           { color: var(--accent); }
+    0%, 85%, 100% { opacity: 1; }
+    92%           { opacity: 0.55; }
 }
 
 .sidebar .nav-link span,
@@ -2155,6 +2295,29 @@ main h5,
 .echo-trend-body strong,
 .echo-author-link {
     animation: echo-pulso-branco 10s ease-in-out infinite;
+}
+
+/* Nome de autor e etiqueta se repetem a cada post, sugestão e tendência:
+   ali o pulso se ENCERRA sozinho depois de uma volta, em vez de seguir
+   para sempre em cada post que já rolou para fora da tela. Menu e
+   títulos são poucos e fixos, e continuam no ciclo. */
+.echo-trend-body strong,
+.echo-author-link {
+    animation-iteration-count: 1;
+}
+
+/* A regra global de reduced-motion já encurta toda animação; esta desliga
+   o pulso de vez, sem depender daquela. */
+@media (prefers-reduced-motion: reduce) {
+    .sidebar .nav-link span,
+    .sidebar .nav-link i,
+    .main-header-title,
+    main h5,
+    .right-col h5,
+    .echo-trend-body strong,
+    .echo-author-link {
+        animation: none;
+    }
 }
 
 /* Hover e item ativo já ficam azuis sólidos (regra mais acima) — o pulso
@@ -2211,7 +2374,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     color: var(--ia-acento);
     border: 1px solid rgba(0, 224, 198, 0.35);
     border-radius: var(--radius-full);
-    font-size: 0.72rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     padding: 3px 10px;
     text-transform: lowercase;
@@ -2253,19 +2416,24 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .ia-banner-glow {
     position: absolute;
     top: -60%;
-    left: -30%;
+    left: 0;
     width: 45%;
     height: 220%;
     background: linear-gradient(90deg, transparent, rgba(0, 224, 198, 0.10), transparent);
-    transform: skewX(-18deg);
+    transform: translateX(-77.78%) skewX(-18deg);
     animation: ia-varredura 9s ease-in-out infinite;
     pointer-events: none;
 }
 
+/* Anda por `transform`, não por `left`: `left` refazia o layout do banner
+   a cada quadro. O percurso é o mesmo de antes — de left:-35% a left:105%
+   do banner —, só que expresso em % da largura do PRÓPRIO brilho, que é
+   como `translateX` mede: 45% do banner, então -35/45 = -77.78% e
+   105/45 = 233.33%. */
 @keyframes ia-varredura {
-    0%, 100% { left: -35%; opacity: 0; }
+    0%, 100% { transform: translateX(-77.78%) skewX(-18deg); opacity: 0; }
     45%      { opacity: 1; }
-    70%      { left: 105%; opacity: 0; }
+    70%      { transform: translateX(233.33%) skewX(-18deg); opacity: 0; }
 }
 
 .ia-banner-agentes {
@@ -2446,7 +2614,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .ia-handle { color: var(--text-muted); font-size: 0.8rem; }
 
 .ia-selo {
-    font-size: 0.62rem;
+    font-size: var(--fonte-meta);
     font-weight: 800;
     letter-spacing: 0.08em;
     padding: 1px 6px;
@@ -2457,7 +2625,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ia-papel {
-    font-size: 0.68rem;
+    font-size: var(--fonte-meta);
     color: var(--text-muted);
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-full);
@@ -2550,7 +2718,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ialandia-status {
-    font-size: 0.68rem;
+    font-size: var(--fonte-meta);
     font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -2757,7 +2925,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ia-divisor-texto {
-    font-size: 0.72rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -2947,13 +3115,13 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .ia-com-topo strong { font-size: 0.82rem; color: #fff; }
-.ia-com-tempo { font-size: 0.72rem; color: var(--text-muted); }
+.ia-com-tempo { font-size: var(--fonte-meta); color: var(--text-muted); }
 
 /* Diz se a rede já reagiu àquele comentário. O estado "aguardando" não é
    um erro nem uma fila travada: é o desenho — o reconhecimento vem numa
    rodada futura, nunca na hora. */
 .ia-com-selo {
-    font-size: 0.64rem;
+    font-size: var(--fonte-meta);
     letter-spacing: 0.04em;
     padding: 1px 7px;
     border-radius: var(--radius-full);
@@ -3051,6 +3219,8 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     width: 18px;
     height: 18px;
     border-radius: 6px;
+    /* Mesma exceção do .notification-badge: é a letra inicial de quem não
+       tem foto, dentro de 18px. Não é texto de leitura. */
     font-size: 0.6rem;
 }
 
@@ -3067,7 +3237,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 /* O assunto do post. Substitui o divisor de fio: a mesma informação, sem
    cortar o feed em faixas a cada duas linhas. */
 .ia-assunto {
-    font-size: 0.68rem;
+    font-size: var(--fonte-meta);
     color: var(--ia-acento);
     background: rgba(0, 224, 198, 0.08);
     border: 1px solid rgba(0, 224, 198, 0.22);
@@ -3077,6 +3247,18 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Os 42% existem para o assunto não engolir a linha do cabeçalho no
+   desktop, onde ele fica ao lado do nome, do @handle e do tempo. No
+   celular não cabe nessa linha: o `flex-wrap` do .ia-cabecalho joga o
+   chip para uma linha só dele, e aí os 42% viram desperdício — o assunto
+   aparecia como "quem aqui dom..." com meia linha vazia ao lado.
+
+   Com a linha inteira à disposição, o limite é ela. Se o assunto ainda
+   não couber, o mesmo `text-overflow` continua cortando. */
+@media (max-width: 767.98px) {
+    .ia-assunto { max-width: 100%; }
 }
 
 /* Réplica de um agente a outro — tom diferente do reconhecimento de
@@ -3369,7 +3551,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     align-items: center;
     gap: 6px;
     margin-top: 2px;
-    font-size: 0.74rem;
+    font-size: var(--fonte-meta);
     color: var(--cor-agente, var(--accent));
 }
 
@@ -3659,7 +3841,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 0.62rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -3786,17 +3968,26 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
    respeita o arredondamento do card.
    ========================================================================== */
 
-/* O ângulo é uma propriedade REGISTRADA, e é isso que torna a rotação
-   possível: um custom property comum é apenas texto para o motor de
-   animação, e interpolar "0deg" até "360deg" como texto não anima nada.
-   Registrado como <angle>, ele passa a ser um número que o navegador sabe
-   percorrer — e a animação roda no compositor, sem repintar o card. */
-@property --painel-angulo {
-    syntax: "<angle>";
-    initial-value: 0deg;
-    inherits: false;
-}
+/* COMO O ANEL GIRA (19/09/2026). A primeira versão girava o gradiente
+   animando um custom property registrado com `@property` (o ângulo do
+   `conic-gradient`). Funcionava, mas o comentário dela estava errado: isso
+   NÃO roda no compositor. Mudar o ângulo de um gradiente é mudar a
+   pintura, e o card inteiro era repintado na thread principal a cada
+   quadro, para sempre. Onde `@property` não existia, a borda ficava
+   parada sem que nada garantisse isso.
 
+   Agora quem gira é uma camada (`::before`) com o gradiente FIXO,
+   rodada por `transform: rotate()` — isso sim o navegador compõe na GPU
+   sem repintar. A máscara do anel continua no `.ia-painel-borda` e
+   recorta a camada que gira por baixo dela. Para a camada cobrir o card
+   em qualquer ângulo, ela é um quadrado do tamanho da DIAGONAL do card
+   (`hypot(100cqw, 100cqh)`, com o card como container). Girar um
+   gradiente cônico centrado no card dá exatamente o mesmo desenho que
+   mudar o `from` dele.
+
+   O fundo do próprio `.ia-painel-borda` é o mesmo gradiente, parado: é o
+   fallback. Navegador sem `hypot()` ou sem container query não cria a
+   camada que gira, e a borda aparece roxa e estática. */
 .ia-painel-borda {
     position: absolute;
     inset: 0;
@@ -3809,13 +4000,12 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     padding: 2px;
     pointer-events: none;
 
-    --painel-angulo: 0deg;
-
     /* Roxo do escuro ao magenta e de volta. O ponto claro em 50% é o que
        se lê como "um brilho dando a volta", em vez de um arco-íris
-       girando: sem ele o movimento vira ruído colorido. */
-    background: conic-gradient(
-        from var(--painel-angulo),
+       girando: sem ele o movimento vira ruído colorido. Guardado numa
+       variável porque o mesmo gradiente pinta o fallback parado (aqui) e
+       a camada que gira (::before). */
+    --painel-gradiente: conic-gradient(
         #4c1d95,
         #6d28d9,
         #a855f7,
@@ -3824,6 +4014,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
         #6d28d9,
         #4c1d95
     );
+    background: var(--painel-gradiente);
 
     /* As duas máscaras: `content-box` cobre só o miolo, a segunda cobre
        tudo, e `exclude` subtrai uma da outra. O que sobra é a moldura de
@@ -3837,31 +4028,53 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
         linear-gradient(#000 0 0);
             mask-composite: exclude;
 
-    animation: ia-painel-gira 9s linear infinite;
     opacity: 0.8;
     transition: opacity 0.4s ease;
 }
 
-/* Com a rede pensando, a volta acelera e o roxo abre. A diferença entre
-   os dois ritmos é o que transforma a borda de enfeite em informação:
-   dá para saber que a rede está trabalhando sem ler uma palavra. */
+/* Com a rede pensando, o roxo abre (e, logo abaixo, a volta acelera). A
+   diferença entre os dois ritmos é o que transforma a borda de enfeite em
+   informação: dá para saber que a rede está trabalhando sem ler uma
+   palavra. */
 .ia-painel-vivo .ia-painel-borda {
-    animation-duration: 3.4s;
     opacity: 1;
 }
 
-@keyframes ia-painel-gira {
-    to { --painel-angulo: 360deg; }
+@supports (width: hypot(3px, 4px)) and (container-type: size) {
+    .ia-painel-borda {
+        container-type: size;
+        overflow: hidden;
+    }
+
+    .ia-painel-borda::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: hypot(100cqw, 100cqh);
+        height: hypot(100cqw, 100cqh);
+        background: var(--painel-gradiente);
+        transform: translate(-50%, -50%);
+        animation: ia-painel-gira 9s linear infinite;
+        will-change: transform;
+    }
+
+    .ia-painel-vivo .ia-painel-borda::before {
+        animation-duration: 3.4s;
+    }
 }
 
-/* Onde `@property` não existe (navegador antigo), `--painel-angulo` fica
-   valendo os 0deg declarados acima e o gradiente aparece parado. Degrada
-   para uma borda roxa fixa, que é um degrade honesto: perde o movimento,
-   não perde o destaque. */
+/* O `translate` de centralização vai junto em todo quadro: a animação
+   substitui o `transform` inteiro, e sem ele a camada giraria em torno
+   do canto do card. */
+@keyframes ia-painel-gira {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to   { transform: translate(-50%, -50%) rotate(360deg); }
+}
 
 @media (prefers-reduced-motion: reduce) {
-    .ia-painel-borda,
-    .ia-painel-vivo .ia-painel-borda {
+    .ia-painel-borda::before,
+    .ia-painel-vivo .ia-painel-borda::before {
         animation: none;
     }
 }
@@ -3884,20 +4097,32 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 /* Um sinal viaja do primeiro ao último agente, de novo e de novo. É a
    leitura de "barramento ligado": os dez estão conectados e a linha entre
    eles conduz alguma coisa, mesmo quando ninguém fala. */
+/* 19/09/2026: o pulso andava por `top`, que refaz layout a cada quadro.
+   Agora anda por `transform`. O detalhe: `translateY(%)` mede pela altura
+   do PRÓPRIO elemento, e o percurso é em % da LISTA (de -10% a 100%). Por
+   isso a caixa agora tem a altura da lista inteira, e o pulso de 46px é
+   só o fundo dela, preso no topo (`background-size`). Transladar a caixa
+   em -10%/100% da própria altura põe o pulso exatamente onde `top: -10%`
+   e `top: 100%` punham. O que sobra da caixa abaixo da lista fica
+   recortado pelo `overflow: hidden` do card, como antes. */
 .ia-painel-lista::after {
     content: "";
     position: absolute;
+    top: 0;
     left: -1px;
     width: 3px;
-    height: 46px;
+    height: 100%;
     border-radius: 3px;
     background: linear-gradient(180deg,
         transparent,
         rgba(168, 85, 247, 0.9),
         rgba(232, 121, 249, 0.55),
-        transparent);
+        transparent) top / 100% 46px no-repeat;
     filter: blur(0.4px);
     pointer-events: none;
+    /* Repouso (sem animação, reduced-motion): o fim da lista, que é onde
+       o `top: auto` do desenho antigo deixava o pulso. */
+    transform: translateY(100%);
     animation: ia-espinha-pulso 5.2s cubic-bezier(.55, 0, .45, 1) infinite;
 }
 
@@ -3905,10 +4130,10 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
    nas pontas para o pulso nascer e morrer dentro da espinha, em vez de
    aparecer cortado na borda do card. */
 @keyframes ia-espinha-pulso {
-    0%   { top: -10%;  opacity: 0; }
+    0%   { transform: translateY(-10%); opacity: 0; }
     12%  { opacity: 1; }
     88%  { opacity: 1; }
-    100% { top: 100%;  opacity: 0; }
+    100% { transform: translateY(100%); opacity: 0; }
 }
 
 /* Com a rede pensando, o barramento acelera junto com a borda. */
@@ -4008,14 +4233,20 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 /* O sinal que corre pelo elo. Um segmento claro percorre só o trecho
    entre os dois agentes — é o que transforma a linha parada em "isto
    está acontecendo agora". */
+/* Mesma técnica do pulso da espinha (ver .ia-painel-lista::after): a
+   caixa tem a altura do elo inteiro e o segmento claro de 18px é o fundo
+   dela, preso no topo. Assim `translateY(100%)` leva o segmento até o fim
+   do elo — o mesmo lugar de `top: 100%` —, sem refazer layout a cada
+   quadro. */
 .ia-painel-elo-aceso::after {
     content: "";
     position: absolute;
+    top: 0;
     left: 0;
     right: 0;
-    height: 18px;
+    height: 100%;
     border-radius: 3px;
-    background: linear-gradient(180deg, transparent, #fff, transparent);
+    background: linear-gradient(180deg, transparent, #fff, transparent) top / 100% 18px no-repeat;
     opacity: 0.85;
     animation: ia-elo-desce 1.15s ease-in-out infinite;
 }
@@ -4025,17 +4256,17 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .ia-painel-elo-sobe::after { animation-name: ia-elo-sobe; }
 
 @keyframes ia-elo-desce {
-    0%   { top: -18px;  opacity: 0; }
+    0%   { transform: translateY(-18px); opacity: 0; }
     25%  { opacity: 0.85; }
     75%  { opacity: 0.85; }
-    100% { top: 100%;   opacity: 0; }
+    100% { transform: translateY(100%);  opacity: 0; }
 }
 
 @keyframes ia-elo-sobe {
-    0%   { top: 100%;   opacity: 0; }
+    0%   { transform: translateY(100%);  opacity: 0; }
     25%  { opacity: 0.85; }
     75%  { opacity: 0.85; }
-    100% { top: -18px;  opacity: 0; }
+    100% { transform: translateY(-18px); opacity: 0; }
 }
 
 /* Com um elo aceso, o pulso de fundo da espinha sai de cena: dois sinais
@@ -4044,7 +4275,108 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .ia-painel-lista:has(.ia-painel-elo-aceso)::after { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-    .ia-painel-elo-aceso::after { animation: none; top: 40%; }
+    .ia-painel-elo-aceso::after { animation: none; transform: translateY(40%); }
+}
+
+/* ==========================================================================
+   PAINEL DA REDE EM TELA MENOR (19/09/2026)
+
+   Abaixo do `lg` a coluna direita da Rede IA não cabe ao lado da conversa,
+   e antes ela simplesmente sumia — levando junto "Falar com a IAlândia",
+   "Seu agente", o painel dos agentes e a IAlândia, sem caminho nenhum até
+   eles. Agora ela vira um painel deslizante (`offcanvas-lg` do Bootstrap),
+   aberto pelos quatro atalhos do topo da conversa. Do `lg` para cima nada
+   muda: é a mesma coluna de sempre.
+   ========================================================================== */
+
+.ia-atalhos-painel {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.ia-atalhos-painel button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 56px;
+    padding: 6px 4px;
+    background: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.15;
+    text-align: center;
+}
+
+.ia-atalhos-painel button i {
+    font-size: 1.05rem;
+    color: var(--accent);
+}
+
+.ia-atalhos-painel button:active {
+    background: var(--accent-hover);
+}
+
+@media (max-width: 991.98px) {
+    /* `.right-col` (sticky, 100vh) vem depois do Bootstrap na cascata e,
+       com a mesma especificidade, ganharia do `position: fixed` do
+       offcanvas: o painel ficaria preso no fim da grade em vez de deslizar
+       por cima. Aqui ele volta a ser o que o offcanvas precisa. */
+    .right-col.offcanvas-lg {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        height: auto;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 0 14px calc(16px + env(safe-area-inset-bottom, 0px));
+        background: var(--bg-main);
+        border-left: 1px solid var(--border-soft);
+    }
+
+    .right-col.offcanvas-lg .offcanvas-header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        margin: 0 -14px 12px;
+        padding: 14px;
+        background: var(--bg-main);
+        border-bottom: 1px solid var(--border-soft);
+    }
+
+    .right-col.offcanvas-lg .offcanvas-title {
+        font-weight: 800;
+        font-size: 1.1rem;
+    }
+
+    /* O offcanvas é coluna flex, e cartão com `overflow: hidden` (o painel
+       dos agentes) encolhe até o título para caber na altura da tela. Aqui
+       cada cartão fica com a altura dele e quem rola é o painel.
+
+       E os atalhos rolam até o cartão pedido: sem a folga de cima, o
+       título dele pararia debaixo do cabeçalho fixo do painel. */
+    .right-col.offcanvas-lg .right-card {
+        flex-shrink: 0;
+        scroll-margin-top: 72px;
+    }
+
+    /* Fechado, o painel continua no layout — só invisível e deslocado para
+       fora da tela. Animação CSS não para por `visibility: hidden`: a borda
+       que gira, o pulso da espinha e as luzes de standby rodariam o tempo
+       todo para ninguém ver. Antes, com a coluna em `display: none`, nada
+       disso rodava; isto mantém o mesmo custo zero enquanto está fechado. */
+    .right-col.offcanvas-lg:not(.show):not(.showing):not(.hiding) *,
+    .right-col.offcanvas-lg:not(.show):not(.showing):not(.hiding) *::before,
+    .right-col.offcanvas-lg:not(.show):not(.showing):not(.hiding) *::after {
+        animation-play-state: paused;
+    }
 }
 
 /* ==========================================================================

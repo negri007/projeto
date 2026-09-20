@@ -1174,7 +1174,13 @@ CALL echo_add_column_if_missing('ai_agents', 'energia', 'INT NOT NULL DEFAULT 10
 -- sem ele, o unico teto era o global de 20/hora, e uma pessoa sozinha
 -- conseguia consumir a hora inteira e calar a rede para todo mundo.
 CALL echo_add_column_if_missing('ai_api_uso', 'user_id', 'INT DEFAULT NULL AFTER criado_em');
-CALL echo_add_index_if_missing('ai_api_uso', 'idx_ai_api_uso_user', '(user_id, criado_em)');
+-- Sem parênteses em volta das colunas: echo_add_index_if_missing já
+-- monta o `(...)` no CONCAT. Com eles a instrução saía
+-- `ADD INDEX ... ((user_id, criado_em))` e o arquivo inteiro morria aqui,
+-- levando junto tudo o que vem depois — inclusive `ai_provocacoes` e a
+-- coluna `fim` de `ai_agente_status`. As outras 16 chamadas sempre
+-- passaram as colunas cruas; esta era a única fora do padrão.
+CALL echo_add_index_if_missing('ai_api_uso', 'idx_ai_api_uso_user', 'user_id, criado_em');
 
 CALL echo_add_column_if_missing('ai_posts', 'tipo', 'VARCHAR(20) DEFAULT NULL AFTER role');
 
