@@ -6,6 +6,7 @@ require_once __DIR__ . '/../auth/db.php';
 require_once __DIR__ . '/../notifications/helpers.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/../ai/helpers.php';
+require_once __DIR__ . '/../user_agent/helpers.php';
 
 $userId = require_login();
 
@@ -47,6 +48,9 @@ try {
     // lastInsertId() precisa ser lido logo após o INSERT: qualquer outra
     // query no meio já zera o valor.
     $commentId = (int)$pdo->lastInsertId();
+
+    // O agente aprende o jeito do dono de comentar.
+    user_agent_registrar_acao($pdo, $userId, 'comentario', $body);
 
     // Devolve o comentário já montado para o front renderizar sem
     // precisar recarregar a lista inteira.

@@ -2570,3 +2570,65 @@ pedidos inteiros para mostrar dois números.
 O agrupamento por hora é feito no SQL, e não em PHP, porque o relógio do
 PHP desta instalação está adiantado em relação ao do MySQL — a mesma
 pegadinha já documentada em `rate_limit.php` e no tick.
+
+---
+
+## Agente pessoal — o Echo de cada usuário (19/09/2026)
+
+Ver `docs/plans/plano-agente-echo.md`. Não confundir com a Rede IA
+(`api/ai/`): aquele é o elenco público da casa; este pertence a uma
+pessoa e age no lugar dela.
+
+### Mudança em rota existente
+
+**GET /api/auth/me.php** ganhou o campo **`tem_agente`** (bool) no objeto
+raiz — não dentro de `user`. O resto da resposta não mudou.
+
+A rota também **cria o agente** de quem ainda não tem, sempre em
+autonomia 0 (o nível em que ele só observa). É idempotente
+(`INSERT IGNORE` sobre a chave única de `user_id`) e nunca lança: banco
+fora do ar não derruba o login.
+
+```json
+{ "authenticated": true, "tem_agente": true, "user": { "...": "inalterado" } }
+```
+
+### Endpoints
+
+| Rota | Método | Resposta |
+|---|---|---|
+| `user_agent/status.php` | GET | `{ok, existe, agente:{nome,personalidade,autonomia,ativo,created_at}, memorias, pendentes}` |
+| `user_agent/configurar.php` | POST | `{ok, criado, agente}` |
+| `user_agent/sugestoes.php` | GET | `{ok, sugestoes:[{id,tipo,contexto,sugestao,referencia_id,created_at,expira_em_min}]}` |
+| `user_agent/sugestao_responder.php` | POST | `{ok, status, tipo, texto}` |
+| `user_agent/gerar_sugestao_post.php` | POST | `{ok, gerou, sugestao}` ou `{ok, gerou:false, motivo, codigo}` |
+
+**Autonomia total (nível 3)** exige o campo `confirmacao` com exatamente
+`confirmo autonomia total` (a comparação ignora caixa e espaço extra). A
+validação está no **servidor**, não só na tela: validação que mora só no
+JavaScript é decoração, e o que está em jogo é o agente agir sem passar
+por ninguém.
+
+**Aprovar uma sugestão não publica nada.** Marca como aprovada e devolve
+o texto; quem publica é a tela, pelo mesmo `posts/create.php` que a
+pessoa usaria escrevendo à mão. Um caminho só para um post nascer, com
+uma moderação só e um gancho de notificação só.
+
+**`gerar_sugestao_post.php` devolve `codigo`** para a tela distinguir os
+casos sem depender do texto: `sem_agente`, `modo_acervo`, `sem_cota`,
+`sem_memoria`, `falha_api`. Cada um pede uma ação diferente de quem lê.
+
+Ele respeita `ai_generation_state.mode`: com o seletor em **só acervo**,
+não chama a API. Quem desliga a geração está dizendo "não gaste API
+agora", não "não gaste naquela tela específica".
+
+Passa também pelo freio por pessoa de `api/ai/limite_uso.php` (HTTP 429),
+o mesmo da provocação da IAlândia, e pela moderação de `ai_moderate()`.
+
+### Ganchos de aprendizado
+
+`user_agent_registrar_acao()` é chamada em `posts/create.php`,
+`comments/create.php`, `posts/like.php` (só na curtida nova) e
+`messages/send.php` (só o que o dono escreveu). **Nunca lança e nunca
+chama API**: roda no caminho quente de todo post, e o post tem de ser
+publicado mesmo se o aprendizado falhar.

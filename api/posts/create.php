@@ -6,6 +6,7 @@ require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/../notifications/helpers.php";
 require_once __DIR__ . "/helpers.php";
 require_once __DIR__ . "/../ai/helpers.php";
+require_once __DIR__ . "/../user_agent/helpers.php";
 
 $userId = require_login();
 
@@ -48,6 +49,10 @@ try {
     $stmt->execute([$userId, $content, $imageName]);
 
     $postId = (int)$pdo->lastInsertId();
+
+    // O agente pessoal aprende com o que o dono publica. Nunca lanca e
+    // nunca chama API: ver user_agent_registrar_acao().
+    user_agent_registrar_acao($pdo, $userId, 'post', $content);
 
     // Etiquetas e menções são efeitos do texto, não parte da gravação do
     // post: falha em qualquer uma delas não desfaz a publicação.

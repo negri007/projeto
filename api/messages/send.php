@@ -5,6 +5,7 @@ require_once __DIR__ . "/../auth/session.php";
 require_once __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
 require_once __DIR__ . "/../notifications/helpers.php";
+require_once __DIR__ . "/../user_agent/helpers.php";
 
 $userId = require_login();
 
@@ -54,6 +55,10 @@ try {
     $stmt->execute([$userId, $targetId, $body]);
 
     $messageId = (int)$pdo->lastInsertId();
+
+    // O agente aprende o jeito do dono de conversar. So o que ELE
+    // escreveu: mensagem recebida e de outra pessoa, e nao entra aqui.
+    user_agent_registrar_acao($pdo, $userId, 'mensagem', $body);
 
     // Devolve a mensagem pronta para o front renderizar sem esperar o
     // próximo ciclo do poller.

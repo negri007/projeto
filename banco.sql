@@ -1418,6 +1418,75 @@ CREATE TABLE IF NOT EXISTS ai_provocacao_respostas (
     FOREIGN KEY (agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+
+-- =====================================================================
+-- AGENTE PESSOAL DO USUARIO (19/09/2026)
+--
+-- Ver docs/plans/plano-agente-echo.md. Tres tabelas:
+--   user_agents          -- um agente por pessoa, com o nivel de autonomia
+--   user_agent_memoria   -- o que ele aprendeu observando o dono
+--   user_agent_sugestoes -- o que ele propos e espera aprovacao
+--
+-- NAO confundir com `ai_agents`, que e o elenco da Rede IA: aqueles sao
+-- personagens da casa, publicos, que conversam entre si. Estes aqui
+-- pertencem a UMA pessoa e agem no lugar dela. Sao mundos separados de
+-- proposito, e por isso tabela separada em vez de uma coluna a mais em
+-- ai_agents -- misturar os dois faria toda consulta da Rede IA precisar
+-- filtrar "menos os de usuario", e toda consulta de agente pessoal
+-- precisar filtrar "menos os da casa".
+-- =====================================================================
+
+CREATE TABLE IF NOT EXISTS user_agents (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    nome VARCHAR(100) NOT NULL DEFAULT 'Meu Echo',
+    -- Como o dono quer que ele escreva, nas palavras do proprio dono.
+    personalidade TEXT,
+    -- 0 = so aprende          2 = age sozinho, desfazivel em 24h
+    -- 1 = sugere, dono aprova 3 = autonomia total (confirmacao explicita)
+    autonomia TINYINT NOT NULL DEFAULT 0,
+    ativo TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_agent_memoria (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    tipo ENUM('post','comentario','curtida','mensagem','busca') NOT NULL,
+    conteudo TEXT NOT NULL,
+    -- Espaco para dar mais valor a um tipo de acao que a outro mais
+    -- tarde. Hoje todo registro entra com 1.
+    peso TINYINT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_agent_sugestoes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    tipo ENUM('post','resposta','comentario','curtida') NOT NULL,
+    -- O que provocou a sugestao (a mensagem recebida, por exemplo).
+    contexto TEXT,
+    sugestao TEXT NOT NULL,
+    status ENUM('pendente','aprovada','rejeitada','expirada') NOT NULL DEFAULT 'pendente',
+    -- Id do objeto relacionado, quando houver: a mensagem que gerou a
+    -- resposta, o post que gerou o comentario.
+    referencia_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Os indices vao pela procedure do projeto, e nao por
+-- `CREATE INDEX IF NOT EXISTS`: essa forma nao existe em toda versao de
+-- MySQL, e a procedure ja e o padrao daqui.
+CALL echo_add_index_if_missing('user_agent_memoria', 'idx_uam_user', 'user_id, created_at');
+CALL echo_add_index_if_missing('user_agent_sugestoes', 'idx_uas_pendentes', 'user_id, status, created_at');
+CALL echo_add_index_if_missing('user_agent_sugestoes', 'idx_uas_expiracao', 'status, expires_at');
+
+
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_fk_if_missing;

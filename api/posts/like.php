@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/../notifications/helpers.php";
+require_once __DIR__ . "/../user_agent/helpers.php";
 
 $userId = require_login();
 
@@ -44,6 +45,19 @@ try {
         $liked = true;
 
         notify($pdo, $authorId, $userId, "like", $postId);
+
+        /* So na curtida NOVA, nunca na descurtida: o que interessa ao
+           agente e o que o dono gosta, e descurtir nao e um gosto ao
+           contrario -- e quase sempre so um clique errado desfeito.
+
+           Grava o TEXTO do post curtido, nao o id: o agente precisa
+           saber sobre o que a pessoa gosta de ler, e um numero nao
+           carrega assunto nenhum para dentro do prompt. */
+        $stmt = $pdo->prepare("SELECT content FROM posts WHERE id = ?");
+        $stmt->execute([$postId]);
+        $curtido = (string)$stmt->fetchColumn();
+
+        user_agent_registrar_acao($pdo, $userId, 'curtida', $curtido);
     }
 
     echo json_encode(["ok" => true, "liked" => $liked]);

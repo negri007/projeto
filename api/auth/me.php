@@ -40,8 +40,27 @@ if (!$user) {
     exit;
 }
 
+/* Todo mundo ganha um agente na primeira visita, em autonomia 0 -- o
+   nivel em que ele SO OBSERVA e nao faz nada. Criar aqui, e nao numa
+   tela de cadastro, e o que faz o agente ter memoria do dono desde o
+   primeiro post, em vez de comecar vazio no dia em que a pessoa
+   descobrir a aba.
+
+   `user_agent_criar()` e idempotente (INSERT IGNORE sobre a chave unica
+   de user_id): duas abas abertas ao mesmo tempo nao viram erro. E nunca
+   lanca, entao banco fora do ar nao derruba o login. */
+require_once __DIR__ . "/../user_agent/helpers.php";
+
+$temAgente = user_agent_existe($pdo, $userId);
+
+if (!$temAgente) {
+    $temAgente = user_agent_criar($pdo, $userId, (string)$user["name"]);
+}
+
 echo json_encode([
     "authenticated" => true,
+    // Campo NOVO; o resto do contrato desta rota nao mudou.
+    "tem_agente"    => (bool)$temAgente,
     "user" => [
         "id"         => (int)$user["id"],
         "name"       => $user["name"],
