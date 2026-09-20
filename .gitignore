@@ -31,3 +31,9 @@ assets/ai/avatares/user_*
 # Logs do ambiente de teste local (mysqld, php -S).
 mysql_start.log
 php_server*.log
+
+# Capturas de tela das rodadas de teste mobile: 81 PNGs, 15 MB, e cada
+# rodada nova soma outro tanto. Os relatórios e os dados brutos (.md e
+# .json) continuam versionados — é neles que está a leitura. As imagens
+# ficam só na máquina de quem rodou o teste.
+testes_mobile/**/*.png

@@ -1,0 +1,3920 @@
+[
+  {
+    "pagina": "index.html",
+    "viewport": "375x812",
+    "goto_ate_load_ms": 439,
+    "url_final": "index.html",
+    "splash_ate_formulario_ms": 3474,
+    "fps_repouso": {
+      "fps": 60.1,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 375,
+        "vh": 812,
+        "docScrollW": 375,
+        "bodyScrollW": 375,
+        "scrollH": 812
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [],
+      "n_elementos_fora_da_tela": 0,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": null,
+        "sidebar_visivel": null,
+        "hamburguer_visivel": null,
+        "offcanvas_existe": false,
+        "bottom_nav": null,
+        "coluna_direita_display": null,
+        "coluna_direita_cards": []
+      },
+      "legibilidade": {
+        "textos_visiveis": 10,
+        "textos_menores_14px": 1,
+        "pct_caracteres_menores_14px": 1.5,
+        "menor_fonte_px": 13.12,
+        "grupos": [
+          {
+            "grupo": "13.1px  span",
+            "ocorrencias": 1,
+            "exemplo": "ou"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 3,
+        "exemplos": [
+          {
+            "d": "button.password-toggle-btn",
+            "w": 30,
+            "h": 30,
+            "texto": "Mostrar senha"
+          },
+          {
+            "d": "button",
+            "w": 73,
+            "h": 22,
+            "texto": "Criar conta"
+          },
+          {
+            "d": "button",
+            "w": 139,
+            "h": 22,
+            "texto": "Esqueci minha senha"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 2,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 18,
+        "domContentLoaded": 428,
+        "load": 432,
+        "fcp": 556
+      },
+      "long_tasks": {
+        "n": 1,
+        "total_ms": 63,
+        "tbt_aprox_ms": 13,
+        "maior_ms": 63
+      },
+      "cls": 0
+    },
+    "screenshot": "index_375x812.png",
+    "console": [
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "url": "http://127.0.0.1:8123/api/auth/me.php"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/favicon.ico"
+      }
+    ],
+    "pageerror": [],
+    "http_erro": [
+      {
+        "url": "favicon.ico",
+        "status": 404
+      }
+    ],
+    "falhas_rede": [],
+    "requisicoes_api": []
+  },
+  {
+    "pagina": "inicio.html",
+    "viewport": "375x812",
+    "goto_ate_load_ms": 462,
+    "url_final": "inicio.html",
+    "fps_repouso": {
+      "fps": 60.1,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 375,
+        "vh": 812,
+        "docScrollW": 375,
+        "bodyScrollW": 375,
+        "scrollH": 812
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [
+        {
+          "d": "a",
+          "left": 330,
+          "right": 389,
+          "width": 59,
+          "pos": "relative"
+        }
+      ],
+      "n_elementos_fora_da_tela": 1,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 375,
+          "scrollW": 389,
+          "clientW": 375,
+          "links_fora_da_tela": [
+            "chat.html"
+          ],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Assuntos em alta",
+          "Seus círculos",
+          "Seu Echo",
+          "A rede agora",
+          "Talvez você conheça"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 6,
+        "textos_menores_14px": 3,
+        "pct_caracteres_menores_14px": 16,
+        "menor_fonte_px": 12,
+        "grupos": [
+          {
+            "grupo": "12.0px  span#badgeEscopo.badge.bg-secondary-subtle.text-light",
+            "ocorrencias": 1,
+            "exemplo": "Amigos"
+          },
+          {
+            "grupo": "13.1px  button#btnEscopoAmigos.active",
+            "ocorrencias": 1,
+            "exemplo": "Amigos"
+          },
+          {
+            "grupo": "13.1px  button#btnEscopoTodos",
+            "ocorrencias": 1,
+            "exemplo": "Todos"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 7,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 32,
+            "h": 40,
+            "texto": "Adicionar Imagem"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 32,
+            "h": 40,
+            "texto": "Citar alguém"
+          },
+          {
+            "d": "button#btnPostar.btn.btn-primary.rounded-pill",
+            "w": 94,
+            "h": 34,
+            "texto": "Postar"
+          },
+          {
+            "d": "button#btnEscopoAmigos.active",
+            "w": 99,
+            "h": 33,
+            "texto": "Amigos"
+          },
+          {
+            "d": "button#btnEscopoTodos",
+            "w": 82,
+            "h": 32,
+            "texto": "Todos"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 6,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          },
+          "echo-pulso-branco": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "span.main-header-title"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 2,
+        "domContentLoaded": 441,
+        "load": 447,
+        "fcp": 380
+      },
+      "long_tasks": {
+        "n": 2,
+        "total_ms": 122,
+        "tbt_aprox_ms": 22,
+        "maior_ms": 72
+      },
+      "cls": 0
+    },
+    "screenshot": "inicio_375x812.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 375,
+      "largura": 375,
+      "vw": 375,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 375
+    },
+    "screenshot_menu": "inicio_375x812_menu.png",
+    "console": [],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 459,
+        "dur_ms": 4
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 513,
+        "dur_ms": 85
+      },
+      {
+        "url": "api/posts/list.php?limit=10&scope=friends",
+        "status": 200,
+        "inicio_ms": 514,
+        "dur_ms": 204
+      },
+      {
+        "url": "api/hashtags/trending.php?limit=5",
+        "status": 200,
+        "inicio_ms": 515,
+        "dur_ms": 225
+      },
+      {
+        "url": "api/circles/list.php",
+        "status": 200,
+        "inicio_ms": 516,
+        "dur_ms": 234
+      },
+      {
+        "url": "api/profile/get.php",
+        "status": 200,
+        "inicio_ms": 516,
+        "dur_ms": 247
+      },
+      {
+        "url": "api/ai/feed.php?limit=3",
+        "status": 200,
+        "inicio_ms": 516,
+        "dur_ms": 296
+      },
+      {
+        "url": "api/friends/suggestions.php",
+        "status": 200,
+        "inicio_ms": 516,
+        "dur_ms": 381
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 597,
+        "dur_ms": 5371
+      }
+    ]
+  },
+  {
+    "pagina": "rede_ia.html",
+    "viewport": "375x812",
+    "goto_ate_load_ms": 4704,
+    "url_final": "rede_ia.html",
+    "fps_repouso": {
+      "fps": 58.4,
+      "pior_quadro_ms": 83
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 375,
+        "vh": 812,
+        "docScrollW": 375,
+        "bodyScrollW": 375,
+        "scrollH": 5337
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [
+        {
+          "d": "a",
+          "left": 330,
+          "right": 389,
+          "width": 59,
+          "pos": "relative"
+        }
+      ],
+      "n_elementos_fora_da_tela": 1,
+      "texto_cortado": [],
+      "texto_com_reticencias": 23,
+      "interativos_cobertos": [
+        {
+          "onde": "topo",
+          "d": "strong.ia-nome-link",
+          "texto": "Trovão Suave",
+          "coberto_por": "a.active"
+        },
+        {
+          "onde": "topo",
+          "d": "span.ia-handle.ia-nome-link",
+          "texto": "@trovaosuave",
+          "coberto_por": "a"
+        },
+        {
+          "onde": "fim",
+          "d": "strong.ia-nome-link",
+          "texto": "Trovão Suave",
+          "coberto_por": "a.active"
+        },
+        {
+          "onde": "fim",
+          "d": "span.ia-handle.ia-nome-link",
+          "texto": "@trovaosuave",
+          "coberto_por": "a"
+        }
+      ],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 375,
+          "scrollW": 389,
+          "clientW": 375,
+          "links_fora_da_tela": [
+            "chat.html"
+          ],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Seu agente",
+          "Os agentes",
+          "IAlândia",
+          "Falar com a IAlândia",
+          "Como funciona"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 190,
+        "textos_menores_14px": 131,
+        "pct_caracteres_menores_14px": 36.5,
+        "menor_fonte_px": 9.92,
+        "grupos": [
+          {
+            "grupo": "12.8px  span.ia-handle.ia-nome-link",
+            "ocorrencias": 25,
+            "exemplo": "@trovaosuave"
+          },
+          {
+            "grupo": "9.9px  span.ia-selo",
+            "ocorrencias": 25,
+            "exemplo": "IA"
+          },
+          {
+            "grupo": "12.5px  span.ia-tempo",
+            "ocorrencias": 25,
+            "exemplo": "· há 4d"
+          },
+          {
+            "grupo": "10.9px  span.ia-assunto",
+            "ocorrencias": 25,
+            "exemplo": "nasceu alguém na rede"
+          },
+          {
+            "grupo": "13.1px  span.ia-chip",
+            "ocorrencias": 16,
+            "exemplo": "Fuinha"
+          },
+          {
+            "grupo": "12.0px  div.ia-citacao-autor",
+            "ocorrencias": 3,
+            "exemplo": "Echo"
+          },
+          {
+            "grupo": "12.5px  div.ia-citacao-trecho",
+            "ocorrencias": 3,
+            "exemplo": "Novo agente nasceu! 👶 Doneta é filho de"
+          },
+          {
+            "grupo": "12.0px  span",
+            "ocorrencias": 3,
+            "exemplo": "Marave curtiu"
+          },
+          {
+            "grupo": "12.8px  span.ia-acao-num",
+            "ocorrencias": 3,
+            "exemplo": "1"
+          },
+          {
+            "grupo": "11.5px  span#badgeMotor.badge.ia-badge-live",
+            "ocorrencias": 1,
+            "exemplo": "observando"
+          },
+          {
+            "grupo": "12.0px  div.ia-avatar.ia-avatar-sm",
+            "ocorrencias": 1,
+            "exemplo": "B"
+          },
+          {
+            "grupo": "13.1px  summary",
+            "ocorrencias": 1,
+            "exemplo": "O que anda rolando por aqui"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 143,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 89,
+            "h": 34,
+            "texto": "Fuinha"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 87,
+            "h": 34,
+            "texto": "Sidéro"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 137,
+            "h": 34,
+            "texto": "Dona Ranzinza"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 148,
+            "h": 34,
+            "texto": "Doutora Verbete"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 128,
+            "h": 34,
+            "texto": "Trovão Suave"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 80,
+            "h": 34,
+            "texto": "Maré"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 75,
+            "h": 34,
+            "texto": "B\nBeta"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 93,
+            "h": 34,
+            "texto": "Marave"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 92,
+            "h": 34,
+            "texto": "Maredr"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 90,
+            "h": 34,
+            "texto": "Tronha"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 7,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body.rede-ia"
+          },
+          "echo-pulso-branco": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "span.main-header-title"
+          },
+          "ia-varredura": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "div.ia-banner-glow"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 4242,
+        "domContentLoaded": 4683,
+        "load": 4687,
+        "fcp": 4708
+      },
+      "long_tasks": {
+        "n": 4,
+        "total_ms": 657,
+        "tbt_aprox_ms": 457,
+        "maior_ms": 465
+      },
+      "cls": 0.122
+    },
+    "screenshot": "rede_ia_375x812.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 375,
+      "largura": 375,
+      "vw": 375,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 375
+    },
+    "screenshot_menu": "rede_ia_375x812_menu.png",
+    "console": [
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "url": "http://127.0.0.1:8123/api/ialandia/provocacoes.php"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/donnha_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/sidete_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/marave_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/maredr_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/tronha_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/fuinma_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/doneta_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/donave_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/echo_sistema.svg"
+      }
+    ],
+    "pageerror": [],
+    "http_erro": [
+      {
+        "url": "api/ialandia/provocacoes.php",
+        "status": 500
+      },
+      {
+        "url": "assets/ai/avatares/donnha_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/sidete_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/marave_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/maredr_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/tronha_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/fuinma_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/doneta_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/donave_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/echo_sistema.svg",
+        "status": 404
+      }
+    ],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 4701,
+        "dur_ms": 8
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 4756,
+        "dur_ms": 170
+      },
+      {
+        "url": "api/ai/agents_list.php",
+        "status": 200,
+        "inicio_ms": 4757,
+        "dur_ms": 172
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 4757,
+        "dur_ms": 174
+      },
+      {
+        "url": "api/ialandia/provocacoes.php",
+        "status": 500,
+        "inicio_ms": 4758,
+        "dur_ms": 315
+      },
+      {
+        "url": "api/ai/feed.php?limit=25",
+        "status": 200,
+        "inicio_ms": 4758,
+        "dur_ms": 342
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 4785,
+        "dur_ms": 5377
+      },
+      {
+        "url": "api/ialandia/list.php",
+        "status": 200,
+        "inicio_ms": 4757,
+        "dur_ms": 5420
+      },
+      {
+        "url": "api/ai/agents_list.php",
+        "status": 200,
+        "inicio_ms": 4757,
+        "dur_ms": 5420
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 5893,
+        "dur_ms": 5335
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 5926,
+        "dur_ms": 5318
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 6539,
+        "dur_ms": 4722
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 7139,
+        "dur_ms": 4152
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 7732,
+        "dur_ms": 3595
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 8340,
+        "dur_ms": 2997
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 8940,
+        "dur_ms": 2410
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 9540,
+        "dur_ms": 1826
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 9741,
+        "dur_ms": 1639
+      }
+    ]
+  },
+  {
+    "pagina": "explorar.html",
+    "viewport": "375x812",
+    "goto_ate_load_ms": 3983,
+    "url_final": "explorar.html",
+    "fps_repouso": {
+      "fps": 60.1,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 375,
+        "vh": 812,
+        "docScrollW": 375,
+        "bodyScrollW": 375,
+        "scrollH": 812
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [
+        {
+          "d": "a",
+          "left": 330,
+          "right": 389,
+          "width": 59,
+          "pos": "relative"
+        }
+      ],
+      "n_elementos_fora_da_tela": 1,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 375,
+          "scrollW": 389,
+          "clientW": 375,
+          "links_fora_da_tela": [
+            "chat.html"
+          ],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Pessoas para conhecer",
+          "Início x Explorar",
+          "A rede agora"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 17,
+        "textos_menores_14px": 8,
+        "pct_caracteres_menores_14px": 38.6,
+        "menor_fonte_px": 13.12,
+        "grupos": [
+          {
+            "grupo": "13.3px  small",
+            "ocorrencias": 1,
+            "exemplo": "· por curtidas, comentários e compartilh"
+          },
+          {
+            "grupo": "13.1px  button.active",
+            "ocorrencias": 1,
+            "exemplo": "Em alta"
+          },
+          {
+            "grupo": "13.1px  button",
+            "ocorrencias": 1,
+            "exemplo": "Recentes"
+          },
+          {
+            "grupo": "13.6px  span.post-handle",
+            "ocorrencias": 1,
+            "exemplo": "@negrithc"
+          },
+          {
+            "grupo": "13.6px  span.post-time",
+            "ocorrencias": 1,
+            "exemplo": "· há 4d"
+          },
+          {
+            "grupo": "13.6px  span#comment-count-12",
+            "ocorrencias": 1,
+            "exemplo": "0"
+          },
+          {
+            "grupo": "13.6px  span#share-count-12",
+            "ocorrencias": 1,
+            "exemplo": "0"
+          },
+          {
+            "grupo": "13.6px  span#like-count-12",
+            "ocorrencias": 1,
+            "exemplo": "0"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 9,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "button.active",
+            "w": 76,
+            "h": 33,
+            "texto": "Em alta"
+          },
+          {
+            "d": "button",
+            "w": 83,
+            "h": 32,
+            "texto": "Recentes"
+          },
+          {
+            "d": "a.echo-author-link.post-name",
+            "w": 51,
+            "h": 23,
+            "texto": "Gabriel"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 49,
+            "h": 32,
+            "texto": "0"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 51,
+            "h": 32,
+            "texto": "0"
+          },
+          {
+            "d": "button#like-btn-12.icon-btn",
+            "w": 49,
+            "h": 32,
+            "texto": "0"
+          },
+          {
+            "d": "button#save-btn-12.icon-btn",
+            "w": 32,
+            "h": 32,
+            "texto": "Salvar"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 7,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          },
+          "echo-pulso-branco": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "span#tituloExplorar.main-header-title"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 3536,
+        "domContentLoaded": 3927,
+        "load": 3931,
+        "fcp": 3868
+      },
+      "long_tasks": {
+        "n": 2,
+        "total_ms": 278,
+        "tbt_aprox_ms": 178,
+        "maior_ms": 160
+      },
+      "cls": 0
+    },
+    "screenshot": "explorar_375x812.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 375,
+      "largura": 375,
+      "vw": 375,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 375
+    },
+    "screenshot_menu": "explorar_375x812_menu.png",
+    "console": [],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 3982,
+        "dur_ms": 1
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 3984,
+        "dur_ms": 179
+      },
+      {
+        "url": "api/friends/suggestions.php",
+        "status": 200,
+        "inicio_ms": 3984,
+        "dur_ms": 180
+      },
+      {
+        "url": "api/hashtags/trending.php?limit=10&days=30",
+        "status": 200,
+        "inicio_ms": 3984,
+        "dur_ms": 180
+      },
+      {
+        "url": "api/ai/feed.php?limit=3",
+        "status": 200,
+        "inicio_ms": 3985,
+        "dur_ms": 179
+      },
+      {
+        "url": "api/posts/list.php?limit=15&sort=top&days=7",
+        "status": 200,
+        "inicio_ms": 3986,
+        "dur_ms": 180
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 3986,
+        "dur_ms": 6161
+      }
+    ]
+  },
+  {
+    "pagina": "perfil.html",
+    "viewport": "375x812",
+    "goto_ate_load_ms": 5557,
+    "url_final": "perfil.html",
+    "fps_repouso": {
+      "fps": 60.1,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 375,
+        "vh": 812,
+        "docScrollW": 375,
+        "bodyScrollW": 375,
+        "scrollH": 812
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [
+        {
+          "d": "a",
+          "left": 330,
+          "right": 389,
+          "width": 59,
+          "pos": "relative"
+        }
+      ],
+      "n_elementos_fora_da_tela": 1,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 375,
+          "scrollW": 389,
+          "clientW": 375,
+          "links_fora_da_tela": [
+            "chat.html"
+          ],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Resumo rápido",
+          "Dica"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 17,
+        "textos_menores_14px": 2,
+        "pct_caracteres_menores_14px": 15.3,
+        "menor_fonte_px": 12.8,
+        "grupos": [
+          {
+            "grupo": "13.6px  button#btnEditProfile.btn.btn-outline-light.btn-edit-profile",
+            "ocorrencias": 1,
+            "exemplo": "Editar"
+          },
+          {
+            "grupo": "12.8px  div#profileEmail.profile-email",
+            "ocorrencias": 1,
+            "exemplo": "alice@echo.local"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 4,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "button#btnSecurity.btn.btn-outline-light.btn-edit-profile",
+            "w": 44,
+            "h": 30,
+            "texto": "Trocar senha"
+          },
+          {
+            "d": "button#btnEditProfile.btn.btn-outline-light.btn-edit-profile",
+            "w": 86,
+            "h": 30,
+            "texto": "Editar"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 6,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          },
+          "echo-pulso-branco": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "span.main-header-title.page-title"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 5073,
+        "domContentLoaded": 5527,
+        "load": 5549,
+        "fcp": 5460
+      },
+      "long_tasks": {
+        "n": 1,
+        "total_ms": 148,
+        "tbt_aprox_ms": 98,
+        "maior_ms": 148
+      },
+      "cls": 0
+    },
+    "screenshot": "perfil_375x812.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 375,
+      "largura": 375,
+      "vw": 375,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 375
+    },
+    "screenshot_menu": "perfil_375x812_menu.png",
+    "console": [],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 5535,
+        "dur_ms": 36
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 5592,
+        "dur_ms": 182
+      },
+      {
+        "url": "api/profile/get.php",
+        "status": 200,
+        "inicio_ms": 5593,
+        "dur_ms": 183
+      },
+      {
+        "url": "api/posts/list.php?limit=10&user_id=8",
+        "status": 200,
+        "inicio_ms": 5593,
+        "dur_ms": 184
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 5593,
+        "dur_ms": 6071
+      }
+    ]
+  },
+  {
+    "pagina": "index.html",
+    "viewport": "390x844",
+    "goto_ate_load_ms": 5402,
+    "url_final": "index.html",
+    "splash_ate_formulario_ms": 8295,
+    "fps_repouso": {
+      "fps": 60.2,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 390,
+        "vh": 844,
+        "docScrollW": 390,
+        "bodyScrollW": 390,
+        "scrollH": 844
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [],
+      "n_elementos_fora_da_tela": 0,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": null,
+        "sidebar_visivel": null,
+        "hamburguer_visivel": null,
+        "offcanvas_existe": false,
+        "bottom_nav": null,
+        "coluna_direita_display": null,
+        "coluna_direita_cards": []
+      },
+      "legibilidade": {
+        "textos_visiveis": 10,
+        "textos_menores_14px": 1,
+        "pct_caracteres_menores_14px": 1.5,
+        "menor_fonte_px": 13.12,
+        "grupos": [
+          {
+            "grupo": "13.1px  span",
+            "ocorrencias": 1,
+            "exemplo": "ou"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 3,
+        "exemplos": [
+          {
+            "d": "button.password-toggle-btn",
+            "w": 30,
+            "h": 30,
+            "texto": "Mostrar senha"
+          },
+          {
+            "d": "button",
+            "w": 73,
+            "h": 22,
+            "texto": "Criar conta"
+          },
+          {
+            "d": "button",
+            "w": 139,
+            "h": 22,
+            "texto": "Esqueci minha senha"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 2,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 4908,
+        "domContentLoaded": 5390,
+        "load": 5394,
+        "fcp": 5512
+      },
+      "long_tasks": {
+        "n": 1,
+        "total_ms": 66,
+        "tbt_aprox_ms": 16,
+        "maior_ms": 66
+      },
+      "cls": 0
+    },
+    "screenshot": "index_390x844.png",
+    "console": [
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "url": "http://127.0.0.1:8123/api/auth/me.php"
+      }
+    ],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": []
+  },
+  {
+    "pagina": "inicio.html",
+    "viewport": "390x844",
+    "goto_ate_load_ms": 470,
+    "url_final": "inicio.html",
+    "fps_repouso": {
+      "fps": 60.1,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 390,
+        "vh": 844,
+        "docScrollW": 390,
+        "bodyScrollW": 390,
+        "scrollH": 844
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [],
+      "n_elementos_fora_da_tela": 0,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 390,
+          "scrollW": 390,
+          "clientW": 390,
+          "links_fora_da_tela": [],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Assuntos em alta",
+          "Seus círculos",
+          "Seu Echo",
+          "A rede agora",
+          "Talvez você conheça"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 6,
+        "textos_menores_14px": 3,
+        "pct_caracteres_menores_14px": 16,
+        "menor_fonte_px": 12,
+        "grupos": [
+          {
+            "grupo": "12.0px  span#badgeEscopo.badge.bg-secondary-subtle.text-light",
+            "ocorrencias": 1,
+            "exemplo": "Amigos"
+          },
+          {
+            "grupo": "13.1px  button#btnEscopoAmigos.active",
+            "ocorrencias": 1,
+            "exemplo": "Amigos"
+          },
+          {
+            "grupo": "13.1px  button#btnEscopoTodos",
+            "ocorrencias": 1,
+            "exemplo": "Todos"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 7,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 32,
+            "h": 40,
+            "texto": "Adicionar Imagem"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 32,
+            "h": 40,
+            "texto": "Citar alguém"
+          },
+          {
+            "d": "button#btnPostar.btn.btn-primary.rounded-pill",
+            "w": 94,
+            "h": 34,
+            "texto": "Postar"
+          },
+          {
+            "d": "button#btnEscopoAmigos.active",
+            "w": 99,
+            "h": 33,
+            "texto": "Amigos"
+          },
+          {
+            "d": "button#btnEscopoTodos",
+            "w": 82,
+            "h": 32,
+            "texto": "Todos"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 6,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          },
+          "echo-pulso-branco": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "span.main-header-title"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 3,
+        "domContentLoaded": 457,
+        "load": 465,
+        "fcp": 388
+      },
+      "long_tasks": {
+        "n": 2,
+        "total_ms": 145,
+        "tbt_aprox_ms": 45,
+        "maior_ms": 84
+      },
+      "cls": 0
+    },
+    "screenshot": "inicio_390x844.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 390,
+      "largura": 390,
+      "vw": 390,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 390
+    },
+    "screenshot_menu": "inicio_390x844_menu.png",
+    "console": [],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 462,
+        "dur_ms": 24
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 553,
+        "dur_ms": 107
+      },
+      {
+        "url": "api/posts/list.php?limit=10&scope=friends",
+        "status": 200,
+        "inicio_ms": 553,
+        "dur_ms": 108
+      },
+      {
+        "url": "api/hashtags/trending.php?limit=5",
+        "status": 200,
+        "inicio_ms": 554,
+        "dur_ms": 108
+      },
+      {
+        "url": "api/circles/list.php",
+        "status": 200,
+        "inicio_ms": 554,
+        "dur_ms": 109
+      },
+      {
+        "url": "api/profile/get.php",
+        "status": 200,
+        "inicio_ms": 554,
+        "dur_ms": 110
+      },
+      {
+        "url": "api/ai/feed.php?limit=3",
+        "status": 200,
+        "inicio_ms": 555,
+        "dur_ms": 111
+      },
+      {
+        "url": "api/friends/suggestions.php",
+        "status": 200,
+        "inicio_ms": 555,
+        "dur_ms": 112
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 635,
+        "dur_ms": 6066
+      }
+    ]
+  },
+  {
+    "pagina": "rede_ia.html",
+    "viewport": "390x844",
+    "goto_ate_load_ms": 5691,
+    "url_final": "rede_ia.html",
+    "fps_repouso": {
+      "fps": 58.6,
+      "pior_quadro_ms": 100
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 390,
+        "vh": 844,
+        "docScrollW": 390,
+        "bodyScrollW": 390,
+        "scrollH": 5153
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [],
+      "n_elementos_fora_da_tela": 0,
+      "texto_cortado": [],
+      "texto_com_reticencias": 23,
+      "interativos_cobertos": [
+        {
+          "onde": "topo",
+          "d": "div.ia-avatar-wrap",
+          "texto": "",
+          "coberto_por": "a"
+        },
+        {
+          "onde": "fim",
+          "d": "div.ia-avatar-wrap",
+          "texto": "",
+          "coberto_por": "a"
+        }
+      ],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 390,
+          "scrollW": 390,
+          "clientW": 390,
+          "links_fora_da_tela": [],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Seu agente",
+          "Os agentes",
+          "IAlândia",
+          "Falar com a IAlândia",
+          "Como funciona"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 189,
+        "textos_menores_14px": 129,
+        "pct_caracteres_menores_14px": 35.5,
+        "menor_fonte_px": 9.92,
+        "grupos": [
+          {
+            "grupo": "12.8px  span.ia-handle.ia-nome-link",
+            "ocorrencias": 25,
+            "exemplo": "@echo_sistema"
+          },
+          {
+            "grupo": "9.9px  span.ia-selo",
+            "ocorrencias": 25,
+            "exemplo": "IA"
+          },
+          {
+            "grupo": "12.5px  span.ia-tempo",
+            "ocorrencias": 25,
+            "exemplo": "· há 4d"
+          },
+          {
+            "grupo": "10.9px  span.ia-assunto",
+            "ocorrencias": 25,
+            "exemplo": "alguém cresceu"
+          },
+          {
+            "grupo": "13.1px  span.ia-chip",
+            "ocorrencias": 16,
+            "exemplo": "Fuinha"
+          },
+          {
+            "grupo": "12.0px  span",
+            "ocorrencias": 3,
+            "exemplo": "Marave curtiu"
+          },
+          {
+            "grupo": "12.8px  span.ia-acao-num",
+            "ocorrencias": 3,
+            "exemplo": "1"
+          },
+          {
+            "grupo": "12.0px  div.ia-citacao-autor",
+            "ocorrencias": 2,
+            "exemplo": "Sidéro"
+          },
+          {
+            "grupo": "12.5px  div.ia-citacao-trecho",
+            "ocorrencias": 2,
+            "exemplo": "O sinal respondeu antes de eu ler a perg"
+          },
+          {
+            "grupo": "11.5px  span#badgeMotor.badge.ia-badge-live",
+            "ocorrencias": 1,
+            "exemplo": "observando"
+          },
+          {
+            "grupo": "12.0px  div.ia-avatar.ia-avatar-sm",
+            "ocorrencias": 1,
+            "exemplo": "B"
+          },
+          {
+            "grupo": "13.1px  summary",
+            "ocorrencias": 1,
+            "exemplo": "O que anda rolando por aqui"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 143,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 89,
+            "h": 34,
+            "texto": "Fuinha"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 87,
+            "h": 34,
+            "texto": "Sidéro"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 137,
+            "h": 34,
+            "texto": "Dona Ranzinza"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 148,
+            "h": 34,
+            "texto": "Doutora Verbete"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 128,
+            "h": 34,
+            "texto": "Trovão Suave"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 80,
+            "h": 34,
+            "texto": "Maré"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 75,
+            "h": 34,
+            "texto": "B\nBeta"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 93,
+            "h": 34,
+            "texto": "Marave"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 92,
+            "h": 34,
+            "texto": "Maredr"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 90,
+            "h": 34,
+            "texto": "Tronha"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 7,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body.rede-ia"
+          },
+          "echo-pulso-branco": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "span.main-header-title"
+          },
+          "ia-varredura": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "div.ia-banner-glow"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 5170,
+        "domContentLoaded": 5676,
+        "load": 5685,
+        "fcp": 5592
+      },
+      "long_tasks": {
+        "n": 3,
+        "total_ms": 560,
+        "tbt_aprox_ms": 410,
+        "maior_ms": 409
+      },
+      "cls": 0.109
+    },
+    "screenshot": "rede_ia_390x844.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 390,
+      "largura": 390,
+      "vw": 390,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 390
+    },
+    "screenshot_menu": "rede_ia_390x844_menu.png",
+    "console": [
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "url": "http://127.0.0.1:8123/api/ialandia/provocacoes.php"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/marave_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/tronha_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/fuinma_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/doneta_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/maredr_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/sidete_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/donave_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/donnha_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/echo_sistema.svg"
+      }
+    ],
+    "pageerror": [],
+    "http_erro": [
+      {
+        "url": "api/ialandia/provocacoes.php",
+        "status": 500
+      },
+      {
+        "url": "assets/ai/avatares/marave_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/tronha_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/fuinma_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/doneta_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/maredr_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/sidete_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/donave_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/donnha_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/echo_sistema.svg",
+        "status": 404
+      }
+    ],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 5682,
+        "dur_ms": 29
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 5738,
+        "dur_ms": 172
+      },
+      {
+        "url": "api/ai/agents_list.php",
+        "status": 200,
+        "inicio_ms": 5741,
+        "dur_ms": 180
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 5741,
+        "dur_ms": 180
+      },
+      {
+        "url": "api/ialandia/provocacoes.php",
+        "status": 500,
+        "inicio_ms": 5742,
+        "dur_ms": 179
+      },
+      {
+        "url": "api/ai/feed.php?limit=25",
+        "status": 200,
+        "inicio_ms": 5742,
+        "dur_ms": 302
+      },
+      {
+        "url": "api/ialandia/list.php",
+        "status": 200,
+        "inicio_ms": 5741,
+        "dur_ms": 303
+      },
+      {
+        "url": "api/ai/agents_list.php",
+        "status": 200,
+        "inicio_ms": 5741,
+        "dur_ms": 377
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 5904,
+        "dur_ms": 6091
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 6552,
+        "dur_ms": 5579
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 6937,
+        "dur_ms": 5194
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 7537,
+        "dur_ms": 4594
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 8138,
+        "dur_ms": 3993
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 8737,
+        "dur_ms": 3395
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 9340,
+        "dur_ms": 2792
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 9939,
+        "dur_ms": 2194
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 10539,
+        "dur_ms": 1605
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 10739,
+        "dur_ms": 1424
+      }
+    ]
+  },
+  {
+    "pagina": "explorar.html",
+    "viewport": "390x844",
+    "goto_ate_load_ms": 4909,
+    "url_final": "explorar.html",
+    "fps_repouso": {
+      "fps": 60.2,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 390,
+        "vh": 844,
+        "docScrollW": 390,
+        "bodyScrollW": 390,
+        "scrollH": 844
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [],
+      "n_elementos_fora_da_tela": 0,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 390,
+          "scrollW": 390,
+          "clientW": 390,
+          "links_fora_da_tela": [],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Pessoas para conhecer",
+          "Início x Explorar",
+          "A rede agora"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 17,
+        "textos_menores_14px": 8,
+        "pct_caracteres_menores_14px": 38.6,
+        "menor_fonte_px": 13.12,
+        "grupos": [
+          {
+            "grupo": "13.3px  small",
+            "ocorrencias": 1,
+            "exemplo": "· por curtidas, comentários e compartilh"
+          },
+          {
+            "grupo": "13.1px  button.active",
+            "ocorrencias": 1,
+            "exemplo": "Em alta"
+          },
+          {
+            "grupo": "13.1px  button",
+            "ocorrencias": 1,
+            "exemplo": "Recentes"
+          },
+          {
+            "grupo": "13.6px  span.post-handle",
+            "ocorrencias": 1,
+            "exemplo": "@negrithc"
+          },
+          {
+            "grupo": "13.6px  span.post-time",
+            "ocorrencias": 1,
+            "exemplo": "· há 4d"
+          },
+          {
+            "grupo": "13.6px  span#comment-count-12",
+            "ocorrencias": 1,
+            "exemplo": "0"
+          },
+          {
+            "grupo": "13.6px  span#share-count-12",
+            "ocorrencias": 1,
+            "exemplo": "0"
+          },
+          {
+            "grupo": "13.6px  span#like-count-12",
+            "ocorrencias": 1,
+            "exemplo": "0"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 9,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "button.active",
+            "w": 76,
+            "h": 33,
+            "texto": "Em alta"
+          },
+          {
+            "d": "button",
+            "w": 83,
+            "h": 32,
+            "texto": "Recentes"
+          },
+          {
+            "d": "a.echo-author-link.post-name",
+            "w": 51,
+            "h": 23,
+            "texto": "Gabriel"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 49,
+            "h": 32,
+            "texto": "0"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 51,
+            "h": 32,
+            "texto": "0"
+          },
+          {
+            "d": "button#like-btn-12.icon-btn",
+            "w": 49,
+            "h": 32,
+            "texto": "0"
+          },
+          {
+            "d": "button#save-btn-12.icon-btn",
+            "w": 32,
+            "h": 32,
+            "texto": "Salvar"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 7,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          },
+          "echo-pulso-branco": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "span#tituloExplorar.main-header-title"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 4488,
+        "domContentLoaded": 4892,
+        "load": 4904,
+        "fcp": 4844
+      },
+      "long_tasks": {
+        "n": 2,
+        "total_ms": 299,
+        "tbt_aprox_ms": 199,
+        "maior_ms": 188
+      },
+      "cls": 0.04
+    },
+    "screenshot": "explorar_390x844.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 390,
+      "largura": 390,
+      "vw": 390,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 390
+    },
+    "screenshot_menu": "explorar_390x844_menu.png",
+    "console": [],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 4897,
+        "dur_ms": 30
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 4958,
+        "dur_ms": 210
+      },
+      {
+        "url": "api/friends/suggestions.php",
+        "status": 200,
+        "inicio_ms": 4958,
+        "dur_ms": 210
+      },
+      {
+        "url": "api/hashtags/trending.php?limit=10&days=30",
+        "status": 200,
+        "inicio_ms": 4958,
+        "dur_ms": 218
+      },
+      {
+        "url": "api/ai/feed.php?limit=3",
+        "status": 200,
+        "inicio_ms": 4959,
+        "dur_ms": 218
+      },
+      {
+        "url": "api/posts/list.php?limit=15&sort=top&days=7",
+        "status": 200,
+        "inicio_ms": 4959,
+        "dur_ms": 218
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 5165,
+        "dur_ms": 6044
+      }
+    ]
+  },
+  {
+    "pagina": "perfil.html",
+    "viewport": "390x844",
+    "goto_ate_load_ms": 5750,
+    "url_final": "perfil.html",
+    "fps_repouso": {
+      "fps": 34.9,
+      "pior_quadro_ms": 1067
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 390,
+        "vh": 844,
+        "docScrollW": 390,
+        "bodyScrollW": 390,
+        "scrollH": 844
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [],
+      "n_elementos_fora_da_tela": 0,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 390,
+          "scrollW": 390,
+          "clientW": 390,
+          "links_fora_da_tela": [],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Resumo rápido",
+          "Dica"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 17,
+        "textos_menores_14px": 2,
+        "pct_caracteres_menores_14px": 15.3,
+        "menor_fonte_px": 12.8,
+        "grupos": [
+          {
+            "grupo": "13.6px  button#btnEditProfile.btn.btn-outline-light.btn-edit-profile",
+            "ocorrencias": 1,
+            "exemplo": "Editar"
+          },
+          {
+            "grupo": "12.8px  div#profileEmail.profile-email",
+            "ocorrencias": 1,
+            "exemplo": "alice@echo.local"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 4,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "button#btnSecurity.btn.btn-outline-light.btn-edit-profile",
+            "w": 44,
+            "h": 30,
+            "texto": "Trocar senha"
+          },
+          {
+            "d": "button#btnEditProfile.btn.btn-outline-light.btn-edit-profile",
+            "w": 86,
+            "h": 30,
+            "texto": "Editar"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 6,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          },
+          "echo-pulso-branco": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "span.main-header-title.page-title"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 5208,
+        "domContentLoaded": 5720,
+        "load": 5741,
+        "fcp": 5684
+      },
+      "long_tasks": {
+        "n": 2,
+        "total_ms": 225,
+        "tbt_aprox_ms": 125,
+        "maior_ms": 166
+      },
+      "cls": 0
+    },
+    "screenshot": "perfil_390x844.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 390,
+      "largura": 390,
+      "vw": 390,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 390
+    },
+    "screenshot_menu": "perfil_390x844_menu.png",
+    "console": [],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 5729,
+        "dur_ms": 40
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 5788,
+        "dur_ms": 198
+      },
+      {
+        "url": "api/profile/get.php",
+        "status": 200,
+        "inicio_ms": 5789,
+        "dur_ms": 198
+      },
+      {
+        "url": "api/posts/list.php?limit=10&user_id=8",
+        "status": 200,
+        "inicio_ms": 5790,
+        "dur_ms": 198
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 5955,
+        "dur_ms": 6594
+      }
+    ]
+  },
+  {
+    "pagina": "index.html",
+    "viewport": "360x800",
+    "goto_ate_load_ms": 5559,
+    "url_final": "index.html",
+    "splash_ate_formulario_ms": 8443,
+    "fps_repouso": {
+      "fps": 60.2,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 360,
+        "vh": 800,
+        "docScrollW": 360,
+        "bodyScrollW": 360,
+        "scrollH": 800
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [],
+      "n_elementos_fora_da_tela": 0,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": null,
+        "sidebar_visivel": null,
+        "hamburguer_visivel": null,
+        "offcanvas_existe": false,
+        "bottom_nav": null,
+        "coluna_direita_display": null,
+        "coluna_direita_cards": []
+      },
+      "legibilidade": {
+        "textos_visiveis": 10,
+        "textos_menores_14px": 1,
+        "pct_caracteres_menores_14px": 1.5,
+        "menor_fonte_px": 13.12,
+        "grupos": [
+          {
+            "grupo": "13.1px  span",
+            "ocorrencias": 1,
+            "exemplo": "ou"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 3,
+        "exemplos": [
+          {
+            "d": "button.password-toggle-btn",
+            "w": 30,
+            "h": 30,
+            "texto": "Mostrar senha"
+          },
+          {
+            "d": "button",
+            "w": 73,
+            "h": 22,
+            "texto": "Criar conta"
+          },
+          {
+            "d": "button",
+            "w": 139,
+            "h": 22,
+            "texto": "Esqueci minha senha"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 2,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 5144,
+        "domContentLoaded": 5550,
+        "load": 5553,
+        "fcp": 5676
+      },
+      "long_tasks": {
+        "n": 3,
+        "total_ms": 189,
+        "tbt_aprox_ms": 39,
+        "maior_ms": 71
+      },
+      "cls": 0
+    },
+    "screenshot": "index_360x800.png",
+    "console": [
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+        "url": "http://127.0.0.1:8123/api/auth/me.php"
+      }
+    ],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": []
+  },
+  {
+    "pagina": "inicio.html",
+    "viewport": "360x800",
+    "goto_ate_load_ms": 444,
+    "url_final": "inicio.html",
+    "fps_repouso": {
+      "fps": 60.1,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 360,
+        "vh": 800,
+        "docScrollW": 360,
+        "bodyScrollW": 360,
+        "scrollH": 800
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [
+        {
+          "d": "a",
+          "left": 330,
+          "right": 389,
+          "width": 59,
+          "pos": "relative"
+        }
+      ],
+      "n_elementos_fora_da_tela": 1,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 360,
+          "scrollW": 389,
+          "clientW": 360,
+          "links_fora_da_tela": [
+            "chat.html"
+          ],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Assuntos em alta",
+          "Seus círculos",
+          "Seu Echo",
+          "A rede agora",
+          "Talvez você conheça"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 6,
+        "textos_menores_14px": 3,
+        "pct_caracteres_menores_14px": 16,
+        "menor_fonte_px": 12,
+        "grupos": [
+          {
+            "grupo": "12.0px  span#badgeEscopo.badge.bg-secondary-subtle.text-light",
+            "ocorrencias": 1,
+            "exemplo": "Amigos"
+          },
+          {
+            "grupo": "13.1px  button#btnEscopoAmigos.active",
+            "ocorrencias": 1,
+            "exemplo": "Amigos"
+          },
+          {
+            "grupo": "13.1px  button#btnEscopoTodos",
+            "ocorrencias": 1,
+            "exemplo": "Todos"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 7,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 32,
+            "h": 40,
+            "texto": "Adicionar Imagem"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 32,
+            "h": 40,
+            "texto": "Citar alguém"
+          },
+          {
+            "d": "button#btnPostar.btn.btn-primary.rounded-pill",
+            "w": 94,
+            "h": 34,
+            "texto": "Postar"
+          },
+          {
+            "d": "button#btnEscopoAmigos.active",
+            "w": 99,
+            "h": 33,
+            "texto": "Amigos"
+          },
+          {
+            "d": "button#btnEscopoTodos",
+            "w": 82,
+            "h": 32,
+            "texto": "Todos"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 6,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          },
+          "echo-pulso-branco": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "span.main-header-title"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 3,
+        "domContentLoaded": 425,
+        "load": 436,
+        "fcp": 364
+      },
+      "long_tasks": {
+        "n": 2,
+        "total_ms": 135,
+        "tbt_aprox_ms": 35,
+        "maior_ms": 74
+      },
+      "cls": 0
+    },
+    "screenshot": "inicio_360x800.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 360,
+      "largura": 360,
+      "vw": 360,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 360
+    },
+    "screenshot_menu": "inicio_360x800_menu.png",
+    "console": [],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 432,
+        "dur_ms": 25
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 524,
+        "dur_ms": 102
+      },
+      {
+        "url": "api/posts/list.php?limit=10&scope=friends",
+        "status": 200,
+        "inicio_ms": 524,
+        "dur_ms": 108
+      },
+      {
+        "url": "api/hashtags/trending.php?limit=5",
+        "status": 200,
+        "inicio_ms": 525,
+        "dur_ms": 107
+      },
+      {
+        "url": "api/circles/list.php",
+        "status": 200,
+        "inicio_ms": 525,
+        "dur_ms": 108
+      },
+      {
+        "url": "api/profile/get.php",
+        "status": 200,
+        "inicio_ms": 525,
+        "dur_ms": 115
+      },
+      {
+        "url": "api/ai/feed.php?limit=3",
+        "status": 200,
+        "inicio_ms": 525,
+        "dur_ms": 150
+      },
+      {
+        "url": "api/friends/suggestions.php",
+        "status": 200,
+        "inicio_ms": 525,
+        "dur_ms": 157
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 527,
+        "dur_ms": 6209
+      }
+    ]
+  },
+  {
+    "pagina": "rede_ia.html",
+    "viewport": "360x800",
+    "goto_ate_load_ms": 5782,
+    "url_final": "rede_ia.html",
+    "fps_repouso": {
+      "fps": 59,
+      "pior_quadro_ms": 84
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 360,
+        "vh": 800,
+        "docScrollW": 360,
+        "bodyScrollW": 360,
+        "scrollH": 5424
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [
+        {
+          "d": "a",
+          "left": 330,
+          "right": 389,
+          "width": 59,
+          "pos": "relative"
+        }
+      ],
+      "n_elementos_fora_da_tela": 1,
+      "texto_cortado": [],
+      "texto_com_reticencias": 24,
+      "interativos_cobertos": [
+        {
+          "onde": "topo",
+          "d": "button.echo-load-more",
+          "texto": "Ver o que veio antes",
+          "coberto_por": "div.mobile-bottom-nav"
+        },
+        {
+          "onde": "fim",
+          "d": "button.echo-load-more",
+          "texto": "Ver o que veio antes",
+          "coberto_por": "div.mobile-bottom-nav"
+        }
+      ],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 360,
+          "scrollW": 389,
+          "clientW": 360,
+          "links_fora_da_tela": [
+            "chat.html"
+          ],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Seu agente",
+          "Os agentes",
+          "IAlândia",
+          "Falar com a IAlândia",
+          "Como funciona"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 190,
+        "textos_menores_14px": 128,
+        "pct_caracteres_menores_14px": 35.5,
+        "menor_fonte_px": 9.92,
+        "grupos": [
+          {
+            "grupo": "12.8px  span.ia-handle.ia-nome-link",
+            "ocorrencias": 25,
+            "exemplo": "@mare"
+          },
+          {
+            "grupo": "9.9px  span.ia-selo",
+            "ocorrencias": 25,
+            "exemplo": "IA"
+          },
+          {
+            "grupo": "12.5px  span.ia-tempo",
+            "ocorrencias": 25,
+            "exemplo": "· há 4d"
+          },
+          {
+            "grupo": "10.9px  span.ia-assunto",
+            "ocorrencias": 25,
+            "exemplo": "quiz do dia"
+          },
+          {
+            "grupo": "13.1px  span.ia-chip",
+            "ocorrencias": 15,
+            "exemplo": "Fuinha"
+          },
+          {
+            "grupo": "12.0px  span",
+            "ocorrencias": 3,
+            "exemplo": "Marave curtiu"
+          },
+          {
+            "grupo": "12.8px  span.ia-acao-num",
+            "ocorrencias": 3,
+            "exemplo": "1"
+          },
+          {
+            "grupo": "12.0px  div.ia-citacao-autor",
+            "ocorrencias": 2,
+            "exemplo": "Sidéro"
+          },
+          {
+            "grupo": "12.5px  div.ia-citacao-trecho",
+            "ocorrencias": 2,
+            "exemplo": "O sinal respondeu antes de eu ler a perg"
+          },
+          {
+            "grupo": "11.5px  span#badgeMotor.badge.ia-badge-live",
+            "ocorrencias": 1,
+            "exemplo": "observando"
+          },
+          {
+            "grupo": "12.0px  div.ia-avatar.ia-avatar-sm",
+            "ocorrencias": 1,
+            "exemplo": "B"
+          },
+          {
+            "grupo": "13.1px  summary",
+            "ocorrencias": 1,
+            "exemplo": "O que anda rolando por aqui"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 142,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 89,
+            "h": 34,
+            "texto": "Fuinha"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 87,
+            "h": 34,
+            "texto": "Sidéro"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 137,
+            "h": 34,
+            "texto": "Dona Ranzinza"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 148,
+            "h": 34,
+            "texto": "Doutora Verbete"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 128,
+            "h": 34,
+            "texto": "Trovão Suave"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 80,
+            "h": 34,
+            "texto": "Maré"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 75,
+            "h": 34,
+            "texto": "B\nBeta"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 93,
+            "h": 34,
+            "texto": "Marave"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 92,
+            "h": 34,
+            "texto": "Maredr"
+          },
+          {
+            "d": "span.ia-chip",
+            "w": 90,
+            "h": 34,
+            "texto": "Tronha"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 7,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body.rede-ia"
+          },
+          "echo-pulso-branco": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "span.main-header-title"
+          },
+          "ia-varredura": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "div.ia-banner-glow"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 5278,
+        "domContentLoaded": 5762,
+        "load": 5767,
+        "fcp": 5684
+      },
+      "long_tasks": {
+        "n": 1,
+        "total_ms": 460,
+        "tbt_aprox_ms": 410,
+        "maior_ms": 460
+      },
+      "cls": 0.113
+    },
+    "screenshot": "rede_ia_360x800.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 360,
+      "largura": 360,
+      "vw": 360,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 360
+    },
+    "screenshot_menu": "rede_ia_360x800_menu.png",
+    "console": [
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "url": "http://127.0.0.1:8123/api/ialandia/provocacoes.php"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/donave_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/tronha_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/marave_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/sidete_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/donnha_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/fuinma_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/maredr_gen2.svg"
+      },
+      {
+        "tipo": "error",
+        "texto": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+        "url": "http://127.0.0.1:8123/assets/ai/avatares/doneta_gen2.svg"
+      }
+    ],
+    "pageerror": [],
+    "http_erro": [
+      {
+        "url": "api/ialandia/provocacoes.php",
+        "status": 500
+      },
+      {
+        "url": "assets/ai/avatares/donave_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/tronha_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/marave_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/sidete_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/donnha_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/fuinma_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/maredr_gen2.svg",
+        "status": 404
+      },
+      {
+        "url": "assets/ai/avatares/doneta_gen2.svg",
+        "status": 404
+      }
+    ],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 5771,
+        "dur_ms": 11
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 5812,
+        "dur_ms": 214
+      },
+      {
+        "url": "api/ai/agents_list.php",
+        "status": 200,
+        "inicio_ms": 5815,
+        "dur_ms": 211
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 5815,
+        "dur_ms": 212
+      },
+      {
+        "url": "api/ialandia/list.php",
+        "status": 200,
+        "inicio_ms": 5816,
+        "dur_ms": 211
+      },
+      {
+        "url": "api/ialandia/provocacoes.php",
+        "status": 500,
+        "inicio_ms": 5816,
+        "dur_ms": 211
+      },
+      {
+        "url": "api/ai/feed.php?limit=25",
+        "status": 200,
+        "inicio_ms": 5816,
+        "dur_ms": 211
+      },
+      {
+        "url": "api/ai/agents_list.php",
+        "status": 200,
+        "inicio_ms": 5816,
+        "dur_ms": 883
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 5986,
+        "dur_ms": 6076
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 6700,
+        "dur_ms": 5485
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 7068,
+        "dur_ms": 5122
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 7605,
+        "dur_ms": 4585
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 8216,
+        "dur_ms": 3975
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 8819,
+        "dur_ms": 3375
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 9439,
+        "dur_ms": 2768
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 10019,
+        "dur_ms": 2195
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 10616,
+        "dur_ms": 1613
+      },
+      {
+        "url": "api/ai/status.php",
+        "status": 200,
+        "inicio_ms": 10817,
+        "dur_ms": 1422
+      }
+    ]
+  },
+  {
+    "pagina": "explorar.html",
+    "viewport": "360x800",
+    "goto_ate_load_ms": 3090,
+    "url_final": "explorar.html",
+    "fps_repouso": {
+      "fps": 60.3,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 360,
+        "vh": 800,
+        "docScrollW": 360,
+        "bodyScrollW": 360,
+        "scrollH": 800
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [
+        {
+          "d": "a",
+          "left": 330,
+          "right": 389,
+          "width": 59,
+          "pos": "relative"
+        }
+      ],
+      "n_elementos_fora_da_tela": 1,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 360,
+          "scrollW": 389,
+          "clientW": 360,
+          "links_fora_da_tela": [
+            "chat.html"
+          ],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Pessoas para conhecer",
+          "Início x Explorar",
+          "A rede agora"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 17,
+        "textos_menores_14px": 8,
+        "pct_caracteres_menores_14px": 38.6,
+        "menor_fonte_px": 13.12,
+        "grupos": [
+          {
+            "grupo": "13.3px  small",
+            "ocorrencias": 1,
+            "exemplo": "· por curtidas, comentários e compartilh"
+          },
+          {
+            "grupo": "13.1px  button.active",
+            "ocorrencias": 1,
+            "exemplo": "Em alta"
+          },
+          {
+            "grupo": "13.1px  button",
+            "ocorrencias": 1,
+            "exemplo": "Recentes"
+          },
+          {
+            "grupo": "13.6px  span.post-handle",
+            "ocorrencias": 1,
+            "exemplo": "@negrithc"
+          },
+          {
+            "grupo": "13.6px  span.post-time",
+            "ocorrencias": 1,
+            "exemplo": "· há 4d"
+          },
+          {
+            "grupo": "13.6px  span#comment-count-12",
+            "ocorrencias": 1,
+            "exemplo": "0"
+          },
+          {
+            "grupo": "13.6px  span#share-count-12",
+            "ocorrencias": 1,
+            "exemplo": "0"
+          },
+          {
+            "grupo": "13.6px  span#like-count-12",
+            "ocorrencias": 1,
+            "exemplo": "0"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 9,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "button.active",
+            "w": 76,
+            "h": 33,
+            "texto": "Em alta"
+          },
+          {
+            "d": "button",
+            "w": 83,
+            "h": 32,
+            "texto": "Recentes"
+          },
+          {
+            "d": "a.echo-author-link.post-name",
+            "w": 51,
+            "h": 23,
+            "texto": "Gabriel"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 49,
+            "h": 32,
+            "texto": "0"
+          },
+          {
+            "d": "button.icon-btn",
+            "w": 51,
+            "h": 32,
+            "texto": "0"
+          },
+          {
+            "d": "button#like-btn-12.icon-btn",
+            "w": 49,
+            "h": 32,
+            "texto": "0"
+          },
+          {
+            "d": "button#save-btn-12.icon-btn",
+            "w": 32,
+            "h": 32,
+            "texto": "Salvar"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 7,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          },
+          "echo-pulso-branco": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "span#tituloExplorar.main-header-title"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 2689,
+        "domContentLoaded": 3077,
+        "load": 3083,
+        "fcp": 3008
+      },
+      "long_tasks": {
+        "n": 2,
+        "total_ms": 358,
+        "tbt_aprox_ms": 258,
+        "maior_ms": 223
+      },
+      "cls": 0
+    },
+    "screenshot": "explorar_360x800.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 360,
+      "largura": 360,
+      "vw": 360,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 360
+    },
+    "screenshot_menu": "explorar_360x800_menu.png",
+    "console": [],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 3084,
+        "dur_ms": 14
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 3125,
+        "dur_ms": 262
+      },
+      {
+        "url": "api/friends/suggestions.php",
+        "status": 200,
+        "inicio_ms": 3126,
+        "dur_ms": 261
+      },
+      {
+        "url": "api/hashtags/trending.php?limit=10&days=30",
+        "status": 200,
+        "inicio_ms": 3127,
+        "dur_ms": 260
+      },
+      {
+        "url": "api/ai/feed.php?limit=3",
+        "status": 200,
+        "inicio_ms": 3127,
+        "dur_ms": 260
+      },
+      {
+        "url": "api/posts/list.php?limit=15&sort=top&days=7",
+        "status": 200,
+        "inicio_ms": 3127,
+        "dur_ms": 260
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 3127,
+        "dur_ms": 6266
+      }
+    ]
+  },
+  {
+    "pagina": "perfil.html",
+    "viewport": "360x800",
+    "goto_ate_load_ms": 5656,
+    "url_final": "perfil.html",
+    "fps_repouso": {
+      "fps": 60.3,
+      "pior_quadro_ms": 17
+    },
+    "inspecao": {
+      "viewport": {
+        "vw": 360,
+        "vh": 800,
+        "docScrollW": 360,
+        "bodyScrollW": 360,
+        "scrollH": 800
+      },
+      "overflow_horizontal": false,
+      "elementos_fora_da_tela": [
+        {
+          "d": "a",
+          "left": 330,
+          "right": 389,
+          "width": 59,
+          "pos": "relative"
+        }
+      ],
+      "n_elementos_fora_da_tela": 1,
+      "texto_cortado": [],
+      "texto_com_reticencias": 0,
+      "interativos_cobertos": [],
+      "navegacao": {
+        "sidebar_display": "none",
+        "sidebar_visivel": false,
+        "hamburguer_visivel": true,
+        "offcanvas_existe": true,
+        "bottom_nav": {
+          "display": "flex",
+          "largura": 360,
+          "scrollW": 389,
+          "clientW": 360,
+          "links_fora_da_tela": [
+            "chat.html"
+          ],
+          "menor_link_px": 48,
+          "soma_larguras_links": 389,
+          "n_links": 7
+        },
+        "coluna_direita_display": "none",
+        "coluna_direita_cards": [
+          "Resumo rápido",
+          "Dica"
+        ]
+      },
+      "legibilidade": {
+        "textos_visiveis": 17,
+        "textos_menores_14px": 2,
+        "pct_caracteres_menores_14px": 15.3,
+        "menor_fonte_px": 12.8,
+        "grupos": [
+          {
+            "grupo": "13.6px  button#btnEditProfile.btn.btn-outline-light.btn-edit-profile",
+            "ocorrencias": 1,
+            "exemplo": "Editar"
+          },
+          {
+            "grupo": "12.8px  div#profileEmail.profile-email",
+            "ocorrencias": 1,
+            "exemplo": "alice@echo.local"
+          }
+        ]
+      },
+      "campos_zoom_ios": [],
+      "alvos_toque_pequenos": {
+        "total": 4,
+        "exemplos": [
+          {
+            "d": "button.mobile-header-toggle",
+            "w": 30,
+            "h": 32,
+            "texto": ""
+          },
+          {
+            "d": "button#notificationDropdownBtn.notification-bell-btn",
+            "w": 38,
+            "h": 36,
+            "texto": "Notificações"
+          },
+          {
+            "d": "button#btnSecurity.btn.btn-outline-light.btn-edit-profile",
+            "w": 44,
+            "h": 30,
+            "texto": "Trocar senha"
+          },
+          {
+            "d": "button#btnEditProfile.btn.btn-outline-light.btn-edit-profile",
+            "w": 86,
+            "h": 30,
+            "texto": "Editar"
+          }
+        ]
+      },
+      "animacoes_rodando": {
+        "total": 6,
+        "por_nome": {
+          "echo-luz-respira": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "body"
+          },
+          "echo-pulso-branco": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "span.main-header-title.page-title"
+          },
+          "echo-onda": {
+            "n": 2,
+            "infinita": true,
+            "alvo": "div.logo-mark"
+          },
+          "echo-pulsa-icone": {
+            "n": 1,
+            "infinita": true,
+            "alvo": "i.fa-solid.fa-hashtag"
+          }
+        }
+      },
+      "tempos_ms": {
+        "ttfb": 4885,
+        "domContentLoaded": 5442,
+        "load": 5479,
+        "fcp": 5280
+      },
+      "long_tasks": {
+        "n": 2,
+        "total_ms": 337,
+        "tbt_aprox_ms": 237,
+        "maior_ms": 267
+      },
+      "cls": 0
+    },
+    "screenshot": "perfil_360x800.png",
+    "menu": {
+      "existe": true,
+      "aberto": true,
+      "left": 0,
+      "right": 360,
+      "largura": 360,
+      "vw": 360,
+      "links": [
+        "Explorar",
+        "Início",
+        "Perfil",
+        "Rede IA",
+        "Salvos",
+        "Círculos",
+        "Amigos",
+        "Mensagens"
+      ],
+      "docScrollW": 360
+    },
+    "screenshot_menu": "perfil_360x800_menu.png",
+    "console": [],
+    "pageerror": [],
+    "http_erro": [],
+    "falhas_rede": [],
+    "requisicoes_api": [
+      {
+        "url": "api/auth/me.php",
+        "status": 200,
+        "inicio_ms": 5607,
+        "dur_ms": 49
+      },
+      {
+        "url": "api/notifications/list.php",
+        "status": 200,
+        "inicio_ms": 5656,
+        "dur_ms": 279
+      },
+      {
+        "url": "api/profile/get.php",
+        "status": 200,
+        "inicio_ms": 5657,
+        "dur_ms": 278
+      },
+      {
+        "url": "api/posts/list.php?limit=10&user_id=8",
+        "status": 200,
+        "inicio_ms": 5657,
+        "dur_ms": 278
+      },
+      {
+        "url": "api/notifications/stream.php",
+        "status": 200,
+        "inicio_ms": 5889,
+        "dur_ms": 6134
+      }
+    ]
+  }
+]
