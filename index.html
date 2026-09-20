@@ -13,7 +13,7 @@
     <!-- Fonte do efeito -->
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
     <!-- Echo Core Stylesheet -->
-    <link href="css/echo.css?v=20260920a" rel="stylesheet" />
+    <link href="css/echo.css?v=20260920c" rel="stylesheet" />
 </head>
 <body>
     <div id="app"></div>
@@ -22,7 +22,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- GSAP para o efeito splash -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
-    <script src="js/echo-ui.js?v=20260920b"></script>
+    <script src="js/echo-ui.js?v=20260920c"></script>
 
     <script>
         /* =====================================================
@@ -119,7 +119,11 @@
 
                     <!-- LADO DIREITO - LOGIN -->
                     <div class="col-lg-5 col-md-8 mx-auto auth-card-wrap">
-                        <div class="auth-card">
+                        <!-- data-enter: Enter em qualquer campo de uma linha
+                             deste bloco clica o botão indicado (ver o listener
+                             no fim de js/echo-ui.js). Quem digita e-mail e
+                             senha termina com a mão no teclado. -->
+                        <div class="auth-card" data-enter="#btnEntrar">
                             <h2>Entrar</h2>
                             <p class="auth-card-sub">Use seu e-mail cadastrado para acessar sua conta.</p>
 
@@ -142,7 +146,7 @@
                                 </div>
                             </div>
 
-                            <button class="btn btn-primary w-100 btn-auth" onclick="login()">Entrar</button>
+                            <button id="btnEntrar" class="btn btn-primary w-100 btn-auth" onclick="login()">Entrar</button>
 
                             <div class="auth-divider"><span>ou</span></div>
 
@@ -187,7 +191,7 @@
 
                     <!-- LADO DIREITO - CADASTRO -->
                     <div class="col-lg-5 col-md-8 mx-auto auth-card-wrap">
-                        <div class="auth-card">
+                        <div class="auth-card" data-enter="#btnCriarConta">
                             <h2>Criar conta</h2>
                             <p class="auth-card-sub">Preencha os campos abaixo para criar seu perfil.</p>
 
@@ -218,7 +222,7 @@
                                 </div>
                             </div>
 
-                            <button class="btn btn-primary w-100 btn-auth" onclick="registerUser()">Criar conta</button>
+                            <button id="btnCriarConta" class="btn btn-primary w-100 btn-auth" onclick="registerUser()">Criar conta</button>
 
                             <div class="auth-divider"><span>ou</span></div>
 
@@ -260,7 +264,7 @@
 
                     <!-- LADO DIREITO - FORGOT PASSWORD -->
                     <div class="col-lg-5 col-md-8 mx-auto auth-card-wrap">
-                        <div class="auth-card">
+                        <div class="auth-card" data-enter="#btnForgotSubmit">
                             <h2>Recuperar senha</h2>
                             <p class="auth-card-sub">Informe seu e-mail para enviarmos o link de recuperação.</p>
 

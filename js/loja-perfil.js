@@ -111,6 +111,12 @@ async function carregarProdutos() {
             return;
         }
 
+        // Quantos itens a seção tem, ao lado do título. O catálogo vem
+        // inteiro (sem paginação), então o número é o total de verdade —
+        // o mesmo não vale para as publicações, que vêm por página.
+        document.getElementById("contaProdutos").textContent =
+            d.produtos.length + (d.produtos.length === 1 ? " item" : " itens");
+
         box.innerHTML = d.produtos.map(p => `
             <div class="loja-produto-card" data-id="${p.id}">
                 ${p.imagem

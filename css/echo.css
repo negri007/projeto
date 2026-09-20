@@ -44,6 +44,22 @@
     --radius-lg: 16px;
     --radius-full: 999px;
 
+    /* Respiro lateral do miolo (20/09/2026)
+
+       .main-col não tem padding próprio — quem tem é cada bloco dentro
+       dela (.main-header, .echo-chips, .loja-post, todos com 16px). As
+       telas novas nasceram sem esse recuo e encostaram na borda da
+       coluna. Virou variável para o recuo ser o MESMO nas telas novas e
+       poder cair de uma vez no celular, onde 22px de cada lado custam
+       caro numa tela de 360px.
+
+       --medida-form é o teto de largura de formulário: campo de uma
+       linha esticado por 760px é campo que parece pedir um texto longo,
+       e botão de largura total para "Salvar" é peso visual que a ação
+       não tem. */
+    --gutter-tela: 22px;
+    --medida-form: 640px;
+
     /* Transitions & Shadows */
     --transition-fast: 0.15s ease;
     --transition-normal: 0.25s ease;
@@ -4575,12 +4591,25 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
    é formulário abandonado no segundo campo.
    ========================================================================== */
 
-.echo-passo { padding: 18px 0 40px; }
+.echo-passo { padding: 22px var(--gutter-tela) 48px; }
 
 .echo-titulo {
     font-size: 1.45rem;
     font-weight: 800;
     margin-bottom: 6px;
+}
+
+/* Risco curto embaixo do título: a página é uma sequência de blocos de
+   campo, e sem nenhuma marca o título vira só um texto em negrito no meio
+   deles. Degradê para a direita para a marca terminar sem aresta. */
+.echo-titulo::after {
+    content: "";
+    display: block;
+    width: 42px;
+    height: 3px;
+    margin-top: 9px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), rgba(29, 155, 240, 0));
 }
 
 .echo-sub {
@@ -4614,6 +4643,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
+    max-width: 720px;
 }
 
 .echo-card-tipo {
@@ -4642,14 +4672,60 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 /* --- blocos de campo --- */
 
-.echo-bloco { margin-bottom: 22px; }
+.echo-bloco {
+    position: relative;
+    margin-bottom: 22px;
+    max-width: var(--medida-form);
+}
 
 .echo-rotulo {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-weight: 700;
     font-size: 0.95rem;
     margin-bottom: 4px;
 }
+
+/* Ícone do rótulo: um por campo, na cor de destaque. Serve para achar o
+   campo de volta ao rolar a página, que é comprida no formulário da loja. */
+.echo-rotulo i {
+    font-size: 0.82rem;
+    color: var(--accent);
+    opacity: 0.9;
+    width: 16px;
+    text-align: center;
+}
+
+/* O padding-left de 42px do .form-control existe por causa do ícone dentro
+   do campo (.input-icon-wrapper, telas de login). Aqui o ícone está no
+   rótulo, e o texto ficaria começando no vazio. */
+.echo-bloco .form-control,
+.echo-bloco .form-select,
+.echo-form-inline .form-control,
+.echo-form-inline .form-select { padding-left: 16px; }
+
+/* Pill em campo de uma linha é a cara do projeto; em textarea de seis
+   linhas vira um comprimido gigante. */
+.echo-bloco textarea.form-control,
+.echo-form-inline textarea.form-control {
+    border-radius: var(--radius-lg);
+    padding-top: 12px;
+    resize: vertical;
+}
+
+.echo-bloco .form-control:focus,
+.echo-bloco .form-select:focus,
+.echo-form-inline .form-control:focus,
+.echo-form-inline .form-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.14);
+}
+
+/* Largura por medida do conteúdo: telefone e preço não precisam de 640px,
+   e campo largo demais promete um texto que o campo nem aceita. */
+.echo-campo-curto { max-width: 300px; }
+.echo-campo-medio { max-width: 440px; }
 
 /* No máximo duas linhas, por regra do plano: texto de ajuda que vira
    parágrafo deixa de ser lido e passa a ser obstáculo. */
@@ -4668,6 +4744,96 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .echo-erro:empty { display: none; }
+
+/* --- exemplos fixos abaixo do campo ---
+   O placeholder some no primeiro caractere digitado, e era ele que
+   carregava o exemplo de preenchimento. Quem trava na metade do texto
+   perde a referência justamente quando precisa dela. Estes ficam.
+
+   Clicar escreve o exemplo no campo (ver EchoUI, js/echo-ui.js): para
+   texto longo o rótulo é o assunto ("Horário") e o que entra é a frase
+   inteira, guardada em data-texto. Contorno tracejado para não competir
+   com os chips de verdade (.echo-chip), que são filtro e não sugestão. */
+
+.echo-exemplos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.echo-exemplos-rotulo {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-right: 2px;
+}
+
+.echo-exemplo {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    padding: 4px 11px;
+    border-radius: var(--radius-full);
+    border: 1px dashed var(--border-hover);
+    background: none;
+    color: var(--text-soft);
+    cursor: pointer;
+    transition: color var(--transition-fast),
+                border-color var(--transition-fast),
+                background-color var(--transition-fast);
+}
+
+.echo-exemplo:hover {
+    border-style: solid;
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(29, 155, 240, 0.08);
+}
+
+/* Contador de caracteres: nasce no primeiro foco do campo, some junto com
+   ele. Só nos campos de texto longo, que são os que têm limite apertado
+   o bastante para alguém bater nele sem perceber.
+
+   Absoluto, na linha do rótulo: em fluxo normal ele empurrava os exemplos
+   para baixo ao aparecer, e o bloco pulava a cada foco. */
+.echo-contador {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+
+.echo-contador.perto { color: #ffb454; }
+
+/* --- linha de ação ---
+   Botão de salvar em largura total dava a "Salvar alterações" o mesmo
+   peso do feed inteiro. Aqui ele tem o tamanho do texto, com um piso para
+   não virar um botãozinho, e o traço em cima fecha o formulário. */
+
+.echo-acoes {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    max-width: var(--medida-form);
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border-soft);
+}
+
+.echo-acoes .btn { min-width: 200px; }
+
+.echo-acoes-nota {
+    color: var(--text-soft);
+    font-size: 0.78rem;
+    margin: 0;
+}
 
 /* --- níveis de autonomia ---
    Cards e não um select: a diferença entre "sugere" e "age sozinho" é a
@@ -4775,10 +4941,14 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
+    max-width: var(--medida-form);
     margin-bottom: 18px;
 }
 
+/* Fio de destaque no topo do cartão: os números são a única coisa viva
+   desta tela (sobem sozinhos, por poll de 30s) e mereciam alguma marca. */
 .echo-status-num {
+    position: relative;
     flex: 1 1 100px;
     display: flex;
     flex-direction: column;
@@ -4787,6 +4957,16 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     border-radius: var(--radius-md);
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--border-soft);
+    overflow: hidden;
+}
+
+.echo-status-num::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(29, 155, 240, 0), var(--accent), rgba(29, 155, 240, 0));
+    opacity: 0.55;
 }
 
 .echo-status-num strong { font-size: 1.4rem; font-weight: 800; line-height: 1.1; }
@@ -4797,6 +4977,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
    logo acima. Numa página separada essa leitura se perde. */
 
 .echo-sugestoes:empty { display: none; }
+.echo-sugestoes { max-width: var(--medida-form); }
 
 .echo-sugestao {
     padding: 14px;
@@ -4828,12 +5009,30 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 /* --- produtos --- */
 
 .echo-form-inline {
-    padding: 14px;
-    border-radius: var(--radius-md);
+    position: relative;
+    padding: 16px;
+    border-radius: var(--radius-lg);
     border: 1px solid var(--border-soft);
     background: rgba(255, 255, 255, 0.02);
+    max-width: var(--medida-form);
     margin-bottom: 14px;
 }
+
+/* Título curto dentro do formulário curto: sem ele o bloco aparece do
+   nada, com um campo de nome solto no topo da lista de produtos. */
+.echo-form-inline-titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.echo-form-inline-titulo i { color: var(--accent); font-size: 0.82rem; }
+
+/* No formulário curto o contador cai na linha do título, dentro da caixa. */
+.echo-form-inline .echo-contador { top: 17px; right: 16px; }
 
 .echo-produto {
     display: flex;
@@ -4842,8 +5041,12 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     padding: 10px;
     border-radius: var(--radius-md);
     border: 1px solid var(--border-soft);
+    max-width: var(--medida-form);
     margin-bottom: 8px;
+    transition: border-color var(--transition-fast);
 }
+
+.echo-produto:hover { border-color: var(--border-hover); }
 
 .echo-produto-foto {
     flex-shrink: 0;
@@ -4886,6 +5089,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     padding: 12px;
     border-radius: var(--radius-md);
     border: 1px solid var(--border-soft);
+    max-width: var(--medida-form);
     margin-bottom: 8px;
 }
 
@@ -4902,12 +5106,21 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 /* --- celular: 360px é o piso do projeto --- */
 
 @media (max-width: 575.98px) {
+    /* 22px de cada lado numa tela de 360px são 12% da largura. */
+    :root { --gutter-tela: 16px; }
+
     .echo-escolha,
     .echo-niveis { grid-template-columns: 1fr; }
 
     .echo-titulo { font-size: 1.25rem; }
     .echo-status-num { flex-basis: calc(50% - 5px); }
     .echo-produto-acoes { flex-direction: column; }
+
+    /* No celular o polegar agradece a largura toda, e não há coluna ao
+       lado para o botão desequilibrar. */
+    .echo-acoes .btn { flex: 1 1 100%; min-width: 0; }
+    .echo-campo-curto,
+    .echo-campo-medio { max-width: none; }
 }
 
 /* ==========================================================================
@@ -4916,7 +5129,9 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 /* --- chips de categoria --- */
 
-.loja-categorias { margin: 14px 0 6px; }
+/* Os chips já trazem 14px/16px de padding próprio (.echo-chips); aqui
+   só o recuo lateral sobe para o da tela, para alinhar com o cabeçalho. */
+.loja-categorias { padding-inline: var(--gutter-tela); }
 .echo-chip.ativo { border-color: var(--accent); color: var(--accent); background: rgba(29,155,240,.10); }
 
 /* --- post de loja --- */
@@ -5087,14 +5302,33 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 .loja-cabecalho-texto p { margin: 4px 0 0; color: var(--text-soft); font-size: 0.88rem; line-height: 1.45; }
 
-.loja-secao { margin-bottom: 26px; }
+.loja-capa { padding: 16px var(--gutter-tela) 0; }
+
+.loja-secao {
+    margin-bottom: 26px;
+    padding-inline: var(--gutter-tela);
+}
 
 .loja-secao-titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 1.05rem;
     font-weight: 800;
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border-soft);
+}
+
+.loja-secao-titulo i { color: var(--accent); font-size: 0.85rem; }
+
+/* Quantos itens a seção tem, ao lado do título: a pessoa vê se vale rolar
+   antes de rolar. */
+.loja-secao-conta {
+    margin-left: auto;
+    font-size: var(--fonte-meta);
+    font-weight: 600;
+    color: var(--text-soft);
 }
 
 .loja-grade {
@@ -5282,7 +5516,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
    CHAT COM O AGENTE DA LOJA
    ========================================================================== */
 
-.loja-chat-topo { padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+.loja-chat-topo { padding: 12px var(--gutter-tela); border-bottom: 1px solid var(--border-soft); }
 
 .loja-chat-identidade {
     display: flex;
@@ -5300,7 +5534,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     height: calc(100vh - 290px);
     min-height: 260px;
     overflow-y: auto;
-    padding: 16px 4px;
+    padding: 16px var(--gutter-tela);
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -5357,13 +5591,19 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .loja-card-mini-corpo strong { font-size: 0.86rem; }
 .loja-card-mini-corpo span   { color: #17bf63; font-weight: 700; font-size: 0.84rem; }
 
-.loja-chat-escrever { display: flex; gap: 8px; padding: 12px 0; }
+.loja-chat-escrever {
+    display: flex;
+    gap: 8px;
+    padding: 12px var(--gutter-tela);
+    border-top: 1px solid var(--border-soft);
+}
 
 .loja-chat-rodape {
     text-align: center;
     color: var(--text-soft);
     font-size: 0.74rem;
-    margin: 0 0 20px;
+    padding-inline: var(--gutter-tela);
+    margin: 10px 0 20px;
 }
 
 /* --- celular --- */

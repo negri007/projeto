@@ -283,21 +283,37 @@ function desenharPessoal() {
     const a = s.agente;
 
     document.getElementById("ePForm").innerHTML = `
+        <div data-enter="#edSalvar">
         <div class="echo-bloco">
-            <label class="echo-rotulo" for="edNome">Nome do seu Echo</label>
-            <input type="text" class="form-control" id="edNome" maxlength="100"
+            <label class="echo-rotulo" for="edNome">
+                <i class="fa-solid fa-signature"></i>Nome do seu Echo
+            </label>
+            <input type="text" class="form-control echo-campo-medio" id="edNome" maxlength="100"
                    value="${EchoUIInstance.escapeHTML(a.nome || "")}">
         </div>
 
         <div class="echo-bloco">
-            <label class="echo-rotulo" for="edPersonalidade">Como ele fala?</label>
+            <label class="echo-rotulo" for="edPersonalidade">
+                <i class="fa-solid fa-comment-dots"></i>Como ele fala?
+            </label>
             <p class="echo-ajuda">Descreva o jeito que você quer que ele escreva.</p>
             <textarea class="form-control" id="edPersonalidade" rows="4" maxlength="2000"
                       placeholder="Ex.: Fala de forma direta, usa gírias, não é formal.">${EchoUIInstance.escapeHTML(a.personalidade || "")}</textarea>
+            <div class="echo-exemplos" data-alvo="edPersonalidade">
+                <span class="echo-exemplos-rotulo">Escreva sobre</span>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Fala de forma direta e curta, sem rodeio.">Tom</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Usa gíria, nada formal, e emoji de vez em quando.">Gírias e emoji</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Não gosta de texto comprido: no máximo duas frases por resposta.">Tamanho</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Assuntos que eu comento: tecnologia, futebol e música.">Assuntos</button>
+            </div>
         </div>
 
         <div class="echo-bloco">
-            <span class="echo-rotulo">Autonomia</span>
+            <span class="echo-rotulo"><i class="fa-solid fa-sliders"></i>Autonomia</span>
             <p class="echo-ajuda">O quanto ele pode fazer sem te perguntar.</p>
             <div class="echo-niveis" id="edNiveis">
                 ${nivelHTML(0, "fa-magnifying-glass", "Só observa", "Aprende com você, não faz nada ainda.", a.autonomia)}
@@ -311,15 +327,19 @@ function desenharPessoal() {
                     <i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>
                     Nesse nível ele publica e responde sem te perguntar nada.
                 </p>
-                <input type="text" class="form-control" id="edConfirma"
+                <input type="text" class="form-control echo-campo-medio" id="edConfirma"
                        placeholder="confirmo autonomia total" autocomplete="off">
             </div>
         </div>
 
-        <button class="btn btn-primary rounded-pill px-4 w-100" type="button" id="edSalvar">
-            Salvar alterações
-        </button>
-        <div class="echo-erro" id="edErro"></div>`;
+        <div class="echo-acoes">
+            <button class="btn btn-primary rounded-pill px-4" type="button" id="edSalvar">
+                Salvar alterações
+            </button>
+            <p class="echo-acoes-nota">Vale a partir da próxima sugestão dele.</p>
+        </div>
+        <div class="echo-erro" id="edErro"></div>
+        </div>`;
 
     let nivel = a.autonomia;
 
@@ -513,44 +533,91 @@ function desenharFormLoja(l) {
     const ag = estado.loja.agente || {};
 
     document.getElementById("eLFormLoja").innerHTML = `
+        <div data-enter="#elSalvar">
         <div class="echo-bloco">
-            <label class="echo-rotulo" for="elNome">Nome da loja</label>
-            <input type="text" class="form-control" id="elNome" maxlength="150"
+            <label class="echo-rotulo" for="elNome">
+                <i class="fa-solid fa-store"></i>Nome da loja
+            </label>
+            <input type="text" class="form-control echo-campo-medio" id="elNome" maxlength="150"
                    value="${EchoUIInstance.escapeHTML(l.nome || "")}">
         </div>
 
         <div class="echo-bloco">
-            <label class="echo-rotulo" for="elWhats">WhatsApp</label>
+            <label class="echo-rotulo" for="elWhats">
+                <i class="fa-brands fa-whatsapp"></i>WhatsApp
+            </label>
             <p class="echo-ajuda">Para onde o pedido é enviado ao finalizar.</p>
-            <input type="tel" class="form-control" id="elWhats" maxlength="20"
+            <input type="tel" class="form-control echo-campo-curto" id="elWhats" maxlength="20"
                    placeholder="Ex.: (11) 98765-4321"
                    value="${EchoUIInstance.escapeHTML(l.whatsapp || "")}">
+            <div class="echo-exemplos" data-alvo="elWhats">
+                <span class="echo-exemplos-rotulo">Formatos</span>
+                <button type="button" class="echo-exemplo">(11) 98765-4321</button>
+                <button type="button" class="echo-exemplo">11987654321</button>
+            </div>
         </div>
 
         <div class="echo-bloco">
-            <label class="echo-rotulo" for="elDescricao">Descrição</label>
+            <label class="echo-rotulo" for="elDescricao">
+                <i class="fa-solid fa-align-left"></i>Descrição
+            </label>
             <textarea class="form-control" id="elDescricao" rows="2" maxlength="2000"
                       placeholder="Ex.: Pão quentinho de hora em hora.">${EchoUIInstance.escapeHTML(l.descricao || "")}</textarea>
+            <div class="echo-exemplos" data-alvo="elDescricao">
+                <span class="echo-exemplos-rotulo">Exemplos</span>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Pão quentinho de hora em hora, bolos por encomenda e café passado na hora.">Padaria</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Roupas de segunda mão selecionadas peça a peça, do P ao GG.">Brechó</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Conserto de celular e notebook, com orçamento na hora.">Serviço</button>
+            </div>
         </div>
 
         <div class="echo-bloco">
-            <label class="echo-rotulo" for="elInstrucoes">O que seu agente deve saber?</label>
+            <label class="echo-rotulo" for="elInstrucoes">
+                <i class="fa-solid fa-book"></i>O que seu agente deve saber?
+            </label>
             <p class="echo-ajuda">Quanto mais detalhe, menos ele manda o cliente pro WhatsApp.</p>
             <textarea class="form-control" id="elInstrucoes" rows="6" maxlength="6000"
                       placeholder="Ex.: Abrimos das 6h às 20h. Entrega até 3km, taxa R$ 5. Aceitamos pix.">${EchoUIInstance.escapeHTML(ag.instrucoes || "")}</textarea>
+            <div class="echo-exemplos" data-alvo="elInstrucoes">
+                <span class="echo-exemplos-rotulo">Não esqueça de</span>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Abrimos de segunda a sábado, das 6h às 20h. Domingo não abrimos.">Horário</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Entregamos no bairro até 3km, taxa de R$ 5. Acima disso, combinar.">Entrega</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Aceitamos pix, débito e crédito. Sem parcelamento.">Pagamento</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Encomenda precisa de 2 dias de antecedência.">Prazo</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Não trabalhamos com opções sem glúten nem sem lactose.">O que não tem</button>
+            </div>
         </div>
 
         <div class="echo-bloco">
-            <label class="echo-rotulo" for="elSaudacao">Primeira mensagem ao cliente</label>
+            <label class="echo-rotulo" for="elSaudacao">
+                <i class="fa-regular fa-comment"></i>Primeira mensagem ao cliente
+            </label>
             <input type="text" class="form-control" id="elSaudacao" maxlength="500"
                    placeholder="Ex.: Oi! Bateu a fome?"
                    value="${EchoUIInstance.escapeHTML(ag.saudacao || "")}">
+            <div class="echo-exemplos" data-alvo="elSaudacao">
+                <span class="echo-exemplos-rotulo">Exemplos</span>
+                <button type="button" class="echo-exemplo">Oi! Bateu a fome? Me diz o que você procura.</button>
+                <button type="button" class="echo-exemplo">Olá! Posso te mostrar o que temos hoje?</button>
+            </div>
         </div>
 
-        <button class="btn btn-primary rounded-pill px-4 w-100" type="button" id="elSalvar">
-            Salvar loja e agente
-        </button>
-        <div class="echo-erro" id="elErro"></div>`;
+        <div class="echo-acoes">
+            <button class="btn btn-primary rounded-pill px-4" type="button" id="elSalvar">
+                Salvar loja e agente
+            </button>
+            <p class="echo-acoes-nota">Vale na hora, na próxima conversa do cliente.</p>
+        </div>
+        <div class="echo-erro" id="elErro"></div>
+        </div>`;
 
     document.getElementById("elSalvar").addEventListener("click", salvarEdicaoLoja);
 }
@@ -601,13 +668,24 @@ function alternarFormProduto() {
     if (!box.hidden) { box.hidden = true; return; }
 
     box.innerHTML = `
-        <div class="echo-form-inline">
-            <input type="text" class="form-control mb-2" id="pdNome" maxlength="200"
+        <div class="echo-form-inline" data-enter="#pdSalvar">
+            <div class="echo-form-inline-titulo">
+                <i class="fa-solid fa-box"></i>Novo produto
+            </div>
+
+            <input type="text" class="form-control mb-1" id="pdNome" maxlength="200"
                    placeholder="Ex.: Pão francês">
+            <div class="echo-exemplos mb-2" data-alvo="pdNome">
+                <span class="echo-exemplos-rotulo">Exemplos</span>
+                <button type="button" class="echo-exemplo">Pão francês</button>
+                <button type="button" class="echo-exemplo">Bolo de cenoura (fatia)</button>
+                <button type="button" class="echo-exemplo">Café coado 300ml</button>
+            </div>
+
             <div class="row g-2 mb-2">
                 <div class="col-6">
                     <input type="text" class="form-control" id="pdPreco"
-                           placeholder="Ex.: 0,90">
+                           placeholder="Preço — ex.: 0,90">
                 </div>
                 <div class="col-6">
                     <label class="echo-upload w-100 m-0">
@@ -616,9 +694,18 @@ function alternarFormProduto() {
                     </label>
                 </div>
             </div>
-            <textarea class="form-control mb-2" id="pdDescricao" rows="2" maxlength="2000"
+            <textarea class="form-control mb-1" id="pdDescricao" rows="2" maxlength="2000"
                       placeholder="Ex.: Quentinho, saído do forno de hora em hora."></textarea>
-            <button class="btn btn-primary rounded-pill px-3 w-100" type="button" id="pdSalvar">
+            <div class="echo-exemplos mb-2" data-alvo="pdDescricao">
+                <span class="echo-exemplos-rotulo">Diga</span>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Quentinho, saído do forno de hora em hora.">Como é</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Serve duas pessoas. Vem em pacote de 500g.">Tamanho</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Encomenda com 1 dia de antecedência.">Prazo</button>
+            </div>
+            <button class="btn btn-primary rounded-pill px-4" type="button" id="pdSalvar">
                 Salvar produto
             </button>
             <div class="echo-erro" id="pdErro"></div>
@@ -766,9 +853,23 @@ function carregarPostsDaLoja() {
     const novo = document.getElementById("eLNovoPost");
 
     novo.innerHTML = `
-        <div class="echo-form-inline mb-3">
-            <textarea class="form-control mb-2" id="poConteudo" rows="3" maxlength="3000"
+        <div class="echo-form-inline mb-3" data-enter="#poSalvar">
+            <div class="echo-form-inline-titulo">
+                <i class="fa-solid fa-bullhorn"></i>Publicar no comércio
+            </div>
+
+            <textarea class="form-control mb-1" id="poConteudo" rows="3" maxlength="3000"
                       placeholder="Ex.: Bolo de cenoura saindo do forno agora, com cobertura de brigadeiro."></textarea>
+            <div class="echo-exemplos mb-2" data-alvo="poConteudo">
+                <span class="echo-exemplos-rotulo">Ideias</span>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Bolo de cenoura saindo do forno agora, com cobertura de brigadeiro.">Novidade do dia</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Hoje até as 18h: na compra de dois pães de queijo, o terceiro é nosso.">Promoção</button>
+                <button type="button" class="echo-exemplo"
+                        data-texto="Amanhã abrimos mais cedo, às 5h30.">Aviso</button>
+            </div>
+
             <div class="row g-2 mb-2">
                 <div class="col-6">
                     <select class="form-select" id="poTipo">
@@ -786,7 +887,7 @@ function carregarPostsDaLoja() {
                 <i class="fa-solid fa-image"></i><span>Foto do post</span>
                 <input type="file" id="poImagem" accept="image/*" hidden>
             </label>
-            <button class="btn btn-primary rounded-pill px-3 w-100" type="button" id="poSalvar">
+            <button class="btn btn-primary rounded-pill px-4" type="button" id="poSalvar">
                 Publicar no comércio
             </button>
             <div class="echo-erro" id="poErro"></div>

@@ -11,7 +11,7 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     <!-- Echo Core Stylesheet -->
-    <link href="css/echo.css?v=20260920a" rel="stylesheet" />
+    <link href="css/echo.css?v=20260920c" rel="stylesheet" />
 </head>
 <body>
     <div class="container-fluid auth-layout">
@@ -42,8 +42,12 @@
                     <!-- Banner de Feedback -->
                     <div id="feedbackBanner" style="display: none;"></div>
 
-                    <!-- Formulário de Reset -->
-                    <div id="resetFormArea">
+                    <!-- Formulário de Reset
+                         data-enter: Enter em qualquer campo daqui clica o
+                         botão indicado. Lido pelo listener no fim desta
+                         página — duplicado de js/echo-ui.js porque esta tela
+                         não carrega esse arquivo (ver toggleSenhaVisibilidade). -->
+                    <div id="resetFormArea" data-enter="#btnSubmitReset">
                         <div class="mb-3">
                             <label class="form-label">Nova Senha</label>
                             <div class="input-icon-wrapper">
@@ -184,6 +188,25 @@
                 btn.innerHTML = "Redefinir Senha";
             }
         }
+
+        // Enter em qualquer campo de uma linha do bloco marcado com
+        // data-enter clica o botao indicado. Duplicado de js/echo-ui.js
+        // pelo mesmo motivo de toggleSenhaVisibilidade: esta pagina nao
+        // carrega aquele arquivo.
+        document.addEventListener("keydown", function (ev) {
+            if (ev.key !== "Enter" || ev.isComposing) return;
+            if (ev.shiftKey || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+            if (!(ev.target instanceof HTMLInputElement)) return;
+
+            const escopo = ev.target.closest("[data-enter]");
+            if (!escopo) return;
+
+            const botao = escopo.querySelector(escopo.dataset.enter);
+            if (!botao || botao.disabled) return;
+
+            ev.preventDefault();
+            botao.click();
+        });
     </script>
 </body>
 </html>

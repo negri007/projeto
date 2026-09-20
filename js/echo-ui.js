@@ -2201,3 +2201,105 @@ const EchoUIInstance = new EchoUI();
 // Expose global logout function for onclick="logout()" in HTML
 window.logout = () => EchoUIInstance.logout();
 
+
+/* ==========================================================================
+   COMPORTAMENTOS DE FORMULÁRIO (20/09/2026)
+
+   Três coisas pequenas que valem para qualquer tela e por isso moram aqui,
+   e não na página. Todas por delegação no document: os formulários do
+   "Criar seu Echo" e da loja são redesenhados por innerHTML a cada carga,
+   e listener pendurado no elemento morre junto com ele.
+   ========================================================================== */
+
+/* --- Enter envia ---
+   Quem digita e-mail e senha termina com a mão no teclado; tirar a mão
+   para procurar o botão é o passo que sobra. O bloco marca qual é o botão
+   principal com data-enter="#id", e só campos de UMA linha disparam:
+   em textarea, Enter é parágrafo. */
+document.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter" || ev.isComposing) return;
+    if (ev.shiftKey || ev.ctrlKey || ev.altKey || ev.metaKey) return;
+
+    const campo = ev.target;
+    if (!(campo instanceof HTMLInputElement)) return;
+    if (["checkbox", "radio", "file", "button", "submit", "reset"].includes(campo.type)) return;
+
+    const escopo = campo.closest("[data-enter]");
+    if (!escopo) return;
+
+    const botao = escopo.querySelector(escopo.dataset.enter);
+    if (!botao || botao.disabled) return;
+
+    ev.preventDefault();
+    botao.click();
+});
+
+/* --- exemplos que não somem ---
+   O exemplo estava só no placeholder, que some no primeiro caractere.
+   Estes ficam embaixo do campo; clicar escreve no campo indicado por
+   data-alvo. Para texto longo o rótulo do chip é o assunto e o que entra
+   é a frase inteira, em data-texto. Não apaga o que já está escrito:
+   acrescenta ao fim, porque o campo de instruções é feito de várias
+   frases dessas. */
+document.addEventListener("click", (ev) => {
+    const chip = ev.target.closest(".echo-exemplo");
+    if (!chip) return;
+
+    const lista = chip.closest(".echo-exemplos");
+    const campo = lista && document.getElementById(lista.dataset.alvo);
+    if (!campo) return;
+
+    const texto = chip.dataset.texto || chip.textContent.trim();
+    const atual = campo.value.trim();
+
+    if (!atual) {
+        campo.value = texto;
+    } else if (campo.tagName === "TEXTAREA") {
+        campo.value = atual + "\n" + texto;
+    } else {
+        // Campo de uma linha já preenchido: trocar o que a pessoa escreveu
+        // seria perder texto dela por um clique. O exemplo continua à vista.
+        campo.focus();
+        return;
+    }
+
+    // Corta o que passou do limite em vez de deixar o campo recusar em
+    // silêncio, e avisa o resto (contador, autosize) que o valor mudou.
+    const limite = parseInt(campo.getAttribute("maxlength") || "0", 10);
+    if (limite > 0 && campo.value.length > limite) campo.value = campo.value.slice(0, limite);
+
+    campo.dispatchEvent(new Event("input", { bubbles: true }));
+    campo.focus();
+
+    // setSelectionRange explode em input[type=email|number]; o cursor no
+    // fim é conforto, não requisito.
+    try { campo.setSelectionRange(campo.value.length, campo.value.length); } catch (e) {}
+});
+
+/* --- contador de caracteres ---
+   Só em campo de texto longo com limite, e só enquanto ele está em foco:
+   contador aceso o tempo todo em seis campos é ruído. Fica âmbar nos
+   últimos 10%, que é quando a informação passa a importar. */
+document.addEventListener("focusin", (ev) => {
+    const campo = ev.target;
+    if (!(campo instanceof HTMLTextAreaElement)) return;
+
+    const limite = parseInt(campo.getAttribute("maxlength") || "0", 10);
+    if (!limite || !campo.closest(".echo-bloco, .echo-form-inline")) return;
+
+    let marcador = campo.nextElementSibling;
+    if (!marcador || !marcador.classList.contains("echo-contador")) {
+        marcador = document.createElement("small");
+        marcador.className = "echo-contador";
+        campo.insertAdjacentElement("afterend", marcador);
+    }
+
+    const pintar = () => {
+        marcador.textContent = campo.value.length + " / " + limite;
+        marcador.classList.toggle("perto", campo.value.length > limite * 0.9);
+    };
+
+    pintar();
+    campo.addEventListener("input", pintar);
+    campo.addEventListener("blur", () => marcador.remove(), { once: true });
+});
