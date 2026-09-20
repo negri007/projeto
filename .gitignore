@@ -37,3 +37,7 @@ php_server*.log
 # .json) continuam versionados — é neles que está a leitura. As imagens
 # ficam só na máquina de quem rodou o teste.
 testes_mobile/**/*.png
+
+# Dumps do banco local feitos antes de migracao. Contem e-mail de usuario
+# real — nunca versionar.
+backup_*.sql
