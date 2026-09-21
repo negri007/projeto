@@ -130,7 +130,7 @@ class LojaFeed {
             </header>
 
             ${p.imagem
-                ? `<div class="loja-post-foto"><img src="uploads/${encodeURIComponent(p.imagem)}" alt=""></div>`
+                ? `<div class="loja-post-foto"><img src="uploads/${encodeURIComponent(p.imagem)}" alt="" loading="lazy"></div>`
                 : ""}
 
             <p class="loja-post-texto">${EchoUIInstance.escapeHTML(p.conteudo)}</p>

@@ -179,7 +179,7 @@ class EchoFeed {
                     </div>
 
                     <div class="post-content" id="post-content-${p.id}">${EchoUIInstance.richTextHTML(p.content ?? "")}</div>
-                    ${p.image ? `<img class="post-image" src="uploads/${encodeURIComponent(p.image)}" alt="">` : ""}
+                    ${p.image ? `<img class="post-image" src="uploads/${encodeURIComponent(p.image)}" alt="" loading="lazy">` : ""}
 
                     <div class="post-actions">
                         ${this.showComments

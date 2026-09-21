@@ -1,0 +1,17 @@
+# Headers de seguranca para as paginas estaticas (.html).
+#
+# Os endpoints de API ja recebem estes headers de api/bootstrap.php, que
+# roda em PHP; arquivos .html sao servidos direto pelo Apache, sem passar
+# por PHP, e por isso ficavam sem protecao nenhuma. O escopo e .html de
+# proposito: aplicar global somaria um segundo X-Frame-Options as respostas
+# PHP que ja o tem, e dois valores do mesmo header confundem o navegador.
+#
+# X-Frame-Options: DENY  -> a UI logada nao pode ser embutida em iframe de
+# outra origem (defesa contra clickjacking).
+<IfModule mod_headers.c>
+    <FilesMatch "\.html$">
+        Header always set X-Frame-Options "DENY"
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    </FilesMatch>
+</IfModule>

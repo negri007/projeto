@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     actor_id INT NOT NULL,
-    type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention') NOT NULL,
+    type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention', 'loja_like', 'loja_comment') NOT NULL,
     reference_id INT DEFAULT NULL,
     is_read TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -381,10 +381,11 @@ CALL echo_add_column_if_missing('comments', 'edited_at', 'TIMESTAMP NULL DEFAULT
 -- sessões antigas, inclusive as abertas em outros navegadores.
 CALL echo_add_column_if_missing('users', 'session_version', 'INT NOT NULL DEFAULT 1 AFTER avatar');
 
--- Notificação de menção (@fulano). O tipo é um ENUM, então o valor novo
--- entra por MODIFY — reexecutar é inofensivo, a definição é a mesma.
+-- Menção (@fulano) e, depois, curtida/comentário em post de loja
+-- (loja_like/loja_comment): valores novos entram por MODIFY, e reexecutar
+-- é inofensivo — a definição é a mesma.
 ALTER TABLE notifications
-    MODIFY COLUMN type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention') NOT NULL;
+    MODIFY COLUMN type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention', 'loja_like', 'loja_comment') NOT NULL;
 
 -- Login com Google (16/09/2026). `google_id` é o `sub` do token OpenID —
 -- estável mesmo que o usuário troque o e-mail da conta Google — usado

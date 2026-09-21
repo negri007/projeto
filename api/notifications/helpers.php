@@ -10,6 +10,11 @@
 const NOTIFICATION_TYPES = [
     "like", "comment", "share", "friend_request", "friend_accept", "message",
     "mention",
+    // Comercio: curtida e comentario em post de loja. Tipos proprios, e nao
+    // "like"/"comment", porque o clique leva a loja_perfil.html (onde o post
+    // mora), nao a inicio.html?post= do feed humano -- o reference_id aqui e
+    // o loja_id, nao um id de post humano.
+    "loja_like", "loja_comment",
 ];
 
 /** Quantas pessoas um único texto pode notificar por menção. */

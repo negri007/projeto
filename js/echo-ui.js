@@ -350,6 +350,16 @@ class EchoUI {
                     icon = 'fa-at';
                     actionText = 'mencionou você.';
                     break;
+                case 'loja_like':
+                    iconClass = 'notification-icon-like';
+                    icon = 'fa-heart';
+                    actionText = 'curtiu um post da sua loja.';
+                    break;
+                case 'loja_comment':
+                    iconClass = 'notification-icon-comment';
+                    icon = 'fa-comment';
+                    actionText = 'comentou num post da sua loja.';
+                    break;
             }
 
             return `
@@ -393,6 +403,14 @@ class EchoUI {
                 window.location = item.reference_id
                     ? "inicio.html?post=" + encodeURIComponent(item.reference_id)
                     : "inicio.html";
+                break;
+            // Comercio: o reference_id e o loja_id, e o post comentado/curtido
+            // esta no perfil da loja.
+            case 'loja_like':
+            case 'loja_comment':
+                window.location = item.reference_id
+                    ? "loja_perfil.html?loja_id=" + encodeURIComponent(item.reference_id)
+                    : "comercio.html";
                 break;
             case 'friend_request':
             case 'friend_accept':

@@ -944,7 +944,13 @@ padrão 50).
 - `unread_count` é o total de não lidas **no servidor** — conta todas,
   não apenas as que couberam no `limit`. É o número do badge do sino.
 - `reference_id` é o **post** em `like`, `comment` e `share`; é o **outro
-  usuário** em `message`; é `null` em `friend_request` e `friend_accept`.
+  usuário** em `message`; é `null` em `friend_request` e `friend_accept`;
+  é o **`loja_id`** em `loja_like` e `loja_comment` — o clique abre
+  `loja_perfil.html?loja_id=`, onde o post curtido/comentado está.
+- Tipos de `type`: `like`, `comment`, `share`, `mention`, `friend_request`,
+  `friend_accept`, `message`, `loja_like`, `loja_comment`. Os dois de loja
+  saem de `lojas/post_like.php` e `lojas/post_comment.php` para o dono da
+  loja, pelo mesmo `notify()` do feed humano.
 - `actor_avatar` é o arquivo em `uploads/`, ou `null`.
 
 **POST /api/notifications/mark_read.php**

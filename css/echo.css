@@ -4764,7 +4764,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .echo-exemplos-rotulo {
-    font-size: 0.68rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -4803,7 +4803,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     position: absolute;
     top: 2px;
     right: 0;
-    font-size: 0.7rem;
+    font-size: var(--fonte-meta);
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     pointer-events: none;
@@ -4872,7 +4872,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .echo-nivel span { color: var(--text-soft); font-size: 0.78rem; line-height: 1.35; }
 
 .echo-selo {
-    font-size: 0.62rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -4970,7 +4970,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .echo-status-num strong { font-size: 1.4rem; font-weight: 800; line-height: 1.1; }
-.echo-status-num small { color: var(--text-soft); font-size: 0.72rem; text-align: center; }
+.echo-status-num small { color: var(--text-soft); font-size: var(--fonte-meta); text-align: center; }
 
 /* --- sugestões, inline na própria página ---
    Aprovar depende de ver o agente e o nível de autonomia dele, que estão
@@ -4995,14 +4995,14 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 }
 
 .echo-sugestao-tipo {
-    font-size: 0.7rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--accent);
 }
 
-.echo-sugestao-topo small { color: var(--text-soft); font-size: 0.72rem; }
+.echo-sugestao-topo small { color: var(--text-soft); font-size: var(--fonte-meta); }
 .echo-sugestao p { margin-bottom: 12px; line-height: 1.5; }
 .echo-sugestao-acoes { display: flex; gap: 8px; }
 
@@ -5070,7 +5070,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 .echo-badge {
     align-self: flex-start;
-    font-size: 0.66rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     padding: 1px 8px;
     border-radius: 999px;
@@ -5100,7 +5100,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     margin-bottom: 6px;
 }
 
-.echo-meu-post-topo small { color: var(--text-soft); font-size: 0.72rem; }
+.echo-meu-post-topo small { color: var(--text-soft); font-size: var(--fonte-meta); }
 .echo-meu-post p { margin-bottom: 6px; line-height: 1.45; }
 
 /* --- celular: 360px é o piso do projeto --- */
@@ -5178,7 +5178,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 .loja-post-nome { display: flex; flex-direction: column; min-width: 0; }
 .loja-post-nome strong { font-size: 0.92rem; }
-.loja-post-nome small  { color: var(--text-soft); font-size: 0.74rem; }
+.loja-post-nome small  { color: var(--text-soft); font-size: var(--fonte-meta); }
 
 /* 16:9 com recorte: foto de produto vem em proporção que a loja escolheu,
    e sem altura fixa o feed vira uma escada de cards de tamanhos diferentes. */
@@ -5234,7 +5234,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .loja-post-comentarios { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
 .loja-comentario { display: flex; gap: 8px; margin-bottom: 10px; }
 .loja-comentario strong { font-size: 0.85rem; }
-.loja-comentario small  { color: var(--text-soft); font-size: 0.72rem; margin-left: 6px; }
+.loja-comentario small  { color: var(--text-soft); font-size: var(--fonte-meta); margin-left: 6px; }
 .loja-comentario p      { margin: 2px 0 0; font-size: 0.88rem; line-height: 1.4; }
 .loja-comentar { display: flex; gap: 8px; }
 
@@ -5293,7 +5293,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .loja-cabecalho-texto h2 { font-size: 1.3rem; font-weight: 800; margin: 0; }
 
 .loja-categoria {
-    font-size: 0.74rem;
+    font-size: var(--fonte-meta);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -5465,7 +5465,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .loja-carrinho-item.indisponivel { opacity: 0.55; }
 .loja-carrinho-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .loja-carrinho-info strong { font-size: 0.88rem; }
-.loja-carrinho-info small  { color: var(--text-soft); font-size: 0.74rem; }
+.loja-carrinho-info small  { color: var(--text-soft); font-size: var(--fonte-meta); }
 
 .loja-carrinho-qtd { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 
@@ -5528,7 +5528,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 .loja-chat-identidade span { display: flex; flex-direction: column; }
 .loja-chat-identidade strong { font-size: 0.98rem; }
-.loja-chat-identidade small  { color: var(--text-soft); font-size: 0.74rem; }
+.loja-chat-identidade small  { color: var(--text-soft); font-size: var(--fonte-meta); }
 
 .loja-chat-mensagens {
     height: calc(100vh - 290px);
@@ -5601,7 +5601,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .loja-chat-rodape {
     text-align: center;
     color: var(--text-soft);
-    font-size: 0.74rem;
+    font-size: var(--fonte-meta);
     padding-inline: var(--gutter-tela);
     margin: 10px 0 20px;
 }
@@ -5625,4 +5625,37 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     .loja-cabecalho { margin-top: -28px; }
     .loja-logo-grande { width: 60px; height: 60px; }
     .loja-chat-mensagens { height: calc(100vh - 320px); }
+}
+
+/* ======================================================================
+   ALVOS DE TOQUE — piso de 44x44px (Fase 6 de acessibilidade)
+
+   A recomendacao de toque e 44px; varios controles ficavam entre 21 e
+   36px. A correcao expande a AREA clicavel com min-height/min-width e
+   centralizacao, sem inchar o visual: o icone e o texto continuam do
+   mesmo tamanho, o que cresce e a regiao que aceita o dedo.
+   ====================================================================== */
+.echo-chip,
+.echo-exemplo,
+.post-actions .icon-btn,
+.loja-post-acoes button,
+.mobile-header-toggle,
+.notification-bell-btn,
+.loja-report-link {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Os icones de acao do feed de loja (curtir/comentar/compartilhar/reportar)
+   sao so-icone: precisam tambem da largura minima. */
+.loja-post-acoes button {
+    min-width: 44px;
+}
+
+/* Os que sao so icone (sem texto ao lado) tambem precisam da largura. */
+.mobile-header-toggle,
+.notification-bell-btn {
+    min-width: 44px;
 }
