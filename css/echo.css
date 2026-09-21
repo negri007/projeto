@@ -5639,6 +5639,7 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .echo-exemplo,
 .post-actions .icon-btn,
 .loja-post-acoes button,
+.loja-falar,
 .mobile-header-toggle,
 .notification-bell-btn,
 .loja-report-link {
@@ -5657,5 +5658,12 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 /* Os que sao so icone (sem texto ao lado) tambem precisam da largura. */
 .mobile-header-toggle,
 .notification-bell-btn {
+    min-width: 44px;
+}
+
+/* Botao de fechar (menu mobile/offcanvas e modais): so-icone, media 32px.
+   O alvo cresce para 44x44; o X continua do mesmo tamanho. */
+.btn-close {
+    min-height: 44px;
     min-width: 44px;
 }
