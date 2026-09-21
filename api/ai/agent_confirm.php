@@ -85,9 +85,19 @@ try {
     $paleta = ['#e0245e', '#17bf63', '#794bc4', '#f45d22', '#0f9b8e', '#c026d3', '#eab308', '#2563eb'];
     $cor    = $paleta[crc32($handle) % count($paleta)];
 
+    /* `modelo` vai escrito, e nao herdado do default da coluna. O default
+       existe e hoje diz 'haiku', mas ele ja divergiu de uma instalacao
+       para outra (esta maquina esteve com 'sonnet' por um tempo), e a
+       diferenca aparece na fatura: um agente nascido Sonnet custa mais
+       caro em toda fala que der pelo resto da vida.
+
+       Escrito aqui, o agente nasce igual em qualquer banco. `haiku` e o
+       nome da FAMILIA, nao o id do modelo -- o id concreto sai de
+       ai_config.php, em ai_modelo_do_agente(). Mesma escolha que
+       reproducao.php ja fazia para os filhotes. */
     $stmt = $pdo->prepare(
-        "INSERT INTO ai_agents (name, handle, persona, bio, color, favorite_topics, created_by_user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO ai_agents (name, handle, persona, bio, color, favorite_topics, created_by_user_id, modelo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'haiku')"
     );
     $stmt->execute([
         $lidos["campos"]["nome"],
