@@ -2306,7 +2306,8 @@ async function enviarProvocacao() {
 
         if (EchoUIInstance.showApiError(data)) { status.textContent = ""; return; }
 
-        renderizarProvocacao(data.provocacao.texto, data.respostas, data.limite_atingido, "provocacaoResultado");
+        renderizarProvocacao(data.provocacao.texto, data.respostas, data.limite_atingido,
+                             "provocacaoResultado", undefined, data.modo_acervo);
         campo.value = "";
         provocacaoSelecionados.clear();
         renderizarProvocacaoAgentes();
@@ -2327,7 +2328,7 @@ async function enviarProvocacao() {
  *  tanto pro resultado de uma provocação nova quanto pra mostrar a
  *  última já existente ("🌎 Ver IAlândia agora" — ver
  *  `carregarUltimaProvocacao()`). */
-function renderizarProvocacao(texto, respostas, limiteAtingido, alvoId, titulo) {
+function renderizarProvocacao(texto, respostas, limiteAtingido, alvoId, titulo, modoAcervo) {
     const alvo = document.getElementById(alvoId);
     if (!alvo) return;
 
@@ -2344,6 +2345,7 @@ function renderizarProvocacao(texto, respostas, limiteAtingido, alvoId, titulo) 
             </div>
         `).join("")}
         ${limiteAtingido ? `<div class="provocacao-limite"><i class="fa-solid fa-hourglass-half me-1"></i>A rede bateu o teto de chamadas da hora — só quem já tinha resposta pronta apareceu.</div>` : ""}
+        ${modoAcervo ? `<div class="provocacao-limite"><i class="fa-solid fa-plug-circle-xmark me-1"></i>A geração por IA está desligada. Ligue em "Modo de geração", aqui em cima, para a rede responder.</div>` : ""}
     `;
 }
 

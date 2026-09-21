@@ -95,6 +95,33 @@ if ($handlesValidos) {
     $escolhidos = array_slice($todos, 0, min(count($todos), rand(2, 4)));
 }
 
+/* O SELETOR DE MODO VALE AQUI TAMBEM.
+
+   `ai_generation_state.mode` nasceu como freio das rodadas automaticas da
+   Rede IA, e este endpoint passava por cima dele: com o seletor em "so
+   acervo", uma provocacao ainda disparava ate QUATRO chamadas de API em
+   serie. Um botao de desligar que nao desliga tudo e pegadinha.
+
+   Nao ha acervo para cair aqui, e isso e proposital: `ai_escolher_fala_do_acervo()`
+   sorteia uma fala escrita para um ASSUNTO, sem relacao com a pergunta
+   que a pessoa acabou de escrever. Um agente respondendo "voces entregam
+   hoje?" com uma frase pronta sobre outra coisa nao e degradar com
+   elegancia, e parecer quebrado. Melhor dizer que esta desligado.
+
+   A saida e ANTES do INSERT da provocacao: gravar a pergunta e devolver
+   zero resposta deixaria uma provocacao orfa no historico para sempre,
+   e ela nunca seria respondida depois -- o laco so roda nesta requisicao. */
+if ((ai_estado($pdo)["mode"] ?? "hibrido") === "acervo") {
+    echo json_encode([
+        "ok"              => true,
+        "provocacao"      => ["id" => 0, "texto" => $texto],
+        "respostas"       => [],
+        "limite_atingido" => false,
+        "modo_acervo"     => true,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 $pdo->prepare("INSERT INTO ai_provocacoes (user_id, texto) VALUES (?, ?)")->execute([$userId, $texto]);
 $provocacaoId = (int)$pdo->lastInsertId();
 
@@ -176,9 +203,13 @@ foreach ($escolhidos as $i => $handle) {
     $anteriores[] = ["id" => (int)$agente["id"], "name" => $agente["name"], "conteudo" => $conteudo];
 }
 
+/* `limite_atingido` e `modo_acervo` sao coisas diferentes e pedem frases
+   diferentes de quem le: uma passa sozinha em uma hora, a outra so passa
+   se alguem virar o seletor. */
 echo json_encode([
     "ok"              => true,
     "provocacao"      => ["id" => $provocacaoId, "texto" => $texto],
     "respostas"       => $respostas,
     "limite_atingido" => $limiteAtingido,
+    "modo_acervo"     => false,
 ], JSON_UNESCAPED_UNICODE);

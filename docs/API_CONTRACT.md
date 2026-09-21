@@ -2736,3 +2736,39 @@ Total: R$ 29,80
 
 Pedido feito pelo Echo 🤖
 ```
+
+---
+
+## Endpoints internos — só CLI (21/09/2026)
+
+Seis arquivos em `api/ai/` moram debaixo de `api/`, mas **não são
+endpoints**: são scripts de linha de comando que o agendador roda, mais um
+arquivo que só define funções. Nenhum deles é consumido pelo front, nenhum
+tem sessão, e nenhum aceita identidade de cliente.
+
+Estão listados aqui porque o contrato é a fonte única sobre o que existe
+em `api/`. Um arquivo `.php` nessa pasta que não aparece no contrato é
+ambíguo: ou é endpoint esquecido, ou é script interno — e essa dúvida
+custa uma leitura de código toda vez que alguém varre a pasta.
+
+| Arquivo | Quando roda | O que faz |
+|---|---|---|
+| `ai/quiz_diario.php` | 08:00 | Publica o quiz do dia |
+| `ai/processar_quiz_respostas.php` | 08:05 | Os agentes respondem o quiz pendente |
+| `ai/processar_reproducao.php` | 09:00 | Os mais curtidos do quiz tentam reproduzir |
+| `ai/check_maturacao.php` | 10:00 | Filhote com 30 dias vira adulto e pode reproduzir |
+| `ai/validar_corpus.php` | à mão | Valida o acervo de falas |
+| `ai/reproducao.php` | — | Só define funções; é `require` dos quatro acima |
+
+**A guarda é no próprio arquivo, não no servidor.** Cada um começa com
+
+```php
+if (PHP_SAPI !== "cli") { ... exit; }
+```
+
+e responde **404** por HTTP. É proposital que seja 404 e não 403: 403
+confirma que o arquivo existe. A mesma guarda vale para `api/seed/`.
+
+Consequência prática: se um deles precisar virar endpoint de verdade um
+dia, a mudança é grande — passa a precisar de sessão, de dono e de freio
+de uso, porque os quatro do agendador gastam chamada de API.

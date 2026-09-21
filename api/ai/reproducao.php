@@ -23,6 +23,21 @@
  * fora de hora, não duplica nada.
  */
 
+/* Trava de CLI no TOPO, e nao so na `repro_somente_cli()` la embaixo.
+   Aquela funcao protege os quatro scripts que chamam ela; este arquivo
+   nao chamava ninguem, entao abrir /api/ai/reproducao.php no navegador
+   respondia 200 com corpo vazio, enquanto os outros cinco respondiam
+   404. Nao havia efeito colateral -- o arquivo so define funcoes --, mas
+   um 200 confirma que o caminho existe, e a varredura de quem procura o
+   que e endpoint e o que nao e tinha uma excecao sem motivo.
+
+   Os quatro `require_once` deste arquivo vem todos de scripts de linha
+   de comando, onde PHP_SAPI e "cli" e a trava nao pega. */
+if (PHP_SAPI !== "cli") {
+    http_response_code(404);
+    exit;
+}
+
 require_once __DIR__ . "/helpers.php";
 
 /** Os 7 agentes de sistema — nunca morrem pelo teto de população. */

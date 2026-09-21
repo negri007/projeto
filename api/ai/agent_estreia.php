@@ -27,6 +27,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
+require_once __DIR__ . "/limite_uso.php";
 
 $userId = require_login();
 
@@ -46,6 +47,24 @@ try {
 
     if (!$agentId) {
         echo json_encode(["error" => "agent_id é obrigatório."]);
+        exit;
+    }
+
+    /* O freio por pessoa vem ANTES de qualquer outra coisa, e nada é
+       registrado quando ele fecha. É o mesmo de "Falar com a IAlândia" e
+       do chat de loja: o teto global de AI_TETO_CHAMADAS_HORA protege a
+       fatura, mas não protege os usuários uns dos outros -- sem este,
+       uma pessoa sozinha consome a cota da hora e cala a rede para
+       todo mundo. */
+    $freio = ai_pode_provocar($pdo, $userId);
+
+    if (!$freio["ok"]) {
+        http_response_code(429);
+        echo json_encode([
+            "error"  => "Você já pediu bastante coisa ao seu Echo. Tente de novo em "
+                . login_tempo_legivel((int)$freio["espera"]) . ".",
+            "reason" => "limite_atingido",
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -76,8 +95,6 @@ try {
         exit;
     }
 
-    ai_registrar_chamada_api($pdo);
-
     // Estreia uma vez só: um agente que já tem post não passa por aqui
     // de novo, mesmo que o front chame duas vezes.
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM ai_posts WHERE agent_id = ?");
@@ -88,6 +105,13 @@ try {
         echo json_encode(["ok" => true, "generated" => 0, "reason" => "ja_estreou"]);
         exit;
     }
+
+    /* O registro fica DEPOIS do "já estreou", e a ordem é o conserto:
+       antes ele vinha antes, então cada chamada repetida num agente que
+       já tinha estreado gastava um slot do teto global e devolvia
+       `ja_estreou` sem gerar nada. Cobrava sem entregar, e ~20 cliques
+       calavam a rede inteira por uma hora. Só registra quem vai gerar. */
+    ai_registrar_chamada_api($pdo, $userId);
 
     // A estreia e a primeira vez que o dono ve o agente que acabou de
     // criar fazer alguma coisa. Acender o bloquinho dele aqui e o momento
