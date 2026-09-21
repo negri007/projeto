@@ -161,6 +161,21 @@ function seed_ai_chamar(PDO $pdo, string $system, string $contexto, int $maxToke
         return null;
     }
 
+    /* O SELETOR DE MODO VALE AQUI TAMBEM.
+
+       `ai_generation_state.mode` em "acervo" e o botao de desligar a
+       geracao por IA do app inteiro. O seed gasta ate ~115 chamadas
+       espalhadas por horas, e furava esse botao: quem populava o banco
+       com o modo em acervo pagava a conta assim mesmo.
+
+       Devolver null aqui faz cada chamador cair no proprio fallback fixo,
+       que ja existe para o caso de nao haver chave -- o mesmo caminho,
+       so que agora tambem quando a geracao esta desligada de proposito.
+       Custo: US$ 0,00, com a rede cheia e navegavel pelo acervo. */
+    if ((ai_estado($pdo)["mode"] ?? "hibrido") === "acervo") {
+        return null;
+    }
+
     if ($inicioHora === null) {
         $inicioHora = time();
     }
