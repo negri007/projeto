@@ -75,7 +75,7 @@ try {
 
     // Sempre devolve texto: quando nao da para responder, o convite para
     // o WhatsApp. Ver loja_agente_responder().
-    $resposta = loja_agente_responder($pdo, $lojaId, $historico, $mensagem);
+    $resposta = loja_agente_responder($pdo, $lojaId, $historico, $mensagem, $userId);
 
     $pdo->prepare("INSERT INTO loja_chat_mensagens (chat_id, role, conteudo) VALUES (?, 'agent', ?)")
         ->execute([$chatId, $resposta]);

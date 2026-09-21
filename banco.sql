@@ -1188,10 +1188,6 @@ CALL echo_add_column_if_missing('ai_posts', 'tipo', 'VARCHAR(20) DEFAULT NULL AF
 -- Ver o comentario da coluna na definicao de ai_agente_status.
 CALL echo_add_column_if_missing('ai_agente_status', 'fim', 'TIMESTAMP NULL DEFAULT NULL AFTER atualizado_em');
 
--- O resumo permanente de cada relacao, para a memoria sobreviver a poda.
--- Ver o comentario dos campos na definicao de ai_memoria_relacoes.
-CALL echo_add_column_if_missing('ai_memoria_relacoes', 'resumo', 'VARCHAR(600) DEFAULT NULL AFTER ultima_interacao_resumo');
-CALL echo_add_column_if_missing('ai_memoria_relacoes', 'dobradas', 'INT NOT NULL DEFAULT 0 AFTER resumo');
 CALL echo_add_index_if_missing('ai_posts', 'idx_ai_posts_tipo', 'tipo, id');
 
 -- O agente que assina os anúncios do sistema (quiz, nascimento, morte,
@@ -1386,6 +1382,22 @@ CREATE TABLE IF NOT EXISTS ai_memoria_relacoes (
     FOREIGN KEY (agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE,
     FOREIGN KEY (alvo_agent_id) REFERENCES ai_agents(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- ORDEM: estas duas chamadas moram AQUI, e nao la em cima com as outras
+-- do mesmo tipo, porque `echo_add_column_if_missing` faz `ALTER TABLE` na
+-- tabela que recebe como parametro. Num banco que ja existe, tanto faz a
+-- posicao; num banco vazio, um ALTER numa tabela que ainda nao foi criada
+-- e erro fatal, e o cliente MySQL para na hora sem `--force`. Rodando
+-- este arquivo do zero com elas la em cima, o banco parava com 27 das 47
+-- tabelas criadas e nenhuma do Agente Echo.
+--
+-- A regra, que vale para toda chamada nova: o CALL vem depois do CREATE
+-- TABLE da tabela que ele referencia.
+--
+-- O resumo permanente de cada relacao, para a memoria sobreviver a poda.
+-- Ver o comentario dos campos na definicao da tabela, logo acima.
+CALL echo_add_column_if_missing('ai_memoria_relacoes', 'resumo', 'VARCHAR(600) DEFAULT NULL AFTER ultima_interacao_resumo');
+CALL echo_add_column_if_missing('ai_memoria_relacoes', 'dobradas', 'INT NOT NULL DEFAULT 0 AFTER resumo');
 
 -- =====================================================================
 -- "Falar com a IAlândia" (16/09/2026) — usuário provoca a rede

@@ -120,8 +120,12 @@ function loja_catalogo_texto(PDO $pdo, int $lojaId): string
  *
  * `$historico` é `[["role" => "user"|"agent", "conteudo" => "..."], ...]`
  * em ordem cronológica.
+ *
+ * `$userId` é obrigatório porque a chamada de API feita aqui precisa ser
+ * cobrada de alguém: é ela que alimenta o freio por pessoa que
+ * `chat_mensagem.php` consulta na mensagem seguinte.
  */
-function loja_agente_responder(PDO $pdo, int $lojaId, array $historico, string $mensagem): string
+function loja_agente_responder(PDO $pdo, int $lojaId, array $historico, string $mensagem, int $userId): string
 {
     $loja = loja_por_id($pdo, $lojaId);
 
@@ -200,7 +204,15 @@ function loja_agente_responder(PDO $pdo, int $lojaId, array $historico, string $
         . "<<<CLIENTE\n" . ai_higienizar_comentario($mensagem) . "\nCLIENTE>>>\n\n"
         . "Escreva a sua resposta.";
 
-    ai_registrar_chamada_api($pdo, null);
+    /* O id VAI junto, e isso nao e detalhe: chat_mensagem.php ja consulta
+       ai_pode_provocar() antes de chegar aqui, mas gravar a linha com
+       user_id nulo fazia a consulta nunca encontrar o proprio gasto do
+       chat. O freio existia e nunca fechava -- uma conversa longa com o
+       agente da loja consumia a cota da hora sem nunca dar 429.
+
+       Nulo e so para a rodada automatica da rede, que nao tem dono. Aqui
+       tem: e a mensagem que uma pessoa acabou de mandar. */
+    ai_registrar_chamada_api($pdo, $userId);
 
     $modelo = ($agente["modelo"] ?? "haiku") === "sonnet"
         ? "claude-sonnet-4-5-20250929"
