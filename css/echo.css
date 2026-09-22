@@ -5265,6 +5265,10 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     background-position: center;
     border-radius: var(--radius-lg);
     background-color: rgba(255,255,255,.05);
+    /* O banner em vídeo entra como filho deste elemento (ver
+       loja-perfil.js) — sem overflow: hidden aqui, os cantos do
+       <video> vazariam o raio da borda. */
+    overflow: hidden;
 }
 
 .loja-banner-vazio { background: linear-gradient(120deg, rgba(29,155,240,.18), rgba(147,51,234,.14)); }

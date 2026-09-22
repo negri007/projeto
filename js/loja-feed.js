@@ -129,9 +129,7 @@ class LojaFeed {
                 <span class="echo-badge echo-badge-${p.tipo}">${LojaFeed.rotulo(p.tipo)}</span>
             </header>
 
-            ${p.imagem
-                ? `<div class="loja-post-foto"><img src="uploads/${encodeURIComponent(p.imagem)}" alt="" loading="lazy"></div>`
-                : ""}
+            ${p.imagem ? LojaFeed.midiaHTML(p.imagem) : ""}
 
             <p class="loja-post-texto">${EchoUIInstance.escapeHTML(p.conteudo)}</p>
 
@@ -169,6 +167,28 @@ class LojaFeed {
 
     static moeda(v) {
         return "R$ " + Number(v).toFixed(2).replace(".", ",");
+    }
+
+    /** `uploads/videos/lojas/12/x.mp4` tem barra dentro do caminho —
+        encodeURIComponent sozinho escaparia ela e quebraria o caminho.
+        Codifica por segmento. */
+    static videoSrc(arquivo) {
+        return "uploads/" + arquivo.split("/").map(encodeURIComponent).join("/");
+    }
+
+    /** `imagem` com prefixo "video:" é vídeo gerado por IA, não foto —
+        mesmo card, troca só a mídia e acrescenta o selo. */
+    static midiaHTML(imagem) {
+        if (imagem.startsWith("video:")) {
+            const arquivo = imagem.slice("video:".length);
+
+            return `<div class="loja-post-foto">
+                <video src="${LojaFeed.videoSrc(arquivo)}" autoplay muted loop playsinline loading="lazy"></video>
+                <span class="loja-post-video-badge"><i class="fa-solid fa-clapperboard"></i> Vídeo</span>
+            </div>`;
+        }
+
+        return `<div class="loja-post-foto"><img src="uploads/${encodeURIComponent(imagem)}" alt="" loading="lazy"></div>`;
     }
 
     ligarAcoes() {

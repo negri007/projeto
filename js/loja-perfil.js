@@ -35,10 +35,52 @@ document.addEventListener("DOMContentLoaded", async function () {
     document.getElementById("carrinhoBotao").addEventListener("click", abrirCarrinho);
 
     await carregarLoja();
+    aplicarVideoBanner();
     carregarProdutos();
     carregarPosts();
     carregarCarrinho();
 });
+
+/* `uploads/videos/lojas/12/x.mp4` tem barra dentro do caminho —
+   encodeURIComponent sozinho escaparia ela e quebraria o caminho.
+   Codifica por segmento. */
+function videoSrc(arquivo) {
+    return "uploads/" + arquivo.split("/").map(encodeURIComponent).join("/");
+}
+
+/**
+ * Troca o banner estático por vídeo, quando a loja tem um pronto.
+ *
+ * O <video> entra DENTRO de `.loja-banner`, que já carrega a imagem
+ * estática (ou o gradiente vazio) como `background-image`/gradiente: se
+ * o vídeo falhar ao carregar, `onerror` só remove o elemento e o que já
+ * estava atrás aparece — o fallback é o próprio banner de sempre, sem
+ * lógica extra pra sustentar os dois casos.
+ */
+async function aplicarVideoBanner() {
+    try {
+        const r = await fetch(`api/video/loja.php?loja_id=${LOJA_ID}`, { credentials: "same-origin" });
+        const d = await r.json();
+
+        if (!d.ok || !d.tem_video) return;
+
+        const capa = document.querySelector(".loja-banner");
+        if (!capa) return;
+
+        const video = document.createElement("video");
+        video.className = "loja-banner-video";
+        video.src = videoSrc(d.video.arquivo);
+        video.autoplay = true;
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true;
+        video.onerror = () => video.remove();
+
+        capa.appendChild(video);
+    } catch (e) {
+        // Sem vídeo, o banner estático que já está na tela continua valendo.
+    }
+}
 
 async function carregarLoja() {
     try {
