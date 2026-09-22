@@ -342,21 +342,20 @@ function video_veo(string $prompt): ?string
 }
 
 /**
- * Kling AI (api.klingai.com). Autenticação por JWT HS256 assinado com
- * access_key/secret_key — não é um header HMAC simples, é um Bearer
- * token de curta duração.
+ * Kling AI (api-singapore.klingai.com, endpoint para servidores fora da
+ * China). Metodo novo: a API Key unica ("api-key-kling-...") vai direto
+ * como Bearer, sem JWT. O metodo legado (access_key + secret_key assinando
+ * um JWT HS256) foi descontinuado para contas novas -- ver a aba
+ * "API Key (for all models)" da doc de Authentication.
  */
 function video_kling(string $prompt): ?string
 {
     $config = video_config();
-    $accessKey = trim((string)($config["kling_access_key"] ?? ""));
-    $secretKey = trim((string)($config["kling_secret_key"] ?? ""));
+    $apiKey = trim((string)($config["kling_api_key"] ?? ""));
 
-    if ($accessKey === "" || $secretKey === "") {
+    if ($apiKey === "") {
         return null;
     }
-
-    $token = video_kling_jwt($accessKey, $secretKey);
 
     $corpo = json_encode([
         "model_name" => "kling-v1",
@@ -366,9 +365,9 @@ function video_kling(string $prompt): ?string
     ], JSON_UNESCAPED_UNICODE);
 
     $resposta = video_http_post(
-        "https://api.klingai.com/v1/videos/text2video",
+        "https://api-singapore.klingai.com/v1/videos/text2video",
         $corpo,
-        ["content-type: application/json", "authorization: Bearer " . $token]
+        ["content-type: application/json", "authorization: Bearer " . $apiKey]
     );
 
     $taskId = $resposta["data"]["task_id"] ?? null;
@@ -383,13 +382,9 @@ function video_kling(string $prompt): ?string
     while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
         sleep(VIDEO_POLL_INTERVAL);
 
-        // Token novo a cada poll: mais simples que controlar o `exp`
-        // entre chamadas, e o custo é só montar/assinar uma string.
-        $tokenPoll = video_kling_jwt($accessKey, $secretKey);
-
         $estado = video_http_get(
-            "https://api.klingai.com/v1/videos/text2video/" . urlencode($taskId),
-            ["authorization: Bearer " . $tokenPoll]
+            "https://api-singapore.klingai.com/v1/videos/text2video/" . urlencode($taskId),
+            ["authorization: Bearer " . $apiKey]
         );
 
         $status = $estado["data"]["task_status"] ?? null;
@@ -403,7 +398,7 @@ function video_kling(string $prompt): ?string
             $url = $estado["data"]["task_result"]["videos"][0]["url"] ?? null;
 
             if (!is_string($url) || $url === "") {
-                error_log("video_kling: sucesso sem URL de vídeo. Resposta: " . json_encode($estado));
+                error_log("video_kling: sucesso sem URL de video. Resposta: " . json_encode($estado));
                 return null;
             }
 
@@ -413,26 +408,6 @@ function video_kling(string $prompt): ?string
 
     error_log("video_kling: timeout esperando a tarefa $taskId terminar.");
     return null;
-}
-
-/** JWT HS256 mínimo — só o que a Kling exige, sem trazer biblioteca externa. */
-function video_kling_jwt(string $accessKey, string $secretKey): string
-{
-    $header = video_base64url(json_encode(["alg" => "HS256", "typ" => "JWT"]));
-    $payload = video_base64url(json_encode([
-        "iss" => $accessKey,
-        "exp" => time() + 1800,
-        "nbf" => time() - 5,
-    ]));
-
-    $assinatura = video_base64url(hash_hmac("sha256", $header . "." . $payload, $secretKey, true));
-
-    return $header . "." . $payload . "." . $assinatura;
-}
-
-function video_base64url(string $dados): string
-{
-    return rtrim(strtr(base64_encode($dados), "+/", "-_"), "=");
 }
 
 /**

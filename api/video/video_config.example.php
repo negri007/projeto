@@ -21,9 +21,9 @@ return [
     // Google Veo — aistudio.google.com (Gemini API) ou console.cloud.google.com (Vertex AI)
     'veo_api_key' => '',
 
-    // Kling AI — klingai.com, seção "API". HMAC-SHA256 com access_key + secret_key.
-    'kling_access_key' => '',
-    'kling_secret_key' => '',
+    // Kling AI — klingai.com, Console > "API Key". Metodo novo: uma API Key
+    // unica ("api-key-kling-..."), usada direto como Bearer (sem JWT).
+    'kling_api_key' => '',
 
     // MiniMax — platform.minimax.io, seção "API Keys". API v2: só a
     // API Key, sem GroupId (a v1 exigia; a v2 não).
