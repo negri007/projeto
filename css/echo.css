@@ -5757,3 +5757,142 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     gap: 4px;
     pointer-events: none;
 }
+
+/* ======================================================================
+   CANVAS — tela de peça de marketing (canvas.html)
+
+   `--canvas-acento` troca por contexto (azul no Pessoal, laranja na Loja),
+   setado em js/canvas.js. Tudo que é "da vez" usa esse token, então a tela
+   inteira muda de tom ao trocar de aba sem repintar classe por classe.
+   ====================================================================== */
+:root { --canvas-acento: var(--accent); }
+
+.canvas-contexto {
+    display: flex;
+    gap: 8px;
+    margin: 16px;
+}
+
+.canvas-ctx {
+    flex: 1;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-soft);
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.canvas-ctx.ativo {
+    border-color: var(--canvas-acento);
+    color: #fff;
+    background: color-mix(in srgb, var(--canvas-acento) 18%, transparent);
+}
+
+.canvas-intro {
+    margin: 0 16px 12px;
+    color: var(--text-soft);
+    font-size: var(--fonte-meta);
+}
+
+.canvas-wrap {
+    display: flex;
+    gap: 20px;
+    padding: 0 16px 24px;
+    align-items: flex-start;
+}
+
+.canvas-controles { flex: 0 0 300px; max-width: 300px; }
+.canvas-preview   { flex: 1; min-width: 0; }
+
+.canvas-grupo { margin-bottom: 18px; }
+
+.canvas-rotulo {
+    display: block;
+    margin-bottom: 8px;
+    font-size: var(--fonte-meta);
+    font-weight: 700;
+    color: var(--text-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.canvas-fontes,
+.canvas-templates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.canvas-fonte,
+.canvas-template {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-size: var(--fonte-meta);
+    cursor: pointer;
+}
+
+.canvas-template.ativo {
+    border-color: var(--canvas-acento);
+    color: #fff;
+    background: color-mix(in srgb, var(--canvas-acento) 16%, transparent);
+}
+
+.canvas-fonte-mini {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    flex: 0 0 24px;
+}
+
+.canvas-acoes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.canvas-aviso {
+    margin-top: 10px;
+    font-size: var(--fonte-meta);
+    color: var(--text-soft);
+}
+.canvas-aviso.erro { color: var(--danger); }
+
+.canvas-preview canvas {
+    width: 100%;
+    max-width: 520px;
+    height: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-soft);
+    display: block;
+}
+
+.canvas-dica {
+    margin-top: 10px;
+    font-size: var(--fonte-meta);
+    color: var(--text-muted);
+}
+
+/* No celular, controles em cima e prévia embaixo, cada um em largura total. */
+@media (max-width: 991px) {
+    .canvas-wrap { flex-direction: column; }
+    .canvas-controles { flex-basis: auto; max-width: none; width: 100%; }
+    .canvas-preview canvas { max-width: none; }
+}

@@ -598,6 +598,9 @@ class EchoUI {
                         <a class="nav-link ${activePage === 'inicio' ? 'active' : ''}" href="inicio.html">
                             <i class="fa-solid fa-house"></i><span>Início</span>
                         </a>
+                        <a class="nav-link ${activePage === 'canvas' ? 'active' : ''}" href="canvas.html">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i><span>Canvas</span>
+                        </a>
                         <a class="nav-link ${activePage === 'meu_echo' ? 'active' : ''}" href="meu_echo.html">
                             <i class="fa-solid fa-robot"></i><span>Criar seu Echo</span>
                         </a>
