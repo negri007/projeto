@@ -1,0 +1,715 @@
+<?php
+/**
+ * Geração de vídeo de apresentação para a loja.
+ *
+ * Ver `docs/plans/plano-videos-ia.md`. O lojista descreve a loja num
+ * prompt; `video_gerar()` tenta cada plataforma na ordem de qualidade
+ * (Veo, Kling, MiniMax, Luma) e cai para busca por palavra-chave na
+ * Pexels quando nenhuma gera — o Pexels não é "mais uma tentativa que
+ * pode falhar", é o piso que garante vídeo sempre.
+ *
+ * Provider sem chave em `video_config.php` é pulado em silêncio: não é
+ * erro, é plataforma que o dono do projeto ainda não contratou.
+ */
+
+require_once __DIR__ . "/../ai/helpers.php"; // ai_config() -> pexels_api_key
+
+/** Segundos de poll antes de desistir de um provider e cair para o próximo. */
+const VIDEO_POLL_TIMEOUT = 120;
+
+/** Intervalo entre tentativas de poll. */
+const VIDEO_POLL_INTERVAL = 5;
+
+/** Tamanho máximo aceito do arquivo baixado. */
+const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
+
+/** MIME real aceito, com a extensão de saída. */
+const VIDEO_MIME_TYPES = [
+    "video/mp4"  => "mp4",
+    "video/webm" => "webm",
+];
+
+/**
+ * Prompt sugerido por nicho — usado como placeholder no painel da loja e
+ * como texto padrão quando o lojista não escreve nada.
+ */
+const VIDEO_PROMPTS_NICHO = [
+    "Alimentação" => "{nome}, comida fresca sendo preparada, câmera lenta, luz quente de cozinha profissional, sem texto",
+    "Moda"        => "{nome}, roupas em destaque, modelo em movimento suave, iluminação de estúdio, paleta de cores harmoniosa",
+    "Petshop"     => "{nome}, animal feliz brincando, fundo limpo, luz natural, movimento alegre",
+    "Tecnologia"  => "{nome}, dispositivo tecnológico em close, luz azul dramática, superfície espelhada, câmera lenta",
+    "Beleza"      => "{nome}, produto de beleza em destaque, pétalas ou glitter caindo, fundo neutro, cinematográfico",
+    "Saúde"       => "{nome}, ambiente limpo e moderno, luz clara, transmite confiança e bem-estar",
+    "Serviços"    => "{nome}, profissional trabalhando com cuidado, ambiente organizado, luz natural",
+    "Outro"       => "{nome}, produto ou serviço em destaque, qualidade cinematográfica, sem texto",
+];
+
+/**
+ * Palavra-chave em inglês por nicho, só para a busca na Pexels: o acervo
+ * de vídeo de banco de imagens é indexado em inglês, e a categoria da
+ * loja é texto livre em português (ver `lojas.categoria`).
+ */
+const VIDEO_PEXELS_QUERY_NICHO = [
+    "Alimentação" => "food cooking restaurant",
+    "Moda"        => "fashion clothing store",
+    "Petshop"     => "pet animal dog cat",
+    "Tecnologia"  => "technology gadget device",
+    "Beleza"      => "beauty cosmetics spa",
+    "Saúde"       => "health wellness clinic",
+    "Serviços"    => "business service professional",
+    "Outro"       => "small business store",
+];
+
+/**
+ * Configuração das plataformas de vídeo (fora do repositório).
+ *
+ * Mesmo formato de `ai_config()`: `require` de um arquivo que devolve
+ * array, cacheado no processo. Sem o arquivo, devolve array vazio — cada
+ * função de provider trata a própria chave ausente como "pular".
+ */
+function video_config(): array
+{
+    static $cache = null;
+
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $arquivo = __DIR__ . "/video_config.php";
+
+    if (!is_file($arquivo)) {
+        return $cache = [];
+    }
+
+    $config = require $arquivo;
+
+    return $cache = is_array($config) ? $config : [];
+}
+
+/** O prompt sugerido para o nicho, com o nome da loja já substituído. */
+function video_prompt_sugerido(string $nicho, string $nomeLoja): string
+{
+    $modelo = VIDEO_PROMPTS_NICHO[$nicho] ?? VIDEO_PROMPTS_NICHO["Outro"];
+
+    return str_replace("{nome}", $nomeLoja, $modelo);
+}
+
+/* ======================================================================
+   ESTADO DOS PROVIDERS (tabela video_providers)
+   ====================================================================== */
+
+function video_provider_ativo(PDO $pdo, string $nome): bool
+{
+    try {
+        $stmt = $pdo->prepare("SELECT ativo FROM video_providers WHERE nome = ?");
+        $stmt->execute([$nome]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row !== false && (int)$row["ativo"] === 1;
+    } catch (Exception $e) {
+        error_log("video_provider_ativo($nome): " . $e->getMessage());
+        // Falha ao consultar não deve travar o fallback inteiro — segue
+        // como se estivesse ativo, e o próprio provider falha adiante se
+        // não tiver chave.
+        return true;
+    }
+}
+
+function video_provider_registrar_erro(PDO $pdo, string $nome, string $erro): void
+{
+    try {
+        $stmt = $pdo->prepare(
+            "UPDATE video_providers SET ultimo_erro = ?, ultimo_uso = NOW() WHERE nome = ?"
+        );
+        $stmt->execute([mb_substr($erro, 0, 2000), $nome]);
+    } catch (Exception $e) {
+        error_log("video_provider_registrar_erro($nome): " . $e->getMessage());
+    }
+}
+
+function video_provider_registrar_uso(PDO $pdo, string $nome, ?int $creditosRestantes = null): void
+{
+    try {
+        if ($creditosRestantes !== null) {
+            $stmt = $pdo->prepare(
+                "UPDATE video_providers SET ultimo_erro = NULL, ultimo_uso = NOW(), creditos_restantes = ? WHERE nome = ?"
+            );
+            $stmt->execute([$creditosRestantes, $nome]);
+        } else {
+            $stmt = $pdo->prepare(
+                "UPDATE video_providers SET ultimo_erro = NULL, ultimo_uso = NOW() WHERE nome = ?"
+            );
+            $stmt->execute([$nome]);
+        }
+    } catch (Exception $e) {
+        error_log("video_provider_registrar_uso($nome): " . $e->getMessage());
+    }
+}
+
+/* ======================================================================
+   FUNÇÃO PRINCIPAL — tenta cada provider na ordem, cai para Pexels
+   ====================================================================== */
+
+/**
+ * Gera um vídeo tentando cada provider na ordem de prioridade e salva o
+ * resultado localmente.
+ *
+ * @return array{ok:bool, provider:?string, arquivo:?string, url:?string, erro:?string}
+ */
+function video_gerar(PDO $pdo, string $prompt, int $lojaId, string $nicho = "Outro"): array
+{
+    $providers = [
+        ["veo", "video_veo"],
+        ["kling", "video_kling"],
+        ["minimax", "video_minimax"],
+        ["luma", "video_luma"],
+    ];
+
+    foreach ($providers as [$nome, $funcao]) {
+        if (!video_provider_ativo($pdo, $nome)) {
+            continue;
+        }
+
+        try {
+            $url = $funcao($prompt);
+        } catch (Throwable $e) {
+            error_log("video_gerar($nome): " . $e->getMessage());
+            video_provider_registrar_erro($pdo, $nome, $e->getMessage());
+            continue;
+        }
+
+        // Chave ausente é o caso mais comum de retorno null: cada
+        // video_X() devolve null cedo, sem registrar erro, quando não
+        // tem chave — não é falha da plataforma, é plataforma não
+        // contratada.
+        if ($url === null) {
+            continue;
+        }
+
+        $arquivo = video_baixar_e_salvar($url, $lojaId);
+
+        if ($arquivo === null) {
+            video_provider_registrar_erro($pdo, $nome, "download ou validação do vídeo falhou");
+            continue;
+        }
+
+        video_provider_registrar_uso($pdo, $nome);
+
+        return ["ok" => true, "provider" => $nome, "arquivo" => $arquivo, "url" => $url, "erro" => null];
+    }
+
+    // Pexels por último: não gera, busca — é o piso que garante vídeo
+    // sempre, mesmo sem nenhuma chave de geração configurada.
+    if (video_provider_ativo($pdo, "pexels")) {
+        $query = VIDEO_PEXELS_QUERY_NICHO[$nicho] ?? VIDEO_PEXELS_QUERY_NICHO["Outro"];
+
+        try {
+            $url = video_pexels($query);
+        } catch (Throwable $e) {
+            error_log("video_gerar(pexels): " . $e->getMessage());
+            $url = null;
+        }
+
+        if ($url !== null) {
+            $arquivo = video_baixar_e_salvar($url, $lojaId);
+
+            if ($arquivo !== null) {
+                video_provider_registrar_uso($pdo, "pexels");
+
+                return ["ok" => true, "provider" => "pexels", "arquivo" => $arquivo, "url" => $url, "erro" => null];
+            }
+
+            video_provider_registrar_erro($pdo, "pexels", "download ou validação do vídeo falhou");
+        } else {
+            video_provider_registrar_erro($pdo, "pexels", "sem chave configurada ou busca sem resultado");
+        }
+    }
+
+    return [
+        "ok" => false,
+        "provider" => null,
+        "arquivo" => null,
+        "url" => null,
+        "erro" => "Nenhuma plataforma de vídeo conseguiu gerar ou encontrar um vídeo agora.",
+    ];
+}
+
+/* ======================================================================
+   PROVIDERS — cada um devolve a URL do vídeo pronto, ou null
+   ====================================================================== */
+
+/**
+ * Google Veo, via Gemini API (generativelanguage.googleapis.com).
+ * Fluxo assíncrono: dispara, recebe um nome de operação e faz poll até
+ * `done`. https://ai.google.dev/gemini-api/docs/video
+ */
+function video_veo(string $prompt): ?string
+{
+    $chave = trim((string)(video_config()["veo_api_key"] ?? ""));
+
+    if ($chave === "") {
+        return null;
+    }
+
+    $corpo = json_encode([
+        "instances" => [["prompt" => $prompt]],
+        "parameters" => [
+            "sampleCount" => 1,
+            "durationSeconds" => 5,
+            "aspectRatio" => "16:9",
+        ],
+    ], JSON_UNESCAPED_UNICODE);
+
+    $resposta = video_http_post(
+        "https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning",
+        $corpo,
+        ["content-type: application/json", "x-goog-api-key: " . $chave]
+    );
+
+    $nomeOperacao = $resposta["name"] ?? null;
+
+    if (!is_string($nomeOperacao) || $nomeOperacao === "") {
+        error_log("video_veo: disparo sem operation name. Resposta: " . json_encode($resposta));
+        return null;
+    }
+
+    $inicio = time();
+
+    while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
+        sleep(VIDEO_POLL_INTERVAL);
+
+        $estado = video_http_get(
+            "https://generativelanguage.googleapis.com/v1beta/" . $nomeOperacao,
+            ["x-goog-api-key: " . $chave]
+        );
+
+        if (!empty($estado["error"])) {
+            error_log("video_veo: operação falhou: " . json_encode($estado["error"]));
+            return null;
+        }
+
+        if (!empty($estado["done"])) {
+            $amostras = $estado["response"]["generateVideoResponse"]["generatedSamples"] ?? [];
+            $uri = $amostras[0]["video"]["uri"] ?? null;
+
+            if (!is_string($uri) || $uri === "") {
+                error_log("video_veo: operação concluída sem URI de vídeo. Resposta: " . json_encode($estado));
+                return null;
+            }
+
+            // O URI de download é protegido pela mesma chave da API.
+            $separador = str_contains($uri, "?") ? "&" : "?";
+            return $uri . $separador . "key=" . urlencode($chave);
+        }
+    }
+
+    error_log("video_veo: timeout de {$inicio}s esperando a operação terminar.");
+    return null;
+}
+
+/**
+ * Kling AI (api.klingai.com). Autenticação por JWT HS256 assinado com
+ * access_key/secret_key — não é um header HMAC simples, é um Bearer
+ * token de curta duração.
+ */
+function video_kling(string $prompt): ?string
+{
+    $config = video_config();
+    $accessKey = trim((string)($config["kling_access_key"] ?? ""));
+    $secretKey = trim((string)($config["kling_secret_key"] ?? ""));
+
+    if ($accessKey === "" || $secretKey === "") {
+        return null;
+    }
+
+    $token = video_kling_jwt($accessKey, $secretKey);
+
+    $corpo = json_encode([
+        "model_name" => "kling-v1",
+        "prompt" => $prompt,
+        "duration" => "5",
+        "aspect_ratio" => "16:9",
+    ], JSON_UNESCAPED_UNICODE);
+
+    $resposta = video_http_post(
+        "https://api.klingai.com/v1/videos/text2video",
+        $corpo,
+        ["content-type: application/json", "authorization: Bearer " . $token]
+    );
+
+    $taskId = $resposta["data"]["task_id"] ?? null;
+
+    if (!is_string($taskId) || $taskId === "") {
+        error_log("video_kling: disparo sem task_id. Resposta: " . json_encode($resposta));
+        return null;
+    }
+
+    $inicio = time();
+
+    while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
+        sleep(VIDEO_POLL_INTERVAL);
+
+        // Token novo a cada poll: mais simples que controlar o `exp`
+        // entre chamadas, e o custo é só montar/assinar uma string.
+        $tokenPoll = video_kling_jwt($accessKey, $secretKey);
+
+        $estado = video_http_get(
+            "https://api.klingai.com/v1/videos/text2video/" . urlencode($taskId),
+            ["authorization: Bearer " . $tokenPoll]
+        );
+
+        $status = $estado["data"]["task_status"] ?? null;
+
+        if ($status === "failed") {
+            error_log("video_kling: tarefa falhou. Resposta: " . json_encode($estado));
+            return null;
+        }
+
+        if ($status === "succeed") {
+            $url = $estado["data"]["task_result"]["videos"][0]["url"] ?? null;
+
+            if (!is_string($url) || $url === "") {
+                error_log("video_kling: sucesso sem URL de vídeo. Resposta: " . json_encode($estado));
+                return null;
+            }
+
+            return $url;
+        }
+    }
+
+    error_log("video_kling: timeout esperando a tarefa $taskId terminar.");
+    return null;
+}
+
+/** JWT HS256 mínimo — só o que a Kling exige, sem trazer biblioteca externa. */
+function video_kling_jwt(string $accessKey, string $secretKey): string
+{
+    $header = video_base64url(json_encode(["alg" => "HS256", "typ" => "JWT"]));
+    $payload = video_base64url(json_encode([
+        "iss" => $accessKey,
+        "exp" => time() + 1800,
+        "nbf" => time() - 5,
+    ]));
+
+    $assinatura = video_base64url(hash_hmac("sha256", $header . "." . $payload, $secretKey, true));
+
+    return $header . "." . $payload . "." . $assinatura;
+}
+
+function video_base64url(string $dados): string
+{
+    return rtrim(strtr(base64_encode($dados), "+/", "-_"), "=");
+}
+
+/**
+ * MiniMax / Hailuo (api.minimaxi.chat). Poll por task_id; quando pronto,
+ * o arquivo precisa de uma segunda chamada para virar URL de download.
+ */
+function video_minimax(string $prompt): ?string
+{
+    $config = video_config();
+    $chave = trim((string)($config["minimax_api_key"] ?? ""));
+    $groupId = trim((string)($config["minimax_group_id"] ?? ""));
+
+    if ($chave === "" || $groupId === "") {
+        return null;
+    }
+
+    $corpo = json_encode([
+        "model" => "video-01",
+        "prompt" => $prompt,
+    ], JSON_UNESCAPED_UNICODE);
+
+    $resposta = video_http_post(
+        "https://api.minimaxi.chat/v1/video_generation",
+        $corpo,
+        ["content-type: application/json", "authorization: Bearer " . $chave]
+    );
+
+    $taskId = $resposta["task_id"] ?? null;
+
+    if (!is_string($taskId) || $taskId === "") {
+        error_log("video_minimax: disparo sem task_id. Resposta: " . json_encode($resposta));
+        return null;
+    }
+
+    $inicio = time();
+    $fileId = null;
+
+    while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
+        sleep(VIDEO_POLL_INTERVAL);
+
+        $estado = video_http_get(
+            "https://api.minimaxi.chat/v1/query/video_generation?task_id=" . urlencode($taskId),
+            ["authorization: Bearer " . $chave]
+        );
+
+        $status = $estado["status"] ?? null;
+
+        if ($status === "Fail") {
+            error_log("video_minimax: tarefa falhou. Resposta: " . json_encode($estado));
+            return null;
+        }
+
+        if ($status === "Success") {
+            $fileId = $estado["file_id"] ?? null;
+            break;
+        }
+    }
+
+    if (!is_string($fileId) || $fileId === "") {
+        error_log("video_minimax: timeout ou sucesso sem file_id (task $taskId).");
+        return null;
+    }
+
+    $arquivo = video_http_get(
+        "https://api.minimaxi.chat/v1/files/retrieve?GroupId=" . urlencode($groupId) . "&file_id=" . urlencode($fileId),
+        ["authorization: Bearer " . $chave]
+    );
+
+    $url = $arquivo["file"]["download_url"] ?? null;
+
+    if (!is_string($url) || $url === "") {
+        error_log("video_minimax: retrieve sem download_url. Resposta: " . json_encode($arquivo));
+        return null;
+    }
+
+    return $url;
+}
+
+/**
+ * Luma AI (api.lumalabs.ai/dream-machine). Poll por id de geração.
+ */
+function video_luma(string $prompt): ?string
+{
+    $chave = trim((string)(video_config()["luma_api_key"] ?? ""));
+
+    if ($chave === "") {
+        return null;
+    }
+
+    $corpo = json_encode([
+        "prompt" => $prompt,
+        "aspect_ratio" => "16:9",
+    ], JSON_UNESCAPED_UNICODE);
+
+    $resposta = video_http_post(
+        "https://api.lumalabs.ai/dream-machine/v1/generations",
+        $corpo,
+        ["content-type: application/json", "authorization: Bearer " . $chave]
+    );
+
+    $id = $resposta["id"] ?? null;
+
+    if (!is_string($id) || $id === "") {
+        error_log("video_luma: disparo sem id. Resposta: " . json_encode($resposta));
+        return null;
+    }
+
+    $inicio = time();
+
+    while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
+        sleep(VIDEO_POLL_INTERVAL);
+
+        $estado = video_http_get(
+            "https://api.lumalabs.ai/dream-machine/v1/generations/" . urlencode($id),
+            ["authorization: Bearer " . $chave]
+        );
+
+        $status = $estado["state"] ?? null;
+
+        if ($status === "failed") {
+            error_log("video_luma: geração falhou. Resposta: " . json_encode($estado));
+            return null;
+        }
+
+        if ($status === "completed") {
+            $url = $estado["assets"]["video"] ?? null;
+
+            if (!is_string($url) || $url === "") {
+                error_log("video_luma: completo sem asset de vídeo. Resposta: " . json_encode($estado));
+                return null;
+            }
+
+            return $url;
+        }
+    }
+
+    error_log("video_luma: timeout esperando a geração $id terminar.");
+    return null;
+}
+
+/**
+ * Pexels Vídeo — não gera, busca por palavra-chave. Fallback sempre
+ * disponível: reaproveita `pexels_api_key` de `api/ai/ai_config.php`
+ * (mesma chave que `ai_buscar_foto_pexels()` já usa).
+ */
+function video_pexels(string $query): ?string
+{
+    $chave = trim((string)(ai_config()["pexels_api_key"] ?? ""));
+
+    if ($chave === "") {
+        return null;
+    }
+
+    $url = "https://api.pexels.com/videos/search?" . http_build_query([
+        "query" => $query,
+        "per_page" => 1,
+        "orientation" => "landscape",
+    ]);
+
+    $resposta = video_http_get($url, ["authorization: " . $chave]);
+    $video = $resposta["videos"][0] ?? null;
+
+    if (!is_array($video)) {
+        return null;
+    }
+
+    // Entre os arquivos de qualidades disponíveis, pega o de maior
+    // largura até 1280px — HD o bastante pro banner, sem baixar 4K à toa.
+    $melhor = null;
+
+    foreach (($video["video_files"] ?? []) as $arquivo) {
+        $largura = (int)($arquivo["width"] ?? 0);
+
+        if ($largura > 0 && $largura <= 1280 && ($melhor === null || $largura > (int)$melhor["width"])) {
+            $melhor = $arquivo;
+        }
+    }
+
+    $melhor = $melhor ?? ($video["video_files"][0] ?? null);
+
+    return $melhor["link"] ?? null;
+}
+
+/* ======================================================================
+   DOWNLOAD E ARMAZENAMENTO
+   ====================================================================== */
+
+/**
+ * Baixa o vídeo de `$url`, valida o MIME real e salva em
+ * `uploads/videos/lojas/{loja_id}/{hash}.{ext}`.
+ *
+ * @return string|null Caminho relativo a `uploads/` (ex.: "videos/lojas/12/ab3f...mp4"), ou null se falhar.
+ */
+function video_baixar_e_salvar(string $url, int $lojaId): ?string
+{
+    $tmp = tempnam(sys_get_temp_dir(), "echo_video_");
+
+    if ($tmp === false) {
+        return null;
+    }
+
+    $destino = fopen($tmp, "wb");
+
+    if ($destino === false) {
+        @unlink($tmp);
+        return null;
+    }
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_FILE => $destino,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_TIMEOUT => 60,
+        CURLOPT_MAXFILESIZE => VIDEO_MAX_BYTES,
+    ]);
+    $ok = curl_exec($ch);
+    $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $erroCurl = curl_error($ch);
+    curl_close($ch);
+    fclose($destino);
+
+    if ($ok === false || $status !== 200 || $erroCurl !== "") {
+        error_log("video_baixar_e_salvar: download falhou (HTTP $status) $erroCurl");
+        @unlink($tmp);
+        return null;
+    }
+
+    if (filesize($tmp) > VIDEO_MAX_BYTES) {
+        error_log("video_baixar_e_salvar: arquivo maior que o limite de 50MB.");
+        @unlink($tmp);
+        return null;
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($tmp);
+
+    if (!isset(VIDEO_MIME_TYPES[$mime])) {
+        error_log("video_baixar_e_salvar: MIME inválido ($mime).");
+        @unlink($tmp);
+        return null;
+    }
+
+    $pastaRelativa = "videos/lojas/" . $lojaId;
+    $pastaAbsoluta = __DIR__ . "/../../uploads/" . $pastaRelativa;
+
+    if (!is_dir($pastaAbsoluta) && !mkdir($pastaAbsoluta, 0775, true) && !is_dir($pastaAbsoluta)) {
+        error_log("video_baixar_e_salvar: não criou a pasta $pastaAbsoluta.");
+        @unlink($tmp);
+        return null;
+    }
+
+    $nome = uniqid("vid_", true) . "." . VIDEO_MIME_TYPES[$mime];
+    $caminhoAbsoluto = $pastaAbsoluta . "/" . $nome;
+
+    if (!rename($tmp, $caminhoAbsoluto)) {
+        error_log("video_baixar_e_salvar: não moveu para $caminhoAbsoluto.");
+        @unlink($tmp);
+        return null;
+    }
+
+    return $pastaRelativa . "/" . $nome;
+}
+
+/* ======================================================================
+   HTTP — helpers finos por cima do curl, só para não repetir setopt em
+   cada provider.
+   ====================================================================== */
+
+function video_http_post(string $url, string $corpo, array $headers): array
+{
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $corpo,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTPHEADER => $headers,
+    ]);
+    $resposta = curl_exec($ch);
+    $erroCurl = curl_error($ch);
+    curl_close($ch);
+
+    if ($resposta === false || $erroCurl !== "") {
+        error_log("video_http_post($url): $erroCurl");
+        return [];
+    }
+
+    $dados = json_decode($resposta, true);
+
+    return is_array($dados) ? $dados : [];
+}
+
+function video_http_get(string $url, array $headers): array
+{
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTPHEADER => $headers,
+    ]);
+    $resposta = curl_exec($ch);
+    $erroCurl = curl_error($ch);
+    curl_close($ch);
+
+    if ($resposta === false || $erroCurl !== "") {
+        error_log("video_http_get($url): $erroCurl");
+        return [];
+    }
+
+    $dados = json_decode($resposta, true);
+
+    return is_array($dados) ? $dados : [];
+}
