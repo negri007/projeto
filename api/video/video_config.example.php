@@ -25,9 +25,9 @@ return [
     'kling_access_key' => '',
     'kling_secret_key' => '',
 
-    // MiniMax/Hailuo — minimaxi.com, seção "API Keys"
+    // MiniMax — platform.minimax.io, seção "API Keys". API v2: só a
+    // API Key, sem GroupId (a v1 exigia; a v2 não).
     'minimax_api_key' => '',
-    'minimax_group_id' => '',
 
     // Luma AI — lumalabs.ai/dream-machine/api, seção "API Keys"
     'luma_api_key' => '',

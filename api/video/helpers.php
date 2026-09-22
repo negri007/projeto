@@ -436,26 +436,30 @@ function video_base64url(string $dados): string
 }
 
 /**
- * MiniMax / Hailuo (api.minimaxi.chat). Poll por task_id; quando pronto,
- * o arquivo precisa de uma segunda chamada para virar URL de download.
+ * MiniMax (api.minimax.io, v2/video_generation). Poll por task_id — a
+ * v2 devolve a URL de download direto no corpo do poll
+ * (`task.content.url`), sem a troca por file_id/retrieve que a v1
+ * exigia (e sem GroupId: a v2 autentica só com a API Key).
+ * https://platform.minimax.io/docs/api-reference/video-generation-v2-create
  */
 function video_minimax(string $prompt): ?string
 {
-    $config = video_config();
-    $chave = trim((string)($config["minimax_api_key"] ?? ""));
-    $groupId = trim((string)($config["minimax_group_id"] ?? ""));
+    $chave = trim((string)(video_config()["minimax_api_key"] ?? ""));
 
-    if ($chave === "" || $groupId === "") {
+    if ($chave === "") {
         return null;
     }
 
     $corpo = json_encode([
-        "model" => "video-01",
-        "prompt" => $prompt,
+        "model" => "MiniMax-H3",
+        "content" => [["type" => "text", "text" => $prompt]],
+        "resolution" => "768P",
+        "duration" => 5,
+        "ratio" => "16:9",
     ], JSON_UNESCAPED_UNICODE);
 
     $resposta = video_http_post(
-        "https://api.minimaxi.chat/v1/video_generation",
+        "https://api.minimax.io/v2/video_generation",
         $corpo,
         ["content-type: application/json", "authorization: Bearer " . $chave]
     );
@@ -468,47 +472,38 @@ function video_minimax(string $prompt): ?string
     }
 
     $inicio = time();
-    $fileId = null;
 
     while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
         sleep(VIDEO_POLL_INTERVAL);
 
         $estado = video_http_get(
-            "https://api.minimaxi.chat/v1/query/video_generation?task_id=" . urlencode($taskId),
+            "https://api.minimax.io/v2/query/video_generation/" . urlencode($taskId),
             ["authorization: Bearer " . $chave]
         );
 
-        $status = $estado["status"] ?? null;
+        $status = $estado["task"]["status"] ?? null;
 
-        if ($status === "Fail") {
-            error_log("video_minimax: tarefa falhou. Resposta: " . json_encode($estado));
+        if ($status === "failed" || $status === "cancelled") {
+            error_log("video_minimax: tarefa $status. Resposta: " . json_encode($estado));
             return null;
         }
 
-        if ($status === "Success") {
-            $fileId = $estado["file_id"] ?? null;
-            break;
+        if ($status === "succeeded") {
+            $url = $estado["task"]["content"]["url"] ?? null;
+
+            if (!is_string($url) || $url === "") {
+                error_log("video_minimax: sucesso sem content.url. Resposta: " . json_encode($estado));
+                return null;
+            }
+
+            return $url;
         }
+
+        // 'queued' e 'running' seguem no poll.
     }
 
-    if (!is_string($fileId) || $fileId === "") {
-        error_log("video_minimax: timeout ou sucesso sem file_id (task $taskId).");
-        return null;
-    }
-
-    $arquivo = video_http_get(
-        "https://api.minimaxi.chat/v1/files/retrieve?GroupId=" . urlencode($groupId) . "&file_id=" . urlencode($fileId),
-        ["authorization: Bearer " . $chave]
-    );
-
-    $url = $arquivo["file"]["download_url"] ?? null;
-
-    if (!is_string($url) || $url === "") {
-        error_log("video_minimax: retrieve sem download_url. Resposta: " . json_encode($arquivo));
-        return null;
-    }
-
-    return $url;
+    error_log("video_minimax: timeout esperando a tarefa $taskId terminar.");
+    return null;
 }
 
 /**
