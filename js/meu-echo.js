@@ -523,6 +523,7 @@ function desenharLoja() {
     desenharFormLoja(l);
     carregarProdutos();
     carregarPostsDaLoja();
+    carregarVideo();
 }
 
 function statHTML(n, rotulo) {
@@ -657,6 +658,193 @@ async function salvarEdicaoLoja() {
         estado.loja = await buscarLoja();
     } catch (e) {
         erro("elErro", "Erro de conexão.");
+    }
+}
+
+/* ------------------------------ vídeo ------------------------------ */
+
+/* Espelha VIDEO_PROMPTS_NICHO de api/video/helpers.php — só para
+   preencher o placeholder antes do primeiro gerar. Quem decide de
+   verdade o que vale é o servidor; isto é só a sugestão inicial. */
+const VIDEO_PROMPTS_NICHO = {
+    "Alimentação": "{nome}, comida fresca sendo preparada, câmera lenta, luz quente de cozinha profissional, sem texto",
+    "Moda":        "{nome}, roupas em destaque, modelo em movimento suave, iluminação de estúdio, paleta de cores harmoniosa",
+    "Tecnologia":  "{nome}, dispositivo tecnológico em close, luz azul dramática, superfície espelhada, câmera lenta",
+    "Beleza":      "{nome}, produto de beleza em destaque, pétalas ou glitter caindo, fundo neutro, cinematográfico",
+    "Saúde":       "{nome}, ambiente limpo e moderno, luz clara, transmite confiança e bem-estar",
+    "Serviços":    "{nome}, profissional trabalhando com cuidado, ambiente organizado, luz natural",
+    "Outro":       "{nome}, produto ou serviço em destaque, qualidade cinematográfica, sem texto",
+};
+
+let videoPollTimer = null;
+
+/** `uploads/videos/lojas/12/x.mp4` tem barra dentro — encodeURIComponent
+    sozinho escaparia ela e quebraria o caminho. Codifica por segmento. */
+function videoSrc(arquivo) {
+    return "uploads/" + arquivo.split("/").map(encodeURIComponent).join("/");
+}
+
+function videoPromptSugerido() {
+    const l = estado.loja.loja;
+    const modelo = VIDEO_PROMPTS_NICHO[l.categoria] || VIDEO_PROMPTS_NICHO["Outro"];
+    return modelo.replace("{nome}", l.nome || "Minha loja");
+}
+
+async function carregarVideo() {
+    pararPollVideo();
+
+    const lojaId = estado.loja.loja.id;
+
+    try {
+        const r = await fetch(`api/video/loja.php?loja_id=${lojaId}`, { credentials: "same-origin" });
+        const d = await r.json();
+
+        if (d.ok && d.tem_video) {
+            desenharVideoPronto(d.video);
+        } else {
+            desenharVideoForm(videoPromptSugerido());
+        }
+    } catch (e) {
+        desenharVideoForm(videoPromptSugerido());
+    }
+}
+
+function desenharVideoForm(promptInicial) {
+    const box = document.getElementById("eLVideo");
+
+    box.innerHTML = `
+        <div class="echo-video-card">
+            <h5><i class="fa-solid fa-clapperboard me-1"></i>Vídeo de apresentação</h5>
+            <p class="echo-ajuda">
+                Descreva sua loja em uma frase e geramos um vídeo profissional pra você.
+            </p>
+
+            <textarea class="form-control mb-2" id="vdPrompt" rows="3" maxlength="500">${EchoUIInstance.escapeHTML(promptInicial)}</textarea>
+
+            <button class="btn btn-primary rounded-pill px-4" type="button" id="vdGerar">
+                <i class="fa-solid fa-wand-magic-sparkles me-1"></i>Gerar vídeo
+            </button>
+            <p class="echo-acoes-nota">
+                <i class="fa-regular fa-clock"></i>
+                Leva cerca de 30 a 60 segundos. Você pode fechar e voltar depois.
+            </p>
+            <div class="echo-erro" id="vdErro"></div>
+        </div>`;
+
+    document.getElementById("vdGerar").addEventListener("click", gerarVideo);
+}
+
+function desenharVideoGerando() {
+    const box = document.getElementById("eLVideo");
+
+    box.innerHTML = `
+        <div class="echo-video-card">
+            <h5><i class="fa-solid fa-clapperboard me-1"></i>Vídeo de apresentação</h5>
+            <div class="echo-video-progresso">
+                <div class="echo-video-progresso-barra"></div>
+            </div>
+            <p class="echo-ajuda mb-0">
+                Gerando seu vídeo... pode levar até 60 segundos.
+            </p>
+        </div>`;
+}
+
+function desenharVideoPronto(video) {
+    const box = document.getElementById("eLVideo");
+
+    box.innerHTML = `
+        <div class="echo-video-card">
+            <h5><i class="fa-solid fa-clapperboard me-1"></i>Vídeo de apresentação</h5>
+            <video class="echo-video-player" src="${videoSrc(video.arquivo)}"
+                   autoplay muted loop playsinline></video>
+            <button class="btn btn-outline-primary rounded-pill px-4 mt-2" type="button" id="vdRegenerar">
+                <i class="fa-solid fa-arrows-rotate me-1"></i>Regenerar
+            </button>
+        </div>`;
+
+    document.getElementById("vdRegenerar").addEventListener("click", () => {
+        desenharVideoForm(videoPromptSugerido());
+    });
+}
+
+function desenharVideoErro(mensagem) {
+    const box = document.getElementById("eLVideo");
+
+    box.innerHTML = `
+        <div class="echo-video-card">
+            <h5><i class="fa-solid fa-clapperboard me-1"></i>Vídeo de apresentação</h5>
+            <p class="text-danger small">${EchoUIInstance.escapeHTML(mensagem || "Não conseguimos gerar o vídeo agora.")}</p>
+            <button class="btn btn-primary rounded-pill px-4" type="button" id="vdTentarDeNovo">
+                Tentar de novo
+            </button>
+        </div>`;
+
+    document.getElementById("vdTentarDeNovo").addEventListener("click", () => {
+        desenharVideoForm(videoPromptSugerido());
+    });
+}
+
+async function gerarVideo() {
+    erro("vdErro", "");
+
+    const prompt = document.getElementById("vdPrompt").value.trim();
+
+    if (!prompt) { erro("vdErro", "Descreva o vídeo antes de gerar."); return; }
+
+    const btn = document.getElementById("vdGerar");
+    btn.disabled = true;
+
+    try {
+        const r = await fetch("api/video/gerar.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ prompt }),
+        });
+        const d = await r.json();
+
+        if (d.error) { erro("vdErro", d.error); btn.disabled = false; return; }
+
+        desenharVideoGerando();
+        iniciarPollVideo(d.video_id);
+    } catch (e) {
+        erro("vdErro", "Erro de conexão.");
+        btn.disabled = false;
+    }
+}
+
+function iniciarPollVideo(videoId) {
+    pararPollVideo();
+
+    videoPollTimer = setInterval(async () => {
+        // Sem aba visível, sem poll: ninguém está olhando a barra andar.
+        if (document.hidden) return;
+
+        try {
+            const r = await fetch(`api/video/status.php?video_id=${videoId}`, { credentials: "same-origin" });
+            const d = await r.json();
+
+            if (!d.ok) { pararPollVideo(); desenharVideoErro(d.error); return; }
+
+            if (d.status === "pronto") {
+                pararPollVideo();
+                desenharVideoPronto({ arquivo: d.arquivo });
+            } else if (d.status === "erro") {
+                pararPollVideo();
+                desenharVideoErro(d.erro);
+            }
+            // 'gerando': segue no poll.
+        } catch (e) {
+            // Falha de rede num poll não é motivo pra desistir — tenta de
+            // novo no próximo tick.
+        }
+    }, 3000);
+}
+
+function pararPollVideo() {
+    if (videoPollTimer) {
+        clearInterval(videoPollTimer);
+        videoPollTimer = null;
     }
 }
 

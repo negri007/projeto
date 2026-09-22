@@ -5667,3 +5667,89 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     min-height: 44px;
     min-width: 44px;
 }
+
+/* ======================================================================
+   VÍDEO DE APRESENTAÇÃO DA LOJA (22/09/2026)
+
+   Painel em meu_echo.html (aba "Echo da Loja" → Vídeo), banner em
+   loja_perfil.html e card no feed de comércio. Ver
+   docs/plans/plano-videos-ia.md.
+   ====================================================================== */
+
+.echo-video-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+}
+
+.echo-video-card h5 {
+    margin-bottom: 10px;
+}
+
+.echo-video-player {
+    width: 100%;
+    border-radius: 12px;
+    display: block;
+    background: #000;
+}
+
+/* Barra indeterminada: não se sabe quanto falta (a plataforma que vai
+   responder ainda não foi decidida), então o traço desliza em vez de
+   preencher uma porcentagem inventada. */
+.echo-video-progresso {
+    height: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent, #1d9bf0) 15%, transparent);
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.echo-video-progresso-barra {
+    width: 40%;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--accent, #1d9bf0);
+    animation: echo-video-desliza 1.4s ease-in-out infinite;
+}
+
+@keyframes echo-video-desliza {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+}
+
+/* Banner em vídeo do perfil da loja — mesma caixa de .loja-banner, só
+   troca a imagem estática pelo <video>. */
+.loja-banner-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Card de vídeo no feed de comércio, no lugar de .loja-post-foto img. */
+.loja-post-foto video {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+    aspect-ratio: 16 / 9;
+}
+
+.loja-post-foto {
+    position: relative;
+}
+
+.loja-post-video-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: var(--fonte-meta);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    pointer-events: none;
+}
