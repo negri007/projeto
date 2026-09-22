@@ -53,6 +53,26 @@ try {
         exit;
     }
 
+    /* O SELETOR DE MODO VALE AQUI TAMBÉM.
+
+       Gerar vídeo chama as APIs pagas de vídeo (Kling/Veo/MiniMax/Luma).
+       Com o seletor em "só acervo" — o botão que desliga a geração por IA
+       do app inteiro — não se gasta nada. É o mesmo freio já aplicado às
+       sugestões do agente, à provocação da IAlândia e ao seed; vídeo
+       custa mais caro que texto, então aqui pega com ainda mais razão.
+
+       Devolve `modo_acervo` para a tela dar a mensagem certa (ligue o
+       seletor) em vez de um erro genérico. Sai ANTES de gravar o registro
+       'gerando' e de disparar o processo. */
+    if ((ai_estado($pdo)["mode"] ?? "hibrido") === "acervo") {
+        echo json_encode([
+            "ok"          => false,
+            "modo_acervo" => true,
+            "error"       => "A geração por IA está desligada. Ligue em Rede IA, no seletor \"Modo de geração\", para gerar vídeo.",
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     /* Uma geração por loja por hora. A mesma consulta cobre o freio de
        abuso E o "não gera dois ao mesmo tempo": um registro 'gerando'
        recente já conta, então a segunda tentativa cai aqui antes de

@@ -24,6 +24,9 @@ return [
     // Kling AI — klingai.com, Console > "API Key". Metodo novo: uma API Key
     // unica ("api-key-kling-..."), usada direto como Bearer (sem JWT).
     'kling_api_key' => '',
+    // Modelo do Kling. `kling-v1` foi descontinuado; confirme o nome atual
+    // no console do Kling. Vazio usa o default do código (kling-v2-master).
+    'kling_model' => '',
 
     // MiniMax — platform.minimax.io, seção "API Keys". API v2: só a
     // API Key, sem GroupId (a v1 exigia; a v2 não).

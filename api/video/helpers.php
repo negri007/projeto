@@ -357,8 +357,14 @@ function video_kling(string $prompt): ?string
         return null;
     }
 
+    // O modelo vem do config: `kling-v1` foi descontinuado (a API responde
+    // 1203), e o nome do modelo muda com o tempo sem que a auth mude. Deixar
+    // configurável evita reeditar código a cada versão do Kling. Confirme o
+    // valor atual no console do Kling ("Kling Skills"/docs de modelos).
+    $modelo = trim((string)($config["kling_model"] ?? "")) ?: "kling-v2-master";
+
     $corpo = json_encode([
-        "model_name" => "kling-v1",
+        "model_name" => $modelo,
         "prompt" => $prompt,
         "duration" => "5",
         "aspect_ratio" => "16:9",
