@@ -6,6 +6,10 @@ api/auth/mail_config.php
 # O modelo versionado é api/ai/ai_config.example.php.
 api/ai/ai_config.php
 
+# Chaves das plataformas de geração de vídeo.
+# O modelo versionado é api/video/video_config.example.php.
+api/video/video_config.php
+
 # Credenciais OAuth do login com Google — nunca versionar.
 # O modelo versionado é api/auth/google_config.example.php.
 api/auth/google_config.php
@@ -20,6 +24,13 @@ uploads/*
 # PRECISA ser versionada: ela e codigo de seguranca, nao arquivo enviado.
 # Sem esta excecao, toda instalacao nova nasce com uploads/ executavel.
 !uploads/.htaccess
+
+# Estrutura de pastas dos vídeos gerados — versiona só a árvore
+# (.gitkeep), nunca o .mp4 enviado. `uploads/*` acima já ignora
+# `uploads/videos` inteiro; cada nível precisa da própria exceção.
+!uploads/videos/
+!uploads/videos/lojas/
+!uploads/videos/lojas/.gitkeep
 
 # Avatares de agente de usuário (upload) — os SVG fixos dos seis agentes
 # de sistema, sem prefixo "user_", continuam versionados.

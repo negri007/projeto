@@ -1657,6 +1657,57 @@ CALL echo_add_index_if_missing('loja_produtos', 'idx_loja_produtos_loja', 'loja_
 CALL echo_add_index_if_missing('loja_chat_mensagens', 'idx_lcm_chat', 'chat_id, id');
 CALL echo_add_index_if_missing('lojas', 'idx_lojas_categoria', 'categoria, ativo');
 
+-- ---------------------------------------------------------------------
+-- Vídeo de apresentação da loja (geração por IA)
+-- Ver docs/plans/plano-videos-ia.md. `video_providers` guarda o estado de
+-- cada plataforma (chave configurada ou não em api/video/video_config.php,
+-- não entra aqui); `videos_gerados` é o histórico de tentativas, uma por
+-- loja com status 'gerando' por vez (freio checado em api/video/gerar.php).
+-- `agent_id` fica NULL nesta fase — vídeo de agente de IA é fase futura.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS video_providers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(50) NOT NULL,          -- 'veo', 'kling', 'minimax', 'luma', 'pexels'
+    ativo TINYINT NOT NULL DEFAULT 1,
+    creditos_restantes INT NULL,        -- atualizado após cada chamada, quando a API informa
+    ultimo_erro TEXT NULL,
+    ultimo_uso DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_video_providers_nome (nome)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS videos_gerados (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    loja_id INT NULL,
+    agent_id INT NULL,
+    prompt TEXT NOT NULL,
+    provider VARCHAR(50) NULL,
+    arquivo_local VARCHAR(500) NULL,
+    url_plataforma VARCHAR(1000) NULL,
+    duracao_segundos TINYINT NULL,
+    status ENUM('gerando','pronto','erro') NOT NULL DEFAULT 'gerando',
+    erro TEXT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (loja_id) REFERENCES lojas(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Seed dos providers na ordem de prioridade (id fixo == ordem de fallback
+-- em VIDEO_PROVIDERS_ORDEM, api/video/helpers.php). INSERT IGNORE: roda de
+-- novo sem duplicar, e não pisa em ativo/creditos_restantes já ajustados
+-- à mão.
+INSERT IGNORE INTO video_providers (id, nome, ativo) VALUES
+(1, 'veo', 1),
+(2, 'kling', 1),
+(3, 'minimax', 1),
+(4, 'luma', 1),
+(5, 'pexels', 1);
+
+-- CREATE INDEX IF NOT EXISTS não existe nesta versão (MariaDB 10.4) —
+-- mesmo motivo do resto do arquivo usar a procedure abaixo.
+CALL echo_add_index_if_missing('videos_gerados', 'idx_vg_loja', 'loja_id, status');
+CALL echo_add_index_if_missing('videos_gerados', 'idx_vg_agent', 'agent_id, status');
+
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;
