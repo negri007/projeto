@@ -3409,3 +3409,121 @@ passou a listar etiquetas vindas dos posts do seed.
 **Uma coisa que o seed não conserta**: `api/ai/ai_config.php` continua
 sem existir. Enquanto não existir, nem o seed nem a Rede IA chamam a API
 de verdade — a rede segue no acervo.
+
+## Vídeo de apresentação da loja — 22/09/2026
+
+Branch `feature/videos-ia`, `docs/plans/plano-videos-ia.md`. O lojista
+descreve a loja num prompt; o sistema tenta gerar o vídeo em cada
+plataforma (Google Veo → Kling AI → MiniMax/Hailuo → Luma AI), na ordem
+de qualidade, até uma dar certo, e cai para busca por palavra-chave na
+Pexels (não geração) como piso sempre disponível — sem nenhuma chave de
+geração configurada, o sistema ainda entrega vídeo.
+
+Schema (`video_providers`, `videos_gerados`), `api/video/helpers.php`
+(um `video_X()` por plataforma + `video_gerar()` com o fallback),
+`api/video/processar.php` (CLI, chamado em background por `gerar.php`
+via `start /B` + `PHP_BINARY` — fire-and-forget de verdade, não
+`proc_open` com `proc_close`, que bloquearia até a geração terminar),
+três endpoints (`gerar.php`, `status.php`, `loja.php`) e front-end em
+`meu_echo.html` (painel na aba da loja), `loja_perfil.html` (banner) e
+`comercio.html`/`loja-feed.js` (card do feed).
+
+### Onde saiu do plano original
+
+- **`video_config.php` é array, não `define()`.** O plano descrevia
+  `define()`; o padrão que o projeto já usa para credencial de API
+  (`api/ai/ai_config.php`) é um array retornado por `require`. Seguido
+  esse padrão, e a chave da Pexels não foi duplicada — `video_pexels()`
+  reusa `ai_config()["pexels_api_key"]`.
+- **`CREATE INDEX IF NOT EXISTS` virou `CALL echo_add_index_if_missing`.**
+  A instalação roda MariaDB 10.4.32 (não MySQL 5.7 como uma nota antiga
+  deste arquivo registra — conferido com `SELECT VERSION()` nesta
+  sessão), e MariaDB só ganhou esse `IF NOT EXISTS` na 10.5.2.
+- **`gerar.php` ignora `loja_id` do corpo.** A loja vem sempre de
+  `loja_do_usuario()`, mesma regra das outras rotas de escrita do
+  lojista — nenhum endpoint aceita identidade vinda do cliente
+  (CLAUDE.md).
+- **`loja.php` exige sessão**, diferente do plano ("público"). Não existe
+  hoje nenhuma superfície anônima no Echo — nem `lojas/feed.php` é
+  público — e abrir uma exceção isolada aqui destoaria do resto sem
+  ganho real.
+- **Kling autentica com JWT HS256**, não HMAC simples como o plano
+  descrevia — `iss` é o `access_key`, assinado com o `secret_key`. É o
+  que a API de verdade exige; "HMAC" no plano estava descrevendo o
+  mecanismo por baixo (a assinatura do JWT É um HMAC), não o formato do
+  header.
+- **`arquivo_local` guarda caminho com barra dentro**
+  (`videos/lojas/{loja_id}/{hash}.mp4`), diferente do resto do projeto
+  (tudo em `uploads/` direto, sem subpasta). Cada lugar que monta a URL
+  no front (`meu-echo.js`, `loja-perfil.js`, `loja-feed.js`) tem sua
+  própria `videoSrc()` que codifica por segmento
+  (`arquivo.split("/").map(encodeURIComponent).join("/")`) — um
+  `encodeURIComponent` direto escaparia a barra e quebraria o caminho.
+
+### Veo, Kling, MiniMax e Luma não foram testados de ponta a ponta
+
+Nenhuma das quatro chaves de geração estava disponível nesta sessão —
+só a `pexels_api_key` que já existia em `api/ai/ai_config.php` (mesma
+chave que `ai_buscar_foto_pexels()` usa). As quatro integrações foram
+escritas seguindo a documentação de cada API (endpoint, corpo, formato
+de poll), mas **sem uma chamada real** — o risco fica todo em
+`video_veo()`, `video_kling()`, `video_minimax()` e `video_luma()`;
+`video_baixar_e_salvar()`, o download, a validação de MIME e o
+fallback correm por cima da resposta de qualquer uma delas e foram
+testados via Pexels. Quando alguma chave chegar, o primeiro teste real
+é o que vale — o comentário no `helpers.php` de cada provider aponta
+onde ajustar se o formato da resposta não bater.
+
+### O que foi testado
+
+Schema aplicado no banco local (MariaDB 10.4.32) com as duas tabelas
+conferidas e o seed dos 5 providers. `php -l` limpo nos oito arquivos
+PHP novos; `node --check` limpo nos três JS alterados.
+
+Ponta a ponta, logado como `lucas@echo.local` (dono da loja "Sabor &
+Arte", categoria Alimentação):
+
+- `gerar.php` → registro `'gerando'` → `processar.php` disparado em
+  background → fallback esgotou Veo/Kling/MiniMax/Luma (sem chave, pula
+  em silêncio) → Pexels encontrou vídeo pela palavra-chave em inglês do
+  nicho → download validado por MIME real (`video/mp4`) → arquivo salvo
+  em `uploads/videos/lojas/4/` → registro atualizado para `'pronto'`.
+  Tudo em poucos segundos, via `curl` e depois de novo pelo navegador.
+- Freio de 1 geração/loja/hora: segunda tentativa devolve 429 com
+  mensagem clara.
+- Prompt vazio recusado (cliente e servidor); prompt com termo da
+  blocklist (`ai_moderate()`) recusado com mensagem genérica — testado
+  no navegador, erro aparece embaixo do botão.
+- Painel em `meu_echo.html`: sugestão certa pro nicho ao abrir a aba
+  (Alimentação → prompt de comida), estado "gerando" com barra
+  indeterminada, estado "pronto" com player + Regenerar voltando ao
+  formulário.
+- `loja_perfil.html`: banner em vídeo — confirmado por `fetch` direto
+  (HTTP 200, `Content-Type: video/mp4`) e pelo elemento `<video>` no
+  DOM com o `src` certo. Autoplay não renderizou frame no screenshot
+  porque a aba controlada pela automação de navegador não fica em
+  primeiro plano de verdade (`document.hidden = true` mesmo com
+  `hasFocus() = true`) — os navegadores pausam vídeo autoplay em aba
+  oculta, então isso é esperado, não bug; a checagem que importa (o
+  arquivo serve certo, o elemento existe com o `src` certo) passou.
+- Card do feed com badge "🎬 Vídeo": um post existente teve `imagem`
+  marcado manualmente como `video:videos/lojas/4/...mp4` para o teste
+  (nada nesta fase grava esse prefixo sozinho — é suporte de leitura,
+  não geração automática de post). Renderizou certo na seção de posts
+  de `loja_perfil.html`; como `comercio.html` usa a mesma classe
+  `LojaFeed`/mesmo `midiaHTML()`, não foi caçado de novo por scroll no
+  feed paginado — é o mesmo código, já provado.
+- `document.hidden` pausando o poll: confirmado que o `setInterval` do
+  `meu-echo.js` realmente pula o `fetch` enquanto oculto (comportamento
+  pedido no plano) e retoma assim que a aba volta a ficar visível.
+
+Registro e arquivo de cada rodada de teste apagados do banco e do disco
+depois. `docs/API_CONTRACT.md` documenta os três endpoints na seção
+"Vídeo de apresentação da loja".
+
+### O que ficou de fora desta fase
+
+Vídeo para agente de IA (`agent_id` em `videos_gerados` fica NULL,
+coluna pronta pra quando existir), geração a partir de imagem, múltiplos
+vídeos por loja, edição/corte do vídeo e áudio — todos explicitamente
+fora do escopo no plano original.
