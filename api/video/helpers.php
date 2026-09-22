@@ -357,29 +357,31 @@ function video_kling(string $prompt): ?string
         return null;
     }
 
-    // O modelo vem do config: `kling-v1` foi descontinuado (a API responde
-    // 1203), e o nome do modelo muda com o tempo sem que a auth mude. Deixar
-    // configurável evita reeditar código a cada versão do Kling. Confirme o
-    // valor atual no console do Kling ("Kling Skills"/docs de modelos).
-    $modelo = trim((string)($config["kling_model"] ?? "")) ?: "kling-v2-master";
+    /* API NOVA do Kling (2025+): o modelo vai no PATH (/text-to-video/<modelo>),
+       nao no corpo, e o `kling-v1` do metodo antigo foi descontinuado (erro
+       1203). O corpo usa `settings`, a resposta traz `data.id`, e o poll e
+       em /tasks?task_ids=. `kling_model` guarda o segmento de path do modelo
+       (ex.: kling-2.5-turbo). Ver a doc "Text to Video" do Kling. */
+    $modelo = trim((string)($config["kling_model"] ?? "")) ?: "kling-2.5-turbo";
+    $base   = "https://api-singapore.klingai.com";
+    $headers = ["content-type: application/json", "authorization: Bearer " . $apiKey];
 
     $corpo = json_encode([
-        "model_name" => $modelo,
-        "prompt" => $prompt,
-        "duration" => "5",
-        "aspect_ratio" => "16:9",
+        "prompt"   => $prompt,
+        "settings" => ["resolution" => "1080p", "aspect_ratio" => "16:9", "duration" => 5],
     ], JSON_UNESCAPED_UNICODE);
 
-    $resposta = video_http_post(
-        "https://api-singapore.klingai.com/v1/videos/text2video",
-        $corpo,
-        ["content-type: application/json", "authorization: Bearer " . $apiKey]
-    );
+    $resposta = video_http_post("$base/text-to-video/" . rawurlencode($modelo), $corpo, $headers);
 
-    $taskId = $resposta["data"]["task_id"] ?? null;
+    if (($resposta["code"] ?? 0) !== 0) {
+        error_log("video_kling: disparo recusado. Resposta: " . json_encode($resposta));
+        return null;
+    }
+
+    $taskId = $resposta["data"]["id"] ?? null;
 
     if (!is_string($taskId) || $taskId === "") {
-        error_log("video_kling: disparo sem task_id. Resposta: " . json_encode($resposta));
+        error_log("video_kling: disparo sem id de tarefa. Resposta: " . json_encode($resposta));
         return null;
     }
 
@@ -388,27 +390,26 @@ function video_kling(string $prompt): ?string
     while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
         sleep(VIDEO_POLL_INTERVAL);
 
-        $estado = video_http_get(
-            "https://api-singapore.klingai.com/v1/videos/text2video/" . urlencode($taskId),
-            ["authorization: Bearer " . $apiKey]
-        );
+        $estado = video_http_get("$base/tasks?task_ids=" . urlencode($taskId), $headers);
 
-        $status = $estado["data"]["task_status"] ?? null;
+        // `data` e um array de tarefas; a nossa e a primeira.
+        $tarefa = $estado["data"][0] ?? null;
+        $status = $tarefa["status"] ?? null;
 
         if ($status === "failed") {
             error_log("video_kling: tarefa falhou. Resposta: " . json_encode($estado));
             return null;
         }
 
-        if ($status === "succeed") {
-            $url = $estado["data"]["task_result"]["videos"][0]["url"] ?? null;
-
-            if (!is_string($url) || $url === "") {
-                error_log("video_kling: sucesso sem URL de video. Resposta: " . json_encode($estado));
-                return null;
+        if ($status === "succeeded") {
+            // Entre os outputs, pega o primeiro do tipo "video".
+            foreach (($tarefa["outputs"] ?? []) as $out) {
+                if (($out["type"] ?? "") === "video" && !empty($out["url"])) {
+                    return $out["url"];
+                }
             }
-
-            return $url;
+            error_log("video_kling: sucesso sem URL de video. Resposta: " . json_encode($estado));
+            return null;
         }
     }
 
