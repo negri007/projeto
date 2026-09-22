@@ -5896,3 +5896,43 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     .canvas-controles { flex-basis: auto; max-width: none; width: 100%; }
     .canvas-preview canvas { max-width: none; }
 }
+
+/* Canvas — chips compactos (formato, filtro) e amostras de tema. Mantidos
+   pequenos de propósito: são muitos controles numa coluna só, e chip cheio
+   de padding viraria parede. */
+.canvas-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.canvas-chip {
+    min-height: 32px;
+    padding: 5px 12px;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-full);
+    background: var(--bg-card);
+    color: var(--text-soft);
+    font-size: var(--fonte-meta);
+    cursor: pointer;
+}
+.canvas-chip.ativo {
+    border-color: var(--canvas-acento);
+    color: #fff;
+    background: color-mix(in srgb, var(--canvas-acento) 16%, transparent);
+}
+
+.canvas-temas { display: flex; gap: 8px; }
+
+.canvas-tema {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    position: relative;
+    padding: 0;
+}
+.canvas-tema.ativo { border-color: #fff; }
+.canvas-tema span {
+    position: absolute;
+    right: 4px; bottom: 4px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px rgba(0,0,0,0.4);
+}
