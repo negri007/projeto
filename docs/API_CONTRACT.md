@@ -2745,6 +2745,58 @@ Pedido feito pelo Echo 🤖
 
 ---
 
+## Vídeo de apresentação da loja (22/09/2026)
+
+Ver `docs/plans/plano-videos-ia.md`. O lojista descreve a loja num prompt
+e o sistema tenta gerar um vídeo em cada plataforma, na ordem de
+qualidade, até uma dar certo — a Pexels (busca por palavra-chave, não
+geração) é o piso que garante vídeo sempre, mesmo sem nenhuma chave de
+geração configurada.
+
+**Ordem de fallback:** Google Veo → Kling AI → MiniMax/Hailuo → Luma AI →
+Pexels Vídeo.
+
+### Endpoints
+
+| Rota | Método | Sessão | O que faz |
+|---|---|---|---|
+| `video/gerar.php` | POST (JSON `{prompt}`) | sim | Dispara a geração em background; devolve `{ok, video_id, status: "gerando"}` na hora |
+| `video/status.php` | GET `?video_id=N` | sim | `{ok, video_id, status, arquivo, url_plataforma, provider, erro}` |
+| `video/loja.php` | GET `?loja_id=N` | sim | Vídeo mais recente pronto da loja: `{ok, tem_video, video: {arquivo, url_plataforma, provider} \| null}` |
+
+### Decisões que o contrato precisa fixar
+
+- **`gerar.php` ignora qualquer `loja_id` do corpo.** A loja vem sempre de
+  `loja_do_usuario($pdo, $userId)`, mesma regra das outras rotas de
+  escrita do lojista — nenhum endpoint aceita identidade vinda do
+  cliente.
+- **`loja.php` exige sessão**, diferente do que o plano original previa
+  ("público"). O Echo não tem hoje nenhuma superfície anônima — até o
+  feed de comércio em `lojas/feed.php` exige login — e abrir uma exceção
+  isolada aqui destoaria do resto sem ganho real.
+- **Freio de uma geração por loja por hora** é uma consulta só: conta
+  `videos_gerados` da loja com `status != 'erro'` na última hora. Isso
+  cobre o abuso de créditos das plataformas E o "não gera dois ao mesmo
+  tempo" — um registro `'gerando'` recente já entra na contagem, então a
+  segunda tentativa nunca chega a disparar outro processo.
+- **O prompt passa por `ai_moderate()`** antes de qualquer chamada de
+  API, mesma função que já modera fala da Rede IA.
+- **`arquivo` é um caminho relativo a `uploads/`** com barra dentro
+  (`videos/lojas/{loja_id}/{hash}.mp4`), diferente do resto do projeto
+  (que salva tudo direto em `uploads/`, sem subpasta). O front não pode
+  fazer só `encodeURIComponent(arquivo)` — isso escaparia a barra e
+  quebraria o caminho. Codifica por segmento:
+  `arquivo.split("/").map(encodeURIComponent).join("/")`.
+- **`video_providers`** guarda estado por plataforma (`ativo`,
+  `ultimo_erro`, `ultimo_uso`, `creditos_restantes`), não a chave — a
+  chave mora só em `api/video/video_config.php`, fora do repositório,
+  formato array como `api/ai/ai_config.php` (o plano original descrevia
+  `define()`; o array é o padrão que o projeto já usa para credencial de
+  API). A chave da Pexels não é duplicada lá — `video_pexels()` reusa
+  `ai_config()["pexels_api_key"]`.
+
+---
+
 ## Endpoints internos — só CLI (21/09/2026)
 
 Seis arquivos em `api/ai/` moram debaixo de `api/`, mas **não são
@@ -2778,3 +2830,9 @@ confirma que o arquivo existe. A mesma guarda vale para `api/seed/`.
 Consequência prática: se um deles precisar virar endpoint de verdade um
 dia, a mudança é grande — passa a precisar de sessão, de dono e de freio
 de uso, porque os quatro do agendador gastam chamada de API.
+
+**`api/video/processar.php`** (22/09/2026) segue a mesma guarda, mas não
+é agendado — `video/gerar.php` dispara ele em background
+(`video_disparar_processamento()`, `start /B` + `PHP_BINARY`) a cada
+geração pedida. `php api/video/processar.php <video_id>` continua útil à
+mão para reprocessar um registro preso em `'gerando'`.

@@ -95,6 +95,40 @@ function video_prompt_sugerido(string $nicho, string $nomeLoja): string
 }
 
 /* ======================================================================
+   DISPARO EM BACKGROUND
+   ====================================================================== */
+
+/**
+ * Dispara `processar.php` para o `$videoId` e devolve na hora, sem
+ * esperar a geração terminar.
+ *
+ * `start /B` (Windows) devolve assim que o processo filho nasce — é isso
+ * que torna a chamada fire-and-forget de verdade. Sem o `start`, o
+ * `popen()` ficaria preso esperando o `processar.php` inteiro (30 a 90s)
+ * antes de devolver, e `gerar.php` travaria a aba do lojista pelo tempo
+ * exato que a arquitetura assíncrona deveria evitar.
+ *
+ * `PHP_BINARY` é o mesmo PHP que está atendendo esta requisição — não
+ * depende de `php` estar no PATH (no XAMPP normalmente não está), mesma
+ * lógica de `api/seed/seed_ia_posts.php`.
+ */
+function video_disparar_processamento(int $videoId): void
+{
+    $php    = PHP_BINARY;
+    $script = __DIR__ . "/processar.php";
+
+    $cmd = "cmd /c start \"\" /B "
+        . escapeshellarg($php) . " " . escapeshellarg($script) . " " . escapeshellarg((string)$videoId)
+        . " > NUL 2>&1";
+
+    $handle = popen($cmd, "r");
+
+    if ($handle !== false) {
+        pclose($handle);
+    }
+}
+
+/* ======================================================================
    ESTADO DOS PROVIDERS (tabela video_providers)
    ====================================================================== */
 
