@@ -27,4 +27,8 @@ return [
     // ex.: 'kling-2.5-turbo', 'kling-2.6', 'kling-3.0-turbo'. Confirme na doc
     // "Text to Video". Vazio usa o default do código (kling-2.5-turbo).
     'kling_model' => '',
+
+    // Coverr — banco de video gratis (fallback junto do Pexels). Chave em
+    // coverr.co > dashboard > "Chaves de API" (demo: 50 chamadas/hora).
+    'coverr_api_key' => '',
 ];

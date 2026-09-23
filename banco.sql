@@ -1697,11 +1697,9 @@ CREATE TABLE IF NOT EXISTS videos_gerados (
 -- novo sem duplicar, e não pisa em ativo/creditos_restantes já ajustados
 -- à mão.
 INSERT IGNORE INTO video_providers (id, nome, ativo) VALUES
-(1, 'veo', 1),
 (2, 'kling', 1),
-(3, 'minimax', 1),
-(4, 'luma', 1),
-(5, 'pexels', 1);
+(5, 'pexels', 1),
+(6, 'coverr', 1);
 
 -- CREATE INDEX IF NOT EXISTS não existe nesta versão (MariaDB 10.4) —
 -- mesmo motivo do resto do arquivo usar a procedure abaixo.

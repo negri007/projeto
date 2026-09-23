@@ -256,6 +256,32 @@ function video_gerar(PDO $pdo, string $prompt, int $lojaId, string $nicho = "Out
         }
     }
 
+    // Segundo banco grátis: se o Pexels não trouxe vídeo, tenta o Coverr.
+    if (video_provider_ativo($pdo, "coverr")) {
+        $query = VIDEO_PEXELS_QUERY_NICHO[$nicho] ?? VIDEO_PEXELS_QUERY_NICHO["Outro"];
+
+        try {
+            $url = video_coverr($query);
+        } catch (Throwable $e) {
+            error_log("video_gerar(coverr): " . $e->getMessage());
+            $url = null;
+        }
+
+        if ($url !== null) {
+            $arquivo = video_baixar_e_salvar($url, $lojaId);
+
+            if ($arquivo !== null) {
+                video_provider_registrar_uso($pdo, "coverr");
+
+                return ["ok" => true, "provider" => "coverr", "arquivo" => $arquivo, "url" => $url, "erro" => null];
+            }
+
+            video_provider_registrar_erro($pdo, "coverr", "download ou validação do vídeo falhou");
+        } else {
+            video_provider_registrar_erro($pdo, "coverr", "sem chave configurada ou busca sem resultado");
+        }
+    }
+
     return [
         "ok" => false,
         "provider" => null,
@@ -386,6 +412,37 @@ function video_pexels(string $query): ?string
     $melhor = $melhor ?? ($video["video_files"][0] ?? null);
 
     return $melhor["link"] ?? null;
+}
+
+/**
+ * Coverr Vídeo — segundo banco grátis, ao lado do Pexels. Não gera, busca
+ * por palavra-chave. Auth por `?api_key=` (snake_case; `apiKey` é recusado).
+ * A URL do MP4 vem direto em `urls.mp4` (CDN, 1080p) — sem passo de
+ * signed-url. Free tier: 50 chamadas/hora. Ver coverr.co/developers.
+ */
+function video_coverr(string $query): ?string
+{
+    $chave = trim((string)(video_config()["coverr_api_key"] ?? ""));
+
+    if ($chave === "") {
+        return null;
+    }
+
+    $url = "https://api.coverr.co/videos?urls=true&page_size=20"
+         . "&query=" . urlencode($query)
+         . "&api_key=" . urlencode($chave);
+
+    $resposta = video_http_get($url, []);
+    $hits = $resposta["hits"] ?? [];
+
+    if (!is_array($hits) || $hits === []) {
+        return null;
+    }
+
+    // Um hit ao acaso, pra duas lojas do mesmo nicho não saírem iguais.
+    $hit = $hits[array_rand($hits)];
+
+    return $hit["urls"]["mp4"] ?? ($hit["urls"]["mp4_download"] ?? null);
 }
 
 /* ======================================================================
