@@ -4,7 +4,7 @@
  *
  * Ver `docs/plans/plano-videos-ia.md`. O lojista descreve a loja num
  * prompt; `video_gerar()` tenta cada plataforma na ordem de qualidade
- * (Veo, Kling, MiniMax, Luma) e cai para busca por palavra-chave na
+ * (Kling) e cai para busca por palavra-chave na
  * Pexels quando nenhuma gera — o Pexels não é "mais uma tentativa que
  * pode falhar", é o piso que garante vídeo sempre.
  *
@@ -193,10 +193,7 @@ function video_provider_registrar_uso(PDO $pdo, string $nome, ?int $creditosRest
 function video_gerar(PDO $pdo, string $prompt, int $lojaId, string $nicho = "Outro"): array
 {
     $providers = [
-        ["veo", "video_veo"],
         ["kling", "video_kling"],
-        ["minimax", "video_minimax"],
-        ["luma", "video_luma"],
     ];
 
     foreach ($providers as [$nome, $funcao]) {
@@ -273,75 +270,6 @@ function video_gerar(PDO $pdo, string $prompt, int $lojaId, string $nicho = "Out
    ====================================================================== */
 
 /**
- * Google Veo, via Gemini API (generativelanguage.googleapis.com).
- * Fluxo assíncrono: dispara, recebe um nome de operação e faz poll até
- * `done`. https://ai.google.dev/gemini-api/docs/video
- */
-function video_veo(string $prompt): ?string
-{
-    $chave = trim((string)(video_config()["veo_api_key"] ?? ""));
-
-    if ($chave === "") {
-        return null;
-    }
-
-    $corpo = json_encode([
-        "instances" => [["prompt" => $prompt]],
-        "parameters" => [
-            "sampleCount" => 1,
-            "durationSeconds" => 5,
-            "aspectRatio" => "16:9",
-        ],
-    ], JSON_UNESCAPED_UNICODE);
-
-    $resposta = video_http_post(
-        "https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning",
-        $corpo,
-        ["content-type: application/json", "x-goog-api-key: " . $chave]
-    );
-
-    $nomeOperacao = $resposta["name"] ?? null;
-
-    if (!is_string($nomeOperacao) || $nomeOperacao === "") {
-        error_log("video_veo: disparo sem operation name. Resposta: " . json_encode($resposta));
-        return null;
-    }
-
-    $inicio = time();
-
-    while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
-        sleep(VIDEO_POLL_INTERVAL);
-
-        $estado = video_http_get(
-            "https://generativelanguage.googleapis.com/v1beta/" . $nomeOperacao,
-            ["x-goog-api-key: " . $chave]
-        );
-
-        if (!empty($estado["error"])) {
-            error_log("video_veo: operação falhou: " . json_encode($estado["error"]));
-            return null;
-        }
-
-        if (!empty($estado["done"])) {
-            $amostras = $estado["response"]["generateVideoResponse"]["generatedSamples"] ?? [];
-            $uri = $amostras[0]["video"]["uri"] ?? null;
-
-            if (!is_string($uri) || $uri === "") {
-                error_log("video_veo: operação concluída sem URI de vídeo. Resposta: " . json_encode($estado));
-                return null;
-            }
-
-            // O URI de download é protegido pela mesma chave da API.
-            $separador = str_contains($uri, "?") ? "&" : "?";
-            return $uri . $separador . "key=" . urlencode($chave);
-        }
-    }
-
-    error_log("video_veo: timeout de {$inicio}s esperando a operação terminar.");
-    return null;
-}
-
-/**
  * Kling AI (api-singapore.klingai.com, endpoint para servidores fora da
  * China). Metodo novo: a API Key unica ("api-key-kling-...") vai direto
  * como Bearer, sem JWT. O metodo legado (access_key + secret_key assinando
@@ -414,139 +342,6 @@ function video_kling(string $prompt): ?string
     }
 
     error_log("video_kling: timeout esperando a tarefa $taskId terminar.");
-    return null;
-}
-
-/**
- * MiniMax (api.minimax.io, v2/video_generation). Poll por task_id — a
- * v2 devolve a URL de download direto no corpo do poll
- * (`task.content.url`), sem a troca por file_id/retrieve que a v1
- * exigia (e sem GroupId: a v2 autentica só com a API Key).
- * https://platform.minimax.io/docs/api-reference/video-generation-v2-create
- */
-function video_minimax(string $prompt): ?string
-{
-    $chave = trim((string)(video_config()["minimax_api_key"] ?? ""));
-
-    if ($chave === "") {
-        return null;
-    }
-
-    $corpo = json_encode([
-        "model" => "MiniMax-H3",
-        "content" => [["type" => "text", "text" => $prompt]],
-        "resolution" => "768P",
-        "duration" => 5,
-        "ratio" => "16:9",
-    ], JSON_UNESCAPED_UNICODE);
-
-    $resposta = video_http_post(
-        "https://api.minimax.io/v2/video_generation",
-        $corpo,
-        ["content-type: application/json", "authorization: Bearer " . $chave]
-    );
-
-    $taskId = $resposta["task_id"] ?? null;
-
-    if (!is_string($taskId) || $taskId === "") {
-        error_log("video_minimax: disparo sem task_id. Resposta: " . json_encode($resposta));
-        return null;
-    }
-
-    $inicio = time();
-
-    while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
-        sleep(VIDEO_POLL_INTERVAL);
-
-        $estado = video_http_get(
-            "https://api.minimax.io/v2/query/video_generation/" . urlencode($taskId),
-            ["authorization: Bearer " . $chave]
-        );
-
-        $status = $estado["task"]["status"] ?? null;
-
-        if ($status === "failed" || $status === "cancelled") {
-            error_log("video_minimax: tarefa $status. Resposta: " . json_encode($estado));
-            return null;
-        }
-
-        if ($status === "succeeded") {
-            $url = $estado["task"]["content"]["url"] ?? null;
-
-            if (!is_string($url) || $url === "") {
-                error_log("video_minimax: sucesso sem content.url. Resposta: " . json_encode($estado));
-                return null;
-            }
-
-            return $url;
-        }
-
-        // 'queued' e 'running' seguem no poll.
-    }
-
-    error_log("video_minimax: timeout esperando a tarefa $taskId terminar.");
-    return null;
-}
-
-/**
- * Luma AI (api.lumalabs.ai/dream-machine). Poll por id de geração.
- */
-function video_luma(string $prompt): ?string
-{
-    $chave = trim((string)(video_config()["luma_api_key"] ?? ""));
-
-    if ($chave === "") {
-        return null;
-    }
-
-    $corpo = json_encode([
-        "prompt" => $prompt,
-        "aspect_ratio" => "16:9",
-    ], JSON_UNESCAPED_UNICODE);
-
-    $resposta = video_http_post(
-        "https://api.lumalabs.ai/dream-machine/v1/generations",
-        $corpo,
-        ["content-type: application/json", "authorization: Bearer " . $chave]
-    );
-
-    $id = $resposta["id"] ?? null;
-
-    if (!is_string($id) || $id === "") {
-        error_log("video_luma: disparo sem id. Resposta: " . json_encode($resposta));
-        return null;
-    }
-
-    $inicio = time();
-
-    while (time() - $inicio < VIDEO_POLL_TIMEOUT) {
-        sleep(VIDEO_POLL_INTERVAL);
-
-        $estado = video_http_get(
-            "https://api.lumalabs.ai/dream-machine/v1/generations/" . urlencode($id),
-            ["authorization: Bearer " . $chave]
-        );
-
-        $status = $estado["state"] ?? null;
-
-        if ($status === "failed") {
-            error_log("video_luma: geração falhou. Resposta: " . json_encode($estado));
-            return null;
-        }
-
-        if ($status === "completed") {
-            $url = $estado["assets"]["video"] ?? null;
-
-            if (!is_string($url) || $url === "") {
-                error_log("video_luma: completo sem asset de vídeo. Resposta: " . json_encode($estado));
-                return null;
-            }
-
-            return $url;
-        }
-    }
-
-    error_log("video_luma: timeout esperando a geração $id terminar.");
     return null;
 }
 

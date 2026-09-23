@@ -55,7 +55,7 @@ try {
 
     /* O SELETOR DE MODO VALE AQUI TAMBÉM.
 
-       Gerar vídeo chama as APIs pagas de vídeo (Kling/Veo/MiniMax/Luma).
+       Gerar vídeo chama a API paga do Kling (fallback grátis no Pexels).
        Com o seletor em "só acervo" — o botão que desliga a geração por IA
        do app inteiro — não se gasta nada. É o mesmo freio já aplicado às
        sugestões do agente, à provocação da IAlândia e ao seed; vídeo
