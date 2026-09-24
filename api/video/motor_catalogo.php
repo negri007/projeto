@@ -28,101 +28,187 @@ function motor_formatos(): array
     ];
 }
 
-/** Nichos que têm preset visual próprio no motor (motor/src/presets.js). */
+/**
+ * Estilos visuais do motor (motor/src/presets.js). Não são categorias de
+ * produto — são LOOKS. Um produto que não cai num tema (camisinha, ferramenta)
+ * usa o "Neutro", que é premium de propósito, não um tapa-buraco. A loja pode
+ * escolher qualquer estilo, independente do que vende.
+ */
 function motor_nichos(): array
 {
     return [
-        ["id" => "comida",  "nome" => "Comida / Alimentação"],
-        ["id" => "moda",    "nome" => "Moda / Roupas"],
-        ["id" => "joia",    "nome" => "Joia / Acessórios"],
-        ["id" => "tech",    "nome" => "Tecnologia / Eletrônicos"],
-        ["id" => "beleza",  "nome" => "Beleza / Estética"],
-        ["id" => "fitness", "nome" => "Fitness / Academia"],
+        ["id" => "neutro",   "nome" => "Neutro / Universal (serve pra tudo)"],
+        ["id" => "comida",   "nome" => "Comida / Alimentação"],
+        ["id" => "moda",     "nome" => "Moda / Roupas"],
+        ["id" => "joia",     "nome" => "Joia / Acessórios"],
+        ["id" => "tech",     "nome" => "Tecnologia / Eletrônicos"],
+        ["id" => "beleza",   "nome" => "Beleza / Estética"],
+        ["id" => "fitness",  "nome" => "Fitness / Academia"],
+        ["id" => "saude",    "nome" => "Saúde / Farmácia"],
+        ["id" => "casa",     "nome" => "Casa / Móveis / Decoração"],
+        ["id" => "pet",      "nome" => "Pet / Animais"],
+        ["id" => "servicos", "nome" => "Serviços / Profissional"],
+        ["id" => "infantil", "nome" => "Infantil / Kids"],
     ];
 }
 
-/** Mapa categoria-da-loja (lojas.categoria) -> nicho do motor. */
+/** Mapa categoria-da-loja (lojas.categoria) -> estilo padrão do motor. */
 function motor_nicho_da_categoria(string $categoria): string
 {
     $mapa = [
         "Alimentação" => "comida", "Moda" => "moda", "Tecnologia" => "tech",
-        "Beleza" => "beleza", "Saúde" => "beleza", "Serviços" => "comida",
-        "Petshop" => "comida", "Outro" => "comida",
+        "Beleza" => "beleza", "Saúde" => "saude", "Serviços" => "servicos",
+        "Petshop" => "pet", "Casa" => "casa", "Farmácia" => "saude",
+        "Outro" => "neutro",
     ];
-    return $mapa[$categoria] ?? "comida";
+    return $mapa[$categoria] ?? "neutro";
+}
+
+/**
+ * Modelos com foto "full-bleed" (a foto ocupa a tela toda) — nesses o
+ * encaixe Preencher/Foto-inteira e o foco/zoom fazem diferença, então o front
+ * mostra os controles. Os de card (Manchete, Vitrine, Cupom...) já enquadram
+ * a foto, e o Antes/Depois tem duas fotos com divisória, então ficam de fora.
+ */
+function motor_foto_ajustavel(string $modelo): bool
+{
+    return in_array($modelo, ["Flash", "Historia", "Ficha", "Countdown"], true);
 }
 
 function motor_modelos(): array
 {
-    $t = fn($k, $l, $max = 80, $req = false) => ["key" => $k, "label" => $l, "tipo" => "texto", "max" => $max, "req" => $req];
-    $preco = fn($k = "preco", $l = "Preço") => ["key" => $k, "label" => $l, "tipo" => "preco", "max" => 20, "req" => false];
-    $lista = fn($k, $l, $max = 120) => ["key" => $k, "label" => $l, "tipo" => "lista", "max" => $max, "req" => false];
+    // Builders com RÓTULO em português claro + EXEMPLO concreto (vira o
+    // placeholder no campo) + DICA curta. Pensado pra lojista leigo: o rótulo
+    // diz o que é, o exemplo mostra na prática. `ex` sempre começa com "Ex.:".
+    $c = fn($k, $l, $ex, $dica = "", $max = 80, $req = false, $tipo = "texto") =>
+        ["key" => $k, "label" => $l, "ex" => $ex, "dica" => $dica, "tipo" => $tipo, "max" => $max, "req" => $req];
+
+    // Campos comuns, com texto de leigo — reaproveitados entre modelos.
+    $preco = fn($ex = "Ex.: R$ 32,90") => $c("preco", "Preço", $ex, "aparece em destaque; deixe em branco se não quiser mostrar", 20);
+    $botao = fn($ex = "Ex.: Peça no WhatsApp") => $c("cta", "O que o cliente deve fazer", $ex, "a frase do botão no fim do vídeo", 40);
+    $marca = fn() => $c("marca", "Nome da sua loja", "Ex.: Loja do Gabriel", "aparece assinando o vídeo", 40, true);
 
     return [
         "Flash" => [
             "nome" => "Flash — 1 cena", "desc" => "Rápido: produto, preço e chamada. Plano básico.",
             "foto_alvos" => ["foto"],
-            "campos" => [$t("chamada", "Chamada (2 palavras)", 40, true), $preco(), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("chamada", "Título grande (o nome ou a oferta)", "Ex.: Smash Burger", "poucas palavras, é o que aparece maior", 40, true),
+                $preco(), $botao(), $marca(),
+            ],
         ],
         "Historia" => [
             "nome" => "História — 3 cenas", "desc" => "Abre, mostra o detalhe e fecha. Plano Pro.",
             "foto_alvos" => ["fotos", "fotos"],
-            "campos" => [$t("chamada", "Chamada", 40, true), $t("sub", "Frase do meio", 40), $lista("tags", "Destaques (vírgula)"), $preco(), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("chamada", "Título grande (nome ou oferta)", "Ex.: Smash Burger", "aparece na abertura", 40, true),
+                $c("sub", "Frase do meio", "Ex.: Suculência de verdade", "uma frase curta na cena do meio", 40),
+                $c("tags", "Vantagens rápidas", "Ex.: Pão brioche, Carne 180g, Cheddar duplo", "separe por vírgula (até 3)", 120, false, "lista"),
+                $preco(), $botao(), $marca(),
+            ],
         ],
         "Manchete" => [
             "nome" => "Manchete — gira e trava", "desc" => "Card gira e trava com impacto. Ótimo pra oferta.",
             "foto_alvos" => ["foto"],
-            "campos" => [$t("selo", "Selo (ex.: OFERTA)", 16), $t("chamada", "Chamada", 40, true), $preco(), $lista("infos", "Informações (vírgula)"), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("selo", "Etiqueta em destaque", "Ex.: OFERTA", "uma palavra que chama atenção", 16),
+                $c("chamada", "Título grande (nome ou oferta)", "Ex.: Combo do Dia", "poucas palavras", 40, true),
+                $preco(),
+                $c("infos", "Vantagens rápidas", "Ex.: Entrega grátis, Feito na hora", "separe por vírgula (até 3)", 120, false, "lista"),
+                $botao(), $marca(),
+            ],
         ],
         "Vitrine" => [
-            "nome" => "Vitrine — vira em 3D", "desc" => "Card vira e mostra as specs no verso.",
+            "nome" => "Vitrine — vira em 3D", "desc" => "Card vira e mostra os detalhes no verso.",
             "foto_alvos" => ["foto"],
-            "campos" => [$t("produto", "Nome do produto", 30, true), $lista("specs", "Specs (vírgula)"), $preco(), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("produto", "Nome do produto", "Ex.: Fone Bluetooth", "", 30, true),
+                $c("specs", "Detalhes do produto", "Ex.: 40h de bateria, À prova d'água, Sem fio", "separe por vírgula (até 3)", 120, false, "lista"),
+                $preco("Ex.: R$ 349"), $botao("Ex.: Garanta o seu"), $marca(),
+            ],
         ],
         "Ficha" => [
-            "nome" => "Ficha — números contando", "desc" => "Estatísticas sobem de zero. Fitness, tech, auto.",
+            "nome" => "Ficha — números contando", "desc" => "Números sobem de zero. Academia, tech, automóvel.",
             "foto_alvos" => ["foto"],
-            "campos" => [$t("chamada", "Chamada", 40, true), $lista("stats_txt", "Números (ex.: 24H Aberto, 80+ Aparelhos)", 160), $preco(), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("chamada", "Título grande", "Ex.: Nossa Academia", "poucas palavras", 40, true),
+                $c("stats_txt", "Números de destaque", "Ex.: 24h Aberto, 80 Aparelhos, 12 Aulas", "cada número + o que ele é, separados por vírgula", 160, false, "lista"),
+                $preco("Ex.: R$ 99/mês"), $botao("Ex.: Matricule-se"), $marca(),
+            ],
         ],
         "Luxo" => [
             "nome" => "Luxo — brilho dourado", "desc" => "Alto padrão. Joia, moda, produto premium.",
             "foto_alvos" => ["foto"],
-            "campos" => [$t("chamada", "Título", 40, true), $t("sub", "Subtítulo", 60), $preco(), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("chamada", "Título elegante", "Ex.: Coleção Aurora", "", 40, true),
+                $c("sub", "Frase de apoio", "Ex.: peças exclusivas em ouro 18k", "", 60),
+                $preco("Ex.: R$ 1.290"), $botao("Ex.: Agende uma visita"), $marca(),
+            ],
         ],
         "Glitch" => [
-            "nome" => "Glitch — tech", "desc" => "RGB split e scanlines. Cara de tecnologia.",
+            "nome" => "Glitch — tecnologia", "desc" => "Efeito digital, cara de tecnologia.",
             "foto_alvos" => ["foto"],
-            "campos" => [$t("chamada", "Chamada", 40, true), $lista("specs", "Specs (vírgula)"), $preco(), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("chamada", "Título grande", "Ex.: Som Puro", "poucas palavras", 40, true),
+                $c("specs", "Detalhes do produto", "Ex.: Bluetooth 5.3, 40h bateria", "separe por vírgula (até 3)", 120, false, "lista"),
+                $preco("Ex.: R$ 349"), $botao("Ex.: Garanta o seu"), $marca(),
+            ],
         ],
         "Editorial" => [
             "nome" => "Editorial — revista", "desc" => "Estilo revista de moda, elegante.",
             "foto_alvos" => ["foto"],
-            "campos" => [$t("fundo", "Palavra de fundo", 12), $t("chamada", "Título", 40, true), $t("sub", "Subtítulo", 40), $preco(), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("fundo", "Palavra gigante de fundo", "Ex.: ESTILO", "uma palavra só, fica marca d'água atrás", 12),
+                $c("chamada", "Título", "Ex.: Nova Coleção", "", 40, true),
+                $c("sub", "Frase de apoio", "Ex.: outono / inverno", "", 40),
+                $preco("Ex.: R$ 189"), $botao("Ex.: Compre online"), $marca(),
+            ],
         ],
         "AntesDepois" => [
-            "nome" => "Antes / Depois", "desc" => "Divisória desliza. Estética, beleza, reforma.",
+            "nome" => "Antes / Depois", "desc" => "Compara resultado. Estética, beleza, reforma.",
             "foto_alvos" => ["fotoAntes", "fotoDepois"],
-            "campos" => [$t("chamada", "Chamada", 40, true), $preco(), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("chamada", "Título grande", "Ex.: Resultado Real", "poucas palavras", 40, true),
+                $preco("Ex.: R$ 180"), $botao("Ex.: Agende sua sessão"), $marca(),
+            ],
         ],
         "Depoimento" => [
-            "nome" => "Depoimento — avaliação", "desc" => "Prova social com estrelas.",
+            "nome" => "Depoimento — avaliação", "desc" => "Elogio de cliente com estrelas.",
             "foto_alvos" => ["foto"],
-            "campos" => [["key" => "texto", "label" => "Depoimento", "tipo" => "textarea", "max" => 160, "req" => true], $t("cliente", "Nome do cliente", 30, true), ["key" => "estrelas", "label" => "Estrelas (1-5)", "tipo" => "numero", "max" => 1, "req" => false], $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("texto", "O que o cliente falou", "Ex.: Melhor lanche da cidade, chega quentinho!", "a frase do elogio", 160, true, "textarea"),
+                $c("cliente", "Nome do cliente", "Ex.: Marina Alves", "", 30, true),
+                $c("estrelas", "Nota (1 a 5 estrelas)", "5", "de 1 a 5", 1, false, "numero"),
+                $botao("Ex.: Peça o seu"), $marca(),
+            ],
         ],
         "Combo" => [
-            "nome" => "Combo / Cardápio", "desc" => "Grade de itens com preços (usa seus produtos).",
+            "nome" => "Combo / Cardápio", "desc" => "Lista de itens com preços (usa seus produtos).",
             "foto_alvos" => [], "auto" => "produtos",
-            "campos" => [$t("titulo", "Título (ex.: CARDÁPIO)", 20, true), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("titulo", "Título do cardápio", "Ex.: Cardápio", "aparece no topo", 20, true),
+                $botao("Ex.: Peça no WhatsApp"), $marca(),
+            ],
         ],
         "Cupom" => [
             "nome" => "Cupom — desconto", "desc" => "Código de desconto em destaque.",
             "foto_alvos" => ["foto"],
-            "campos" => [$t("desconto", "Desconto (ex.: 20% OFF)", 16, true), $t("codigo", "Código", 16, true), $t("validade", "Validade", 40), $t("chamada", "Chamada", 40), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("desconto", "Tamanho do desconto", "Ex.: 20% OFF", "o número grande do desconto", 16, true),
+                $c("codigo", "Código do cupom", "Ex.: PROMO20", "o cliente digita isso no pedido", 16, true),
+                $c("validade", "Até quando vale", "Ex.: válido até domingo", "", 40),
+                $c("chamada", "Frase do topo", "Ex.: Cupom de Desconto", "", 40),
+                $botao("Ex.: Use no pedido"), $marca(),
+            ],
         ],
         "Countdown" => [
-            "nome" => "Countdown — urgência", "desc" => "Relógio regressivo. Vaga limitada, só hoje.",
+            "nome" => "Countdown — urgência", "desc" => "Relógio correndo. Vaga limitada, só hoje.",
             "foto_alvos" => ["foto"],
-            "campos" => [$t("selo", "Selo (ex.: SÓ HOJE)", 16), $t("chamada", "Chamada", 40, true), $preco(), $t("cta", "Botão / ação", 40), $t("marca", "Nome da loja", 40, true)],
+            "campos" => [
+                $c("selo", "Etiqueta de urgência", "Ex.: SÓ HOJE", "uma palavra ou duas", 16),
+                $c("chamada", "Título grande", "Ex.: Últimas Vagas", "poucas palavras", 40, true),
+                $preco("Ex.: R$ 99/mês"), $botao("Ex.: Garanta a sua"), $marca(),
+            ],
         ],
     ];
 }

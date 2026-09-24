@@ -143,6 +143,25 @@ try {
         unset($props["stats_txt"]);
     }
 
+    // ---- encaixe da foto (Preencher x Foto inteira) + foco/zoom ----
+    // Só faz sentido em modelo com foto ajustável (full-bleed). O componente
+    // lê props.ajuste e props.foco (ver motor/src/Foto.jsx).
+    if (motor_foto_ajustavel($modelo)) {
+        $ajuste = ($_POST["ajuste"] ?? "preencher") === "inteira" ? "inteira" : "preencher";
+        $props["ajuste"] = $ajuste;
+
+        if ($ajuste === "preencher") {
+            $foco = json_decode((string)($_POST["foco"] ?? ""), true);
+            if (is_array($foco)) {
+                $props["foco"] = [
+                    "x"    => min(1, max(0, (float)($foco["x"] ?? 0.5))),
+                    "y"    => min(1, max(0, (float)($foco["y"] ?? 0.5))),
+                    "zoom" => min(3, max(1, (float)($foco["zoom"] ?? 1))),
+                ];
+            }
+        }
+    }
+
     // ---- fotos ----
     $alvos = $def["foto_alvos"] ?? [];
 
@@ -179,7 +198,7 @@ try {
             }
             $rel = motor_copiar_imagem($file["tmp_name"], $lojaId, "foto{$i}");
             if ($rel === null) {
-                motor_erro("A imagem enviada não é válida (use JPG, PNG ou WEBP até 8MB).");
+                motor_erro("Não consegui ler essa imagem. Tente outra foto (JPG, PNG, WEBP, HEIC do iPhone, etc., até 25MB).");
             }
             $salvas[$i] = $rel;
         }

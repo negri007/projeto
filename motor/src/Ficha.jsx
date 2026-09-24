@@ -2,6 +2,7 @@ import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, interpol
 import {loadFont as loadAnton} from '@remotion/google-fonts/Anton';
 import {loadFont as loadPoppins} from '@remotion/google-fonts/Poppins';
 import {preset, familia} from './presets';
+import {Foto} from './Foto';
 
 const ANTON = loadAnton().fontFamily;
 const POP = loadPoppins().fontFamily;
@@ -17,6 +18,8 @@ export const Ficha = ({
   marca = 'FORCA GYM',
   foto = 'fitness.jpg',
   cor = null,
+  ajuste = 'preencher',
+  foco = null,
 }) => {
   const f = useCurrentFrame();
   const {fps} = useVideoConfig();
@@ -33,7 +36,7 @@ export const Ficha = ({
   return (
     <AbsoluteFill style={{background: p.bg}}>
       <AbsoluteFill style={{transform: `scale(${esc})`}}>
-        <Img src={staticFile(foto)} style={{width: '100%', height: '100%', objectFit: 'cover', filter: `brightness(.55) ${p.filtro}`}} />
+        <Foto src={foto} filtro={`brightness(.55) ${p.filtro}`} ajuste={ajuste} foco={foco} />
       </AbsoluteFill>
       <AbsoluteFill style={{background: 'linear-gradient(to bottom, rgba(0,0,0,.55), rgba(0,0,0,.35) 40%, rgba(0,0,0,.7))'}} />
 

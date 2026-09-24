@@ -1,7 +1,8 @@
 import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, spring} from 'remotion';
 import {loadFont as loadAnton} from '@remotion/google-fonts/Anton';
 import {loadFont as loadPoppins} from '@remotion/google-fonts/Poppins';
-import {preset, familia} from './presets';
+import {preset, familia, corTexto} from './presets';
+import {Foto} from './Foto';
 
 const ANTON = loadAnton().fontFamily;
 const POP = loadPoppins().fontFamily;
@@ -20,6 +21,8 @@ export const Flash = ({
   foto = 'burger.jpg',
   cor = null,
   variante = 0,
+  ajuste = 'preencher',
+  foco = null,
 }) => {
   const f = useCurrentFrame();
   const {fps, durationInFrames: dur} = useVideoConfig();
@@ -42,9 +45,9 @@ export const Flash = ({
 
   return (
     <AbsoluteFill style={{background: p.bg, opacity: fadeIn}}>
-      {/* CAMADA 1 — foto base */}
+      {/* CAMADA 1 — foto base (Preencher x Foto inteira + foco/zoom) */}
       <AbsoluteFill style={{transform: `scale(${esc})`}}>
-        <Img src={staticFile(foto)} style={{width: '100%', height: '100%', objectFit: 'cover', filter: p.filtro}} />
+        <Foto src={foto} filtro={p.filtro} ajuste={ajuste} foco={foco} />
       </AbsoluteFill>
 
       {/* leitura: escurece pra o texto ler */}
@@ -89,7 +92,7 @@ export const Flash = ({
             <span style={{fontFamily: fam, fontWeight: 700, fontSize: 74, color: accent, lineHeight: 1,
               textShadow: `0 0 40px ${accent}66`}}>{preco}</span>
           </div>
-          <div style={{fontFamily: POP, fontWeight: 700, fontSize: 26, color: '#fff', background: accent,
+          <div style={{fontFamily: POP, fontWeight: 700, fontSize: 26, color: corTexto(accent), background: accent,
             padding: '12px 30px', borderRadius: 40, opacity: ctaT,
             transform: `translateY(${interpolate(ctaT, [0, 1], [16, 0])}px)`}}>{cta}</div>
           <div style={{fontFamily: fam, fontWeight: 700, fontSize: 24, color: '#fff', letterSpacing: 3,

@@ -299,15 +299,22 @@ function video_gerar(PDO $pdo, string $prompt, int $lojaId, string $nicho = "Out
    Ver docs/plans/motor-anuncios.md.
    ====================================================================== */
 
-/** MIME de imagem aceito no motor, com a extensão de saída. */
-const MOTOR_IMG_MIME = ["image/jpeg" => "jpg", "image/png" => "png", "image/webp" => "webp"];
-const MOTOR_IMG_MAX_BYTES = 8 * 1024 * 1024;
+/** Limite do arquivo ENVIADO (antes de normalizar). Fotos de celular passam
+ *  fácil de 8MB, então o teto é alto — a saída é sempre reduzida e re-salva. */
+const MOTOR_IMG_MAX_BYTES = 25 * 1024 * 1024;
+/** Maior lado da imagem final (px). Reduz gigantes pra render rápido e leve. */
+const MOTOR_IMG_MAX_DIM = 1600;
 
 /**
- * Copia uma imagem (upload OU foto de produto já no servidor) para
- * motor/public/uploads, validando MIME real e tamanho. Devolve o caminho
- * relativo a motor/public (o que o `staticFile()` do Remotion espera, ex.:
- * "uploads/4_foto_ab12.jpg"), ou null se a imagem não serve.
+ * Prepara a foto do produto pro motor: aceita QUALQUER formato de imagem que
+ * o servidor consiga decodificar (JPEG, PNG, WebP, GIF, AVIF, BMP via GD; e
+ * TIFF/HEIC via ffmpeg quando disponível), corrige a rotação de fotos de
+ * celular (EXIF), achata transparência em branco, reduz o tamanho e salva
+ * como **JPEG** em motor/public/uploads. Assim o Chromium do Remotion sempre
+ * consegue renderizar (ele não abre HEIC/TIFF direto).
+ *
+ * Devolve o caminho relativo a motor/public (o que o `staticFile()` espera,
+ * ex.: "uploads/4_foto_ab12.jpg"), ou null se a imagem não pôde ser lida.
  */
 function motor_copiar_imagem(string $src, int $lojaId, string $tag): ?string
 {
@@ -315,26 +322,96 @@ function motor_copiar_imagem(string $src, int $lojaId, string $tag): ?string
         return null;
     }
 
-    $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mime = $finfo->file($src);
-
-    if (!isset(MOTOR_IMG_MIME[$mime])) {
+    $img = motor_img_carregar($src);
+    if ($img === null) {
         return null;
     }
+
+    $img = motor_img_corrige_exif($img, $src);
+
+    // achata em fundo branco (PNG/WebP transparentes não viram preto) e reduz
+    // se for maior que o teto.
+    $w = imagesx($img);
+    $h = imagesy($img);
+    $maior = max($w, $h);
+    $escala = $maior > MOTOR_IMG_MAX_DIM ? MOTOR_IMG_MAX_DIM / $maior : 1.0;
+    $nw = max(1, (int)round($w * $escala));
+    $nh = max(1, (int)round($h * $escala));
+
+    $final = imagecreatetruecolor($nw, $nh);
+    $branco = imagecolorallocate($final, 255, 255, 255);
+    imagefilledrectangle($final, 0, 0, $nw, $nh, $branco);
+    imagecopyresampled($final, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
+    imagedestroy($img);
 
     $destDir = __DIR__ . "/../../motor/public/uploads";
     if (!is_dir($destDir) && !mkdir($destDir, 0775, true) && !is_dir($destDir)) {
+        imagedestroy($final);
         return null;
     }
 
-    $nome = $lojaId . "_" . $tag . "_" . uniqid("", true) . "." . MOTOR_IMG_MIME[$mime];
-    $dest = $destDir . "/" . $nome;
+    $nome = $lojaId . "_" . $tag . "_" . uniqid("", true) . ".jpg";
+    $ok = imagejpeg($final, $destDir . "/" . $nome, 88);
+    imagedestroy($final);
 
-    if (!copy($src, $dest)) {
-        return null;
+    return $ok ? "uploads/" . $nome : null;
+}
+
+/**
+ * Decodifica a imagem pra um recurso GD. Tenta o GD direto (cobre JPEG, PNG,
+ * WebP, GIF, AVIF, BMP); se falhar (ex.: HEIC do iPhone, TIFF), tenta o
+ * ffmpeg convertendo pra PNG temporário. Devolve GdImage ou null.
+ */
+function motor_img_carregar(string $src)
+{
+    $data = @file_get_contents($src, false, null, 0, MOTOR_IMG_MAX_BYTES);
+    if ($data !== false && $data !== "") {
+        $img = @imagecreatefromstring($data);
+        if ($img !== false) {
+            return $img;
+        }
     }
 
-    return "uploads/" . $nome;
+    // Fallback: ffmpeg -> PNG (para formatos que o GD não abre).
+    $ff = trim((string)(video_config()["ffmpeg_bin"] ?? "")) ?: "ffmpeg";
+    $tmp = tempnam(sys_get_temp_dir(), "echo_img_");
+    if ($tmp === false) {
+        return null;
+    }
+    $tmpPng = $tmp . ".png";
+    $cmd = escapeshellarg($ff) . " -y -i " . escapeshellarg($src) . " -frames:v 1 " . escapeshellarg($tmpPng) . " 2>NUL";
+    @shell_exec($cmd);
+    @unlink($tmp);
+
+    if (is_file($tmpPng) && filesize($tmpPng) > 0) {
+        $img = @imagecreatefrompng($tmpPng);
+        @unlink($tmpPng);
+        if ($img !== false) {
+            return $img;
+        }
+    }
+    @unlink($tmpPng);
+
+    return null;
+}
+
+/** Roda a imagem conforme a orientação EXIF (foto de celular deitada). */
+function motor_img_corrige_exif($img, string $src)
+{
+    if (!function_exists("exif_read_data")) {
+        return $img;
+    }
+    $exif = @exif_read_data($src);
+    $orient = (int)($exif["Orientation"] ?? 0);
+    $ang = [3 => 180, 6 => -90, 8 => 90][$orient] ?? 0;
+    if ($ang !== 0) {
+        $rot = @imagerotate($img, $ang, 0);
+        if ($rot !== false) {
+            imagedestroy($img);
+            return $rot;
+        }
+    }
+    return $img;
 }
 
 /**

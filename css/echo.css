@@ -761,12 +761,21 @@ a:hover {
     word-break: break-word;
 }
 
+/* Imagem do post (feed pessoal): inteira e proporcional, nunca esticada nem
+   cortada. Retrato aparece mais estreito e centrado; paisagem preenche a
+   largura. Teto de altura pra não empurrar o resto do post. */
 .post-image {
     margin-top: 10px;
     border-radius: var(--radius-lg);
-    max-height: 420px;
-    width: 100%;
-    object-fit: cover;
+    max-height: 520px;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    background: rgba(255,255,255,.05);
     border: 1px solid var(--border-soft);
 }
 
@@ -5182,15 +5191,31 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 /* 16:9 com recorte: foto de produto vem em proporção que a loja escolheu,
    e sem altura fixa o feed vira uma escada de cards de tamanhos diferentes. */
+/* A mídia do post aparece INTEIRA e proporcional (nunca esticada nem
+   cortada): a imagem/vídeo do lojista pode vir em qualquer proporção
+   (retrato do Canva, story 9:16, quadrado...). Em vez de forçar 16:9 e
+   cortar — o que picava o texto que já vinha dentro da arte — a gente
+   limita a ALTURA e centraliza, com um fundo neutro fazendo a moldura. */
 .loja-post-foto {
-    aspect-ratio: 16 / 9;
     border-radius: var(--radius-md);
     overflow: hidden;
     margin-bottom: 10px;
-    background: rgba(255,255,255,.04);
+    background: rgba(255,255,255,.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-height: 560px;
 }
 
-.loja-post-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.loja-post-foto img,
+.loja-post-foto video {
+    max-width: 100%;
+    max-height: 560px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
 
 .loja-post-texto { margin-bottom: 8px; line-height: 1.5; }
 
@@ -5731,14 +5756,8 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     display: block;
 }
 
-/* Card de vídeo no feed de comércio, no lugar de .loja-post-foto img. */
-.loja-post-foto video {
-    width: 100%;
-    display: block;
-    object-fit: cover;
-    aspect-ratio: 16 / 9;
-}
-
+/* Vídeo do motor pode ser 9:16, 1:1, 4:5... aparece inteiro e proporcional,
+   com o mesmo teto de altura da imagem (regra em .loja-post-foto img,video). */
 .loja-post-foto {
     position: relative;
 }

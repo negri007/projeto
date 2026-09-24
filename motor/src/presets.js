@@ -46,14 +46,47 @@ export const PRESETS = {
     fonte: 'display', filtro: 'contrast(1.15) saturate(1.2)',
     clima: 'pulsante', badge: 'SUPERE-SE',
   },
+
+  // NEUTRO / UNIVERSAL — estilo premium minimalista que serve pra QUALQUER
+  // produto que nao cai num nicho (camisinha, ferramenta, guarda-chuva...).
+  // Preto/branco de alto contraste com um acento claro: parece caro e nao
+  // impoe tema. A loja pode trocar `cor` pela cor da marca. NAO e fallback
+  // pobre — e um estilo de primeira, igual aos outros.
+  neutro: {
+    accent: '#f2f4f8', accent2: '#9aa3b2', creme: '#f6f8fb', bg: '#0c0d11',
+    fonte: 'display', filtro: 'contrast(1.12) saturate(1.02) brightness(1.02)',
+    clima: 'neutra', badge: 'DESTAQUE',
+  },
+  saude: {
+    accent: '#19b36b', accent2: '#a9ecc9', creme: '#eafaf1', bg: '#0a1712',
+    fonte: 'display', filtro: 'brightness(1.05) contrast(1.05) saturate(1.05)',
+    clima: 'relaxante', badge: 'SAUDE',
+  },
+  casa: {
+    accent: '#c08457', accent2: '#e6c8a8', creme: '#f4ece1', bg: '#171310',
+    fonte: 'serif', filtro: 'contrast(1.05) saturate(1.08) brightness(1.02)',
+    clima: 'sofisticada', badge: 'PARA CASA',
+  },
+  pet: {
+    accent: '#ffa62b', accent2: '#ffd9a1', creme: '#fff3e2', bg: '#141009',
+    fonte: 'display', filtro: 'saturate(1.2) contrast(1.1)',
+    clima: 'animada', badge: 'PET',
+  },
+  servicos: {
+    accent: '#3f7bf2', accent2: '#b7cdfb', creme: '#eaf1fe', bg: '#0a0f1a',
+    fonte: 'display', filtro: 'contrast(1.08) saturate(1.05)',
+    clima: 'neutra', badge: 'SERVICOS',
+  },
+  infantil: {
+    accent: '#ff5ea8', accent2: '#ffd1e6', creme: '#fff0f7', bg: '#1a0f1a',
+    fonte: 'display', filtro: 'saturate(1.25) contrast(1.1) brightness(1.03)',
+    clima: 'animada', badge: 'KIDS',
+  },
 };
 
-// Fallback pra nicho desconhecido: um estilo neutro escuro.
-export const PRESET_PADRAO = {
-  accent: '#4f8cff', accent2: '#bcd3ff', creme: '#eef3fb', bg: '#0b0e14',
-  fonte: 'display', filtro: 'contrast(1.08) saturate(1.1)',
-  clima: 'neutra', badge: 'DESTAQUE',
-};
+// Fallback pra nicho desconhecido = o Neutro (que e um estilo forte, nao um
+// tapa-buraco).
+export const PRESET_PADRAO = PRESETS.neutro;
 
 export function preset(nicho) {
   return PRESETS[nicho] || PRESET_PADRAO;
@@ -64,13 +97,28 @@ export function preset(nicho) {
 export const TRILHA = {
   comida: 'comida_m', moda: 'moda_m', joia: 'joia_m',
   tech: 'tech_m', beleza: 'spa_m', fitness: 'fitness_m',
+  neutro: 'moda_m', saude: 'spa_m', casa: 'joia_m',
+  pet: 'comida_m', servicos: 'tech_m', infantil: 'fitness_m',
 };
 export function trilha(nicho) {
-  return TRILHA[nicho] || 'comida_m';
+  return TRILHA[nicho] || 'moda_m';
 }
 
 // Familia de fonte resolvida (chamado dentro dos componentes que ja
 // carregaram Anton). serif usa Georgia do sistema — nao baixa nada.
 export function familia(p, anton) {
   return p.fonte === 'serif' ? 'Georgia, "Times New Roman", serif' : anton;
+}
+
+// Cor de texto que LE em cima do acento usado como fundo (botao/chip). Acento
+// claro (ex.: Neutro) -> texto escuro; acento escuro -> texto branco. Evita
+// branco-no-branco. Aceita "#rgb" ou "#rrggbb".
+export function corTexto(hex) {
+  let h = String(hex || '').replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const r = parseInt(h.slice(0, 2), 16) || 0;
+  const g = parseInt(h.slice(2, 4), 16) || 0;
+  const b = parseInt(h.slice(4, 6), 16) || 0;
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return lum > 0.62 ? '#111' : '#fff';
 }

@@ -143,6 +143,73 @@
       }
     }
 
+    // ---- encaixe da foto: Preencher x Foto inteira + crop (arrastar/zoom) ----
+    // Só pra modelos com foto full-bleed (m.ajustavel). O usuário decide se a
+    // foto preenche a tela (podendo cortar, e ajusta O QUE aparece arrastando/
+    // dando zoom) ou aparece inteira (com fundo desfocado). Manda foco {x,y,zoom}.
+    var ajusteState = {modo: "preencher", foco: {x: 0.5, y: 0.5, zoom: 1}};
+    if (m.ajustavel && m.fotos > 0 && m.auto !== "produtos") {
+      var fmt = (catalogo.formatos || []).find(function (f) { return f.id === sel.formato; }) || {w: 1080, h: 1920};
+
+      var toggle = el('<div class="btn-group btn-group-sm w-100 mb-2" role="group"></div>');
+      var bPre = el('<button type="button" class="btn btn-outline-primary active">Preencher a tela</button>');
+      var bInt = el('<button type="button" class="btn btn-outline-primary">Mostrar foto inteira</button>');
+      toggle.appendChild(bPre); toggle.appendChild(bInt);
+
+      // caixa de crop, na proporção do formato escolhido.
+      var boxW = 220, boxH = Math.round(boxW * (fmt.h / fmt.w));
+      var cropWrap = el('<div style="display:none"></div>');
+      var box = el('<div style="position:relative;overflow:hidden;border-radius:10px;background:#111;cursor:grab;margin:0 auto;width:' + boxW + 'px;height:' + boxH + 'px;touch-action:none"></div>');
+      var cimg = el('<img alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;user-select:none;pointer-events:none">');
+      box.appendChild(cimg);
+      var zoomRow = el('<div class="d-flex align-items-center gap-2 mt-2" style="max-width:' + boxW + 'px;margin:8px auto 0"></div>');
+      var zoomIn = el('<input type="range" class="form-range" min="1" max="3" step="0.05" value="1">');
+      zoomRow.appendChild(el('<i class="fa-solid fa-magnifying-glass small text-secondary"></i>'));
+      zoomRow.appendChild(zoomIn);
+      var dica = el('<div class="form-text text-center" style="font-size:.78rem">Arraste a foto e use o zoom pra escolher o que aparece.</div>');
+      cropWrap.appendChild(box); cropWrap.appendChild(zoomRow); cropWrap.appendChild(dica);
+
+      function aplica() {
+        cimg.style.objectPosition = (ajusteState.foco.x * 100) + "% " + (ajusteState.foco.y * 100) + "%";
+        cimg.style.transform = "scale(" + ajusteState.foco.zoom + ")";
+      }
+      function mostraCrop() {
+        cropWrap.style.display = (ajusteState.modo === "preencher" && cimg.getAttribute("src")) ? "block" : "none";
+      }
+
+      bPre.onclick = function () { ajusteState.modo = "preencher"; bPre.classList.add("active"); bInt.classList.remove("active"); mostraCrop(); };
+      bInt.onclick = function () { ajusteState.modo = "inteira"; bInt.classList.add("active"); bPre.classList.remove("active"); mostraCrop(); };
+
+      // quando a foto principal (foto0) muda, carrega no crop.
+      if (fotoInputs[0]) {
+        fotoInputs[0].addEventListener("change", function () {
+          if (fotoInputs[0].files && fotoInputs[0].files[0]) {
+            cimg.src = URL.createObjectURL(fotoInputs[0].files[0]);
+            ajusteState.foco = {x: 0.5, y: 0.5, zoom: 1};
+            zoomIn.value = 1; aplica(); mostraCrop();
+          }
+        });
+      }
+
+      // arrastar pra deslocar (pan).
+      var arrastando = false, lx = 0, ly = 0;
+      box.addEventListener("pointerdown", function (e) { arrastando = true; lx = e.clientX; ly = e.clientY; box.setPointerCapture(e.pointerId); box.style.cursor = "grabbing"; });
+      box.addEventListener("pointermove", function (e) {
+        if (!arrastando) return;
+        var dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+        ajusteState.foco.x = Math.min(1, Math.max(0, ajusteState.foco.x - dx / boxW));
+        ajusteState.foco.y = Math.min(1, Math.max(0, ajusteState.foco.y - dy / boxH));
+        aplica();
+      });
+      var solta = function () { arrastando = false; box.style.cursor = "grab"; };
+      box.addEventListener("pointerup", solta);
+      box.addEventListener("pointercancel", solta);
+      zoomIn.addEventListener("input", function () { ajusteState.foco.zoom = parseFloat(zoomIn.value) || 1; aplica(); });
+
+      form.appendChild(campo("Encaixe da foto", toggle));
+      form.appendChild(cropWrap);
+    }
+
     // ---- campos de texto ----
     var inputs = {};
     m.campos.forEach(function (c) {
@@ -155,12 +222,12 @@
         input = el('<input type="text" class="form-control form-control-sm">');
       }
       if (c.max) input.setAttribute("maxlength", c.max);
-      var dica = c.tipo === "lista" ? " (separe por vírgula)" : "";
-      input.placeholder = c.label + dica;
+      // O EXEMPLO concreto vira o placeholder (o lojista leigo vê logo o que pôr);
+      // o rótulo em cima diz o que é; a dica embaixo explica em uma linha.
+      input.placeholder = c.ex || c.label;
       inputs[c.key] = c;
-      input._el = input;
       inputs[c.key]._input = input;
-      form.appendChild(campo(c.label + (c.req ? " *" : "") + dica, input));
+      form.appendChild(campo(c.label + (c.req ? " *" : ""), input, c.dica));
     });
 
     // ---- ação ----
@@ -169,19 +236,24 @@
     dir.appendChild(btn);
     dir.appendChild(status);
 
-    btn.onclick = function () { gerar(m, selNicho, fotoInputs, inputs, btn, status); };
+    btn.onclick = function () { gerar(m, selNicho, fotoInputs, inputs, btn, status, ajusteState); };
   }
 
-  function campo(label, controle) {
+  function campo(label, controle, dica) {
     var w = el('<div></div>');
-    var l = el('<label class="form-label small mb-1"></label>');
+    var l = el('<label class="form-label small mb-1 fw-semibold"></label>');
     l.textContent = label;
     w.appendChild(l);
     w.appendChild(controle);
+    if (dica) {
+      var d = el('<div class="form-text mt-1" style="font-size:.78rem"></div>');
+      d.textContent = dica;
+      w.appendChild(d);
+    }
     return w;
   }
 
-  function gerar(m, selNicho, fotoInputs, inputs, btn, status) {
+  function gerar(m, selNicho, fotoInputs, inputs, btn, status, ajusteState) {
     var campos = {};
     for (var key in inputs) {
       var c = inputs[key];
@@ -193,6 +265,10 @@
     fd.append("formato", sel.formato);
     if (selNicho.value) fd.append("nicho", selNicho.value);
     fd.append("campos", JSON.stringify(campos));
+    if (ajusteState) {
+      fd.append("ajuste", ajusteState.modo);
+      if (ajusteState.modo === "preencher") fd.append("foco", JSON.stringify(ajusteState.foco));
+    }
     fotoInputs.forEach(function (inp, i) {
       if (inp.files && inp.files[0]) fd.append("foto" + i, inp.files[0]);
     });

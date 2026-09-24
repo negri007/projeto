@@ -2,6 +2,7 @@ import {AbsoluteFill, Img, staticFile, Sequence, useCurrentFrame, useVideoConfig
 import {loadFont as loadAnton} from '@remotion/google-fonts/Anton';
 import {loadFont as loadPoppins} from '@remotion/google-fonts/Poppins';
 import {preset, familia} from './presets';
+import {Foto} from './Foto';
 
 const ANTON = loadAnton().fontFamily;
 const POP = loadPoppins().fontFamily;
@@ -10,7 +11,7 @@ const fadeWrap = (frame, dur) =>
   interpolate(frame, [0, 8, dur - 8, dur], [0, 1, 1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
 
 // CENA 1 — abertura: foto + titulo entrando.
-const Hero = ({p, accent, fam, chamada, foto}) => {
+const Hero = ({p, accent, fam, chamada, foto, ajuste, foco}) => {
   const f = useCurrentFrame(); const {fps} = useVideoConfig();
   const o = fadeWrap(f, 78);
   const esc = interpolate(f, [0, 78], [1.06, 1.2]);
@@ -18,7 +19,7 @@ const Hero = ({p, accent, fam, chamada, foto}) => {
   return (
     <AbsoluteFill style={{opacity: o}}>
       <AbsoluteFill style={{transform: `scale(${esc})`}}>
-        <Img src={staticFile(foto)} style={{width: '100%', height: '100%', objectFit: 'cover', filter: p.filtro}} />
+        <Foto src={foto} filtro={p.filtro} ajuste={ajuste} foco={foco} />
       </AbsoluteFill>
       <AbsoluteFill style={{background: 'linear-gradient(to top, rgba(0,0,0,.68), transparent 55%)'}} />
       <div style={{position: 'absolute', top: 78, left: 64, fontFamily: POP, fontWeight: 800, fontSize: 28, letterSpacing: 6, color: accent, opacity: interpolate(f, [6, 20], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'})}}>{p.badge}</div>
@@ -34,7 +35,7 @@ const Hero = ({p, accent, fam, chamada, foto}) => {
 };
 
 // CENA 2 — detalhe: foto de perto + tags de destaque.
-const Detail = ({p, fam, sub, tags, foto}) => {
+const Detail = ({p, fam, sub, tags, foto, ajuste}) => {
   const f = useCurrentFrame();
   const o = fadeWrap(f, 78);
   const esc = interpolate(f, [0, 78], [1.18, 1.04]);
@@ -42,7 +43,7 @@ const Detail = ({p, fam, sub, tags, foto}) => {
   return (
     <AbsoluteFill style={{opacity: o}}>
       <AbsoluteFill style={{transform: `scale(${esc})`}}>
-        <Img src={staticFile(foto)} style={{width: '100%', height: '100%', objectFit: 'cover', filter: p.filtro}} />
+        <Foto src={foto} filtro={p.filtro} ajuste={ajuste} />
       </AbsoluteFill>
       <AbsoluteFill style={{background: 'linear-gradient(to bottom, rgba(0,0,0,.5), transparent 40%, rgba(0,0,0,.55))'}} />
       <div style={{position: 'absolute', top: 90, left: 0, right: 0, textAlign: 'center', fontFamily: fam, fontWeight: 700, fontSize: 70, color: '#fff', transform: `translateY(${interpolate(rev, [0, 1], [30, 0])}px)`, opacity: rev, textShadow: '0 6px 24px rgba(0,0,0,.6)'}}>{sub}</div>
@@ -104,6 +105,8 @@ export const Historia = ({
   marca = 'SUA MARCA',
   fotos = ['hero.jpg', 'detail.jpg'],
   cor = null,
+  ajuste = 'preencher',
+  foco = null,
 }) => {
   const p = preset(nicho);
   const accent = cor || p.accent;
@@ -113,8 +116,8 @@ export const Historia = ({
   const grain = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
   return (
     <AbsoluteFill style={{background: '#000'}}>
-      <Sequence from={0} durationInFrames={78}><Hero p={p} accent={accent} fam={fam} chamada={chamada} foto={hero} /></Sequence>
-      <Sequence from={70} durationInFrames={78}><Detail p={p} fam={fam} sub={sub} tags={tags} foto={det} /></Sequence>
+      <Sequence from={0} durationInFrames={78}><Hero p={p} accent={accent} fam={fam} chamada={chamada} foto={hero} ajuste={ajuste} foco={foco} /></Sequence>
+      <Sequence from={70} durationInFrames={78}><Detail p={p} fam={fam} sub={sub} tags={tags} foto={det} ajuste={ajuste} /></Sequence>
       <Sequence from={138} durationInFrames={74}><End p={p} accent={accent} fam={fam} preco={preco} cta={cta} marca={marca} foto={hero} /></Sequence>
       <LightLeak accent={accent} />
       <AbsoluteFill style={{backgroundImage: grain, opacity: 0.05, mixBlendMode: 'overlay', pointerEvents: 'none'}} />

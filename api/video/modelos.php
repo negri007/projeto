@@ -20,9 +20,10 @@ foreach (motor_modelos() as $id => $m) {
         "id"     => $id,
         "nome"   => $m["nome"],
         "desc"   => $m["desc"],
-        "fotos"  => count($m["foto_alvos"] ?? []),
-        "auto"   => $m["auto"] ?? null,
-        "campos" => $m["campos"],
+        "fotos"     => count($m["foto_alvos"] ?? []),
+        "auto"      => $m["auto"] ?? null,
+        "ajustavel" => motor_foto_ajustavel($id),
+        "campos"    => $m["campos"],
     ];
 }
 
