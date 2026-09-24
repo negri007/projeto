@@ -28,9 +28,16 @@ try {
 
     $conteudo = trim((string)($_POST["conteudo"] ?? ""));
     $tipo     = (string)($_POST["tipo"] ?? "produto");
+    $videoId  = (int)($_POST["video_id"] ?? 0);
 
-    if ($conteudo === "") {
+    // Com vídeo a legenda é opcional: o vídeo já é o conteúdo do post.
+    if ($conteudo === "" && $videoId <= 0) {
         echo json_encode(["error" => "Escreva alguma coisa."]);
+        exit;
+    }
+
+    if ($videoId > 0 && !empty($_FILES["imagem"]["name"])) {
+        echo json_encode(["error" => "Envie foto ou vídeo, não os dois."]);
         exit;
     }
 
@@ -61,7 +68,43 @@ try {
 
     $imagem = null;
 
-    if (!empty($_FILES["imagem"]["name"])) {
+    /* Vídeo já gerado (motor/IA): o post só REFERENCIA o arquivo que está
+       em uploads/videos/lojas/<loja>/, sem re-upload. Posse conferida pela
+       loja da SESSÃO — um video_id de outra loja cai no mesmo "não
+       encontrado" de um id que não existe. Grava no formato que o feed já
+       lê em `imagem`: "video:<arquivo_local>". */
+    if ($videoId > 0) {
+        $stmt = $pdo->prepare(
+            "SELECT arquivo_local FROM videos_gerados
+              WHERE id = ? AND loja_id = ? AND status = 'pronto'"
+        );
+        $stmt->execute([$videoId, (int)$loja["id"]]);
+        $arquivo = $stmt->fetchColumn();
+
+        if (!$arquivo) {
+            echo json_encode(["error" => "Vídeo não encontrado ou ainda não está pronto."]);
+            exit;
+        }
+
+        if (!is_file(__DIR__ . "/../../uploads/" . $arquivo)) {
+            error_log("lojas/post_criar: arquivo do video $videoId sumiu do disco: $arquivo");
+            echo json_encode(["error" => "O arquivo desse vídeo não está mais disponível."]);
+            exit;
+        }
+
+        $imagem = "video:" . $arquivo;
+
+        // Clique duplo ou reabrir o modal não vira dois posts iguais.
+        $stmt = $pdo->prepare("SELECT id FROM loja_posts WHERE loja_id = ? AND imagem = ? AND ativo = 1 LIMIT 1");
+        $stmt->execute([(int)$loja["id"], $imagem]);
+
+        if ($stmt->fetchColumn()) {
+            echo json_encode(["error" => "Esse vídeo já foi publicado na loja."]);
+            exit;
+        }
+    }
+
+    if ($imagem === null && !empty($_FILES["imagem"]["name"])) {
         try {
             $imagem = posts_store_image($_FILES["imagem"]);
         } catch (RuntimeException $e) {

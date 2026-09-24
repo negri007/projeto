@@ -2698,7 +2698,7 @@ terminar de qualquer jeito.
 | `lojas/perfil.php` | GET | Dados por `loja_id`, ou a própria sem parâmetro |
 | `lojas/agente_configurar.php` | POST | Instruções e saudação |
 | `lojas/feed.php` | GET | Feed por cursor, com `categoria` e `loja_id` opcionais |
-| `lojas/post_criar.php` | POST (multipart) | Lojista publica |
+| `lojas/post_criar.php` | POST (multipart: `conteudo`, `tipo?`, `preco?`, `produto_id?`, `imagem?` **ou** `video_id?`) | Lojista publica. Com `video_id`, publica um vídeo já gerado (ver abaixo) |
 | `lojas/post_like.php` | POST | Curte/descurte |
 | `lojas/post_comment.php` | POST | Comenta |
 | `lojas/post_comments.php` | GET | Lista comentários |
@@ -2732,6 +2732,22 @@ terminar de qualquer jeito.
   não é resposta a nada e o lojista pode mudá-la depois.
 - **`perfil.php` esconde `cnpj` e as instruções do agente** de quem não é
   o dono.
+- **Post com vídeo gerado (24/09/2026): `post_criar.php` aceita
+  `video_id`** (id de `videos_gerados`) no lugar de `imagem`. Não há
+  re-upload: o post grava `imagem = "video:<arquivo_local>"`, o formato
+  que `LojaFeed.midiaHTML()` já lê. O servidor confere que o vídeo é da
+  loja **da sessão**, está `'pronto'` e o arquivo existe em disco; com
+  vídeo, `conteudo` (a legenda) é opcional. Resposta de sucesso igual:
+  `{ "ok": true, "post_id": N }`. Erros novos:
+  `{ "error": "Vídeo não encontrado ou ainda não está pronto." }` (também
+  para vídeo de outra loja — não confirma que o id existe),
+  `{ "error": "O arquivo desse vídeo não está mais disponível." }`,
+  `{ "error": "Esse vídeo já foi publicado na loja." }` (mesmo vídeo com
+  post ativo) e `{ "error": "Envie foto ou vídeo, não os dois." }`.
+- **Vídeo no feed toca sozinho** (front, `js/loja-feed.js`): mudo, em
+  loop, `playsinline`, sem `autoplay` — um IntersectionObserver dá play
+  com ~50% do vídeo na tela e pausa quando sai; só um toca por vez. Botão
+  de som no canto; ligar o som de um muta os outros.
 - **`chat_mensagem.php` passa pelo freio por pessoa** de
   `api/ai/limite_uso.php` (HTTP 429). Cada mensagem gasta uma chamada.
 

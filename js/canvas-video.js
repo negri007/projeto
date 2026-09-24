@@ -303,6 +303,9 @@
               '<video controls style="width:100%;max-height:60vh;border-radius:12px;background:#000"></video>' +
               '<a class="btn btn-outline-primary rounded-pill mt-2" download href="' + url + '"><i class="fa-solid fa-download me-1"></i>Baixar vídeo</a>';
             status.querySelector("video").src = url;
+            // Publicar só existe pro vídeo salvo no servidor (arquivo local):
+            // o post referencia o arquivo, não faz upload de novo.
+            if (d.arquivo) montarPublicar(id, status);
             btn.disabled = false;
             return;
           }
@@ -324,6 +327,59 @@
         });
     };
     poll();
+  }
+
+  /* Publica o vídeo pronto como post da loja (api/lojas/post_criar.php com
+     `video_id`). O servidor confere que o vídeo é desta loja e está pronto;
+     a loja vem da sessão, então aqui não vai loja_id nenhum. */
+  function montarPublicar(videoId, status) {
+    var box = el(
+      '<div class="mt-3 pt-3 border-top">' +
+        '<label class="form-label small mb-1 fw-semibold">Legenda (opcional)</label>' +
+        '<textarea class="form-control form-control-sm" rows="2" maxlength="3000" placeholder="Ex.: Chegou novidade! Peça pelo chat da loja."></textarea>' +
+        '<button type="button" class="btn btn-primary rounded-pill mt-2"><i class="fa-solid fa-paper-plane me-1"></i>Publicar na loja</button>' +
+        '<div class="mt-2"></div>' +
+      "</div>"
+    );
+    var legenda = box.querySelector("textarea");
+    var bPub = box.querySelector("button");
+    var msg = box.querySelector("div.mt-2");
+    status.appendChild(box);
+
+    bPub.onclick = function () {
+      var fd = new FormData();
+      fd.append("video_id", videoId);
+      fd.append("tipo", "novidade");
+      fd.append("conteudo", legenda.value.trim());
+
+      bPub.disabled = true;
+      msg.innerHTML = '<span class="text-secondary small"><span class="spinner-border spinner-border-sm me-2"></span>Publicando…</span>';
+
+      fetch("api/lojas/post_criar.php", { method: "POST", credentials: "same-origin", body: fd })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.error) {
+            msg.innerHTML = '<div class="alert alert-warning py-2 mb-0">' + escapeHtml(d.error) + "</div>";
+            bPub.disabled = false;
+            return;
+          }
+          legenda.disabled = true;
+          bPub.remove();
+          var link = loja && loja.id ? "loja_perfil.html?loja_id=" + encodeURIComponent(loja.id) : "comercio.html";
+          msg.innerHTML =
+            '<div class="alert alert-success py-2 mb-0 d-flex align-items-center justify-content-between gap-2 flex-wrap">' +
+              '<span><i class="fa-solid fa-circle-check me-1"></i>Publicado!</span>' +
+              '<span class="d-flex gap-3">' +
+                '<a href="comercio.html" class="alert-link">Ver no feed</a>' +
+                '<a href="' + link + '" class="alert-link">Ver na loja</a>' +
+              "</span>" +
+            "</div>";
+        })
+        .catch(function () {
+          msg.innerHTML = '<div class="alert alert-danger py-2 mb-0">Erro de conexão. Tente de novo.</div>';
+          bPub.disabled = false;
+        });
+    };
   }
 
   function escapeHtml(s) {

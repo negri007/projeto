@@ -182,9 +182,16 @@ class LojaFeed {
         if (imagem.startsWith("video:")) {
             const arquivo = imagem.slice("video:".length);
 
+            /* Sem `autoplay`: quem dá play/pausa é o IntersectionObserver
+               de ligarVideo(), conforme o vídeo entra e sai da tela.
+               `muted` + `playsinline` são o que o navegador exige para
+               tocar sem gesto (e sem abrir tela cheia no iPhone). */
             return `<div class="loja-post-foto">
-                <video src="${LojaFeed.videoSrc(arquivo)}" autoplay muted loop playsinline loading="lazy"></video>
+                <video src="${LojaFeed.videoSrc(arquivo)}" muted loop playsinline preload="metadata"></video>
                 <span class="loja-post-video-badge"><i class="fa-solid fa-clapperboard"></i> Vídeo</span>
+                <button type="button" class="loja-post-som" aria-label="Ativar som" title="Ativar som">
+                    <i class="fa-solid fa-volume-xmark"></i>
+                </button>
             </div>`;
         }
 
@@ -207,7 +214,90 @@ class LojaFeed {
               ?.addEventListener("click", () => this.compartilhar(id, el));
             el.querySelector('[data-acao="reportar"]')
               ?.addEventListener("click", () => abrirReport({ loja_post_id: id, loja_id: lojaId }));
+
+            const video = el.querySelector(".loja-post-foto video");
+            if (video) LojaFeed.ligarVideo(video);
         });
+    }
+
+    /* ---------------------- vídeo tocando sozinho ----------------------
+
+       Um IntersectionObserver só, compartilhado por todos os feeds da
+       página: toca quando o vídeo está com ~50% na tela e pausa quando
+       sai. E só UM toca por vez — ao dar play num, os outros pausam —
+       senão dois cards curtos visíveis juntos tocariam em paralelo,
+       gastando CPU e bateria à toa. */
+
+    static observador() {
+        if (!LojaFeed._obs) {
+            LojaFeed._obs = new IntersectionObserver(entradas => {
+                entradas.forEach(e => {
+                    if (e.isIntersecting && e.intersectionRatio >= 0.5) {
+                        LojaFeed.tocar(e.target);
+                    } else {
+                        e.target.pause();
+                    }
+                });
+            }, { threshold: [0, 0.5] });
+        }
+        return LojaFeed._obs;
+    }
+
+    static tocar(video) {
+        document.querySelectorAll(".loja-post-foto video").forEach(v => {
+            if (v !== video && !v.paused) v.pause();
+        });
+
+        // play() devolve Promise; recusa (aba em segundo plano, economia
+        // de dados) não é erro — o próximo scroll tenta de novo. Se foi
+        // recusado por estar COM SOM (política de autoplay sem gesto),
+        // volta pro mudo e toca: vídeo parado é pior que vídeo sem som.
+        video.play().catch(() => {
+            if (video.muted) return;
+            video.muted = true;
+            video.play().catch(() => {});
+        });
+    }
+
+    static ligarVideo(video) {
+        // A propriedade, além do atributo: é ela que o navegador consulta
+        // na política de autoplay.
+        video.muted = true;
+        LojaFeed.observador().observe(video);
+
+        const som = video.parentElement.querySelector(".loja-post-som");
+        if (!som) return;
+
+        const pintar = () => {
+            const mudo = video.muted;
+            som.querySelector("i").className = "fa-solid " + (mudo ? "fa-volume-xmark" : "fa-volume-high");
+            som.setAttribute("aria-label", mudo ? "Ativar som" : "Desativar som");
+            som.title = som.getAttribute("aria-label");
+        };
+
+        som.addEventListener("click", ev => {
+            ev.preventDefault();
+            ev.stopPropagation();
+
+            const ligar = video.muted;
+
+            // Som em um só: ligar aqui muta os outros (que também já
+            // estão pausados por tocar(), mas o ícone precisa acompanhar).
+            if (ligar) {
+                document.querySelectorAll(".loja-post-foto video").forEach(v => {
+                    if (v !== video && !v.muted) {
+                        v.muted = true;
+                        v.dispatchEvent(new Event("volumechange"));
+                    }
+                });
+            }
+
+            video.muted = !ligar;
+            if (ligar && video.paused) LojaFeed.tocar(video);
+        });
+
+        video.addEventListener("volumechange", pintar);
+        pintar();
     }
 
     async curtir(id, el) {
