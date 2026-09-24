@@ -17,6 +17,23 @@ const POSTS_IMAGE_TYPES = [
 /** Tamanho máximo da imagem do post: 5 MB. */
 const POSTS_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Formatos que o navegador não exibe, mas que o ffmpeg converte para JPG:
+ * foto de iPhone (HEIC/HEIF), scanner (TIFF), Windows (BMP) e AVIF. O MIME
+ * continua vindo do finfo — a lista só decide o que vale tentar converter.
+ */
+const POSTS_IMAGE_CONVERTIVEIS = [
+    "image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence",
+    "image/tiff", "image/bmp", "image/x-ms-bmp", "image/avif",
+];
+
+/** Teto do arquivo ENVIADO quando ele vai ser convertido: foto HEIC/TIFF
+ *  passa fácil de 5 MB. A saída é reduzida e fica bem abaixo disso. */
+const POSTS_IMAGE_CONVERT_MAX_BYTES = 25 * 1024 * 1024;
+
+/** Maior lado (px) da imagem convertida. */
+const POSTS_IMAGE_CONVERT_MAX_DIM = 2000;
+
 /** Quantas etiquetas (`#tag`) um post indexa. */
 const POSTS_MAX_TAGS = 10;
 
@@ -33,21 +50,37 @@ function posts_store_image(array $file): string
         throw new RuntimeException("Erro ao salvar a imagem.");
     }
 
-    if ($file["size"] > POSTS_IMAGE_MAX_BYTES) {
-        throw new RuntimeException("Imagem é grande demais (máx. 5 MB).");
-    }
-
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mime  = $finfo->file($file["tmp_name"]);
 
-    if (!isset(POSTS_IMAGE_TYPES[$mime])) {
+    $converter = !isset(POSTS_IMAGE_TYPES[$mime]) && in_array($mime, POSTS_IMAGE_CONVERTIVEIS, true);
+
+    if (!isset(POSTS_IMAGE_TYPES[$mime]) && !$converter) {
         throw new RuntimeException("Formato de imagem inválido.");
+    }
+
+    if (!$converter && $file["size"] > POSTS_IMAGE_MAX_BYTES) {
+        throw new RuntimeException("Imagem é grande demais (máx. 5 MB).");
+    }
+
+    if ($converter && $file["size"] > POSTS_IMAGE_CONVERT_MAX_BYTES) {
+        throw new RuntimeException("Imagem é grande demais (máx. 25 MB).");
     }
 
     $uploadDir = __DIR__ . "/../../uploads";
 
     if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true) && !is_dir($uploadDir)) {
         throw new RuntimeException("Erro ao salvar a imagem.");
+    }
+
+    if ($converter) {
+        $name = uniqid("img_", true) . ".jpg";
+
+        if (!posts_converter_para_jpg($file["tmp_name"], $uploadDir . "/" . $name)) {
+            throw new RuntimeException("Não deu para converter essa imagem. Exporte como JPG ou PNG e tente de novo.");
+        }
+
+        return $name;
     }
 
     $name = uniqid("img_", true) . "." . POSTS_IMAGE_TYPES[$mime];
@@ -57,6 +90,47 @@ function posts_store_image(array $file): string
     }
 
     return $name;
+}
+
+/**
+ * Converte HEIC/TIFF/BMP/AVIF para JPG pelo ffmpeg, reduzindo o maior lado
+ * para POSTS_IMAGE_CONVERT_MAX_DIM. O caminho do ffmpeg vem de `ffmpeg_bin`
+ * em api/video/video_config.php (o PHP nem sempre enxerga o PATH); sem ele,
+ * tenta `ffmpeg` do PATH. Devolve false se não converteu — sem ffmpeg
+ * instalado, o upload só recusa com mensagem clara.
+ *
+ * `-protocol_whitelist file`: o arquivo vem de quem enviou, e o ffmpeg não
+ * deve abrir nada além dele (nem rede, nem outro arquivo referenciado).
+ */
+function posts_converter_para_jpg(string $origem, string $destino): bool
+{
+    $config = __DIR__ . "/../video/video_config.php";
+    $cfg    = is_file($config) ? (require $config) : [];
+    $ff     = trim((string)($cfg["ffmpeg_bin"] ?? "")) ?: "ffmpeg";
+
+    $dim = POSTS_IMAGE_CONVERT_MAX_DIM;
+    $filtro = "scale='min($dim,iw)':'min($dim,ih)':force_original_aspect_ratio=decrease";
+
+    $cmd = escapeshellarg($ff)
+        . " -v error -y -protocol_whitelist file -i " . escapeshellarg($origem)
+        . " -frames:v 1 -vf " . escapeshellarg($filtro)
+        . " -q:v 3 " . escapeshellarg($destino)
+        . (PHP_OS_FAMILY === "Windows" ? " 2>NUL" : " 2>/dev/null");
+
+    @shell_exec($cmd);
+
+    if (!is_file($destino) || filesize($destino) === 0) {
+        @unlink($destino);
+        return false;
+    }
+
+    // Confere a saída: o que sai daqui é servido direto para o navegador.
+    if ((new finfo(FILEINFO_MIME_TYPE))->file($destino) !== "image/jpeg") {
+        @unlink($destino);
+        return false;
+    }
+
+    return true;
 }
 
 /**

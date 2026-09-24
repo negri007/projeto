@@ -98,7 +98,7 @@ async function carregarLoja() {
         document.querySelector(".main-header-title").textContent = loja.nome;
 
         const capa = loja.banner
-            ? `<div class="loja-banner" style="background-image:url('uploads/${encodeURIComponent(loja.banner)}')"></div>`
+            ? `<div class="loja-banner" style="--capa:url('uploads/${encodeURIComponent(loja.banner)}')"></div>`
             : `<div class="loja-banner loja-banner-vazio"></div>`;
 
         const logo = loja.logo

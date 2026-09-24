@@ -217,6 +217,15 @@ Erros: `{ "error": "Envie texto ou uma imagem." }`,
 `{ "error": "Imagem é grande demais (máx. 5 MB)." }`,
 `{ "error": "Erro ao salvar a imagem." }`
 
+Conversão (24/09/2026): HEIC/HEIF, TIFF, BMP e AVIF também são aceitos —
+o servidor converte para **JPG** pelo ffmpeg (`ffmpeg_bin` em
+`api/video/video_config.php`), maior lado reduzido a 2000 px, e devolve o
+nome `.jpg`. Para esses o teto do envio é 25 MB. Erros novos:
+`{ "error": "Imagem é grande demais (máx. 25 MB)." }` e
+`{ "error": "Não deu para converter essa imagem. Exporte como JPG ou PNG e tente de novo." }`
+(sem ffmpeg instalado, ou arquivo corrompido). Vale para todo upload que
+passa por `posts_store_image()`: post, post da loja, produto, logo e capa.
+
 O tipo da imagem é decidido pelo **MIME real** do arquivo (`finfo`), não
 pela extensão que o cliente informa — extensão é texto escolhido por
 quem envia, e um `.png` pode conter qualquer coisa.

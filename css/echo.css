@@ -4919,6 +4919,52 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 .echo-upload:hover { border-color: var(--accent); color: var(--accent); }
 
+/* --- logo e capa da loja (prévia com o enquadramento final) --- */
+
+.loja-imgs { display: flex; flex-direction: column; gap: 10px; }
+
+.loja-img-campo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px;
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--border-soft);
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+}
+
+.loja-img-campo:hover { border-color: var(--accent); }
+.loja-img-campo:hover strong { color: var(--accent); }
+
+/* A capa ocupa a largura toda e o texto desce pra baixo dela. */
+.loja-img-campo-capa { flex-direction: column; align-items: stretch; }
+
+.loja-img-texto { display: flex; flex-direction: column; min-width: 0; }
+.loja-img-texto strong { font-size: 0.88rem; display: flex; align-items: center; gap: 6px; }
+.loja-img-texto small  { color: var(--text-soft); font-size: var(--fonte-meta); }
+
+.loja-logo-grande.loja-img-previa { width: 64px; height: 64px; }
+
+/* HEIC/TIFF não têm prévia no navegador: aviso no lugar da imagem. */
+.loja-img-aviso {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px;
+    text-align: center;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    color: var(--text-soft);
+}
+
+.loja-logo-grande.loja-img-previa { position: relative; }
+
 /* --- confirmação --- */
 
 .echo-pronto { text-align: center; padding-top: 50px; }
@@ -5172,7 +5218,9 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background-size: cover;
+    /* Mesma regra de .loja-logo-grande: logo inteira, sem cortar. */
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
     background-color: rgba(255,255,255,.06);
 }
@@ -5284,16 +5332,43 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
    PERFIL DA LOJA
    ========================================================================== */
 
+/* A capa é faixa 3:1 (ex.: 1500×500), mas o lojista sobe o que tiver —
+   quadrada, retrato, 16:9. Em vez de `cover` numa altura fixa (que numa
+   imagem quadrada mostrava só uma tira do meio, ampliada e borrada), a
+   imagem entra INTEIRA (`contain`, no ::after) sobre ela mesma
+   desfocada preenchendo a sobra (::before). Numa capa 3:1 as duas
+   coincidem e o desfoque nem aparece. A imagem vem em `--capa`. */
 .loja-banner {
-    height: 150px;
-    background-size: cover;
-    background-position: center;
+    position: relative;
+    aspect-ratio: 3 / 1;
+    max-height: 260px;
+    width: 100%;
     border-radius: var(--radius-lg);
     background-color: rgba(255,255,255,.05);
     /* O banner em vídeo entra como filho deste elemento (ver
        loja-perfil.js) — sem overflow: hidden aqui, os cantos do
-       <video> vazariam o raio da borda. */
+       <video> vazariam o raio da borda. Também corta o desfoque. */
     overflow: hidden;
+}
+
+.loja-banner::before,
+.loja-banner::after {
+    content: "";
+    position: absolute;
+    background-image: var(--capa, none);
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.loja-banner::before {
+    inset: -24px;
+    background-size: cover;
+    filter: blur(20px) brightness(.75);
+}
+
+.loja-banner::after {
+    inset: 0;
+    background-size: contain;
 }
 
 .loja-banner-vazio { background: linear-gradient(120deg, rgba(29,155,240,.18), rgba(147,51,234,.14)); }
@@ -5312,7 +5387,10 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     height: 74px;
     border-radius: var(--radius-lg);
     border: 3px solid var(--bg-card);
-    background-size: cover;
+    /* `contain`: logo larga (texto) ou alta aparece inteira. Numa logo
+       quadrada dá no mesmo que `cover` — preenche a caixa toda. */
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
     background-color: rgba(255,255,255,.08);
 }
@@ -5750,6 +5828,10 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 /* Banner em vídeo do perfil da loja — mesma caixa de .loja-banner, só
    troca a imagem estática pelo <video>. */
 .loja-banner-video {
+    /* Por cima das duas camadas da capa (::before/::after). */
+    position: absolute;
+    inset: 0;
+    z-index: 1;
     width: 100%;
     height: 100%;
     object-fit: cover;

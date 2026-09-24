@@ -128,6 +128,7 @@ function ligarEventos() {
 
     document.getElementById("peSalvar").addEventListener("click", salvarPessoal);
     document.getElementById("loSalvar").addEventListener("click", salvarLoja);
+    montarImagensLoja(document.getElementById("loImagens"), "lo", null, null, "loErro");
     document.getElementById("ePGerar").addEventListener("click", gerarSugestao);
     document.getElementById("eLCriar").addEventListener("click", () => mostrar("telaLoja"));
     document.getElementById("eLNovoProduto").addEventListener("click", alternarFormProduto);
@@ -160,6 +161,111 @@ function erro(id, msg) {
     const e = document.getElementById(id);
     e.textContent = msg || "";
     e.hidden = !msg;
+}
+
+/* ---------------------------- logo e capa ---------------------------- */
+
+/* Espelha POSTS_IMAGE_TYPES / POSTS_IMAGE_CONVERTIVEIS e os tetos de
+   api/posts/helpers.php. Quem decide é o servidor (pelo MIME real); aqui é
+   só pra avisar antes do upload. HEIC/TIFF/BMP/AVIF o servidor converte
+   para JPG — o navegador não mostra esses, então a prévia vira um aviso.
+   A extensão entra porque o Windows costuma mandar HEIC com `type` vazio. */
+const IMG_TIPOS_OK = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const IMG_EXT_CONVERTE = ["heic", "heif", "tif", "tiff", "bmp", "avif"];
+const IMG_MAX_BYTES = 5 * 1024 * 1024;
+const IMG_CONVERTE_MAX_BYTES = 25 * 1024 * 1024;
+const IMG_ACCEPT = IMG_TIPOS_OK.join(",") + "," + IMG_EXT_CONVERTE.map(e => "." + e).join(",");
+
+/**
+ * Campos de logo e capa com prévia. A prévia usa as MESMAS classes do
+ * perfil da loja (.loja-logo-grande, .loja-banner), então o lojista vê
+ * exatamente o enquadramento final: logo inteira no quadrado, capa
+ * inteira na faixa 3:1 com o fundo desfocado preenchendo a sobra.
+ *
+ * Os inputs ficam com id `${prefixo}Logo` e `${prefixo}Banner`.
+ */
+function montarImagensLoja(box, prefixo, logoAtual, capaAtual, erroId) {
+    const url = arq => "uploads/" + encodeURIComponent(arq);
+
+    box.innerHTML = `
+        <div class="loja-imgs">
+            <label class="loja-img-campo loja-img-campo-logo">
+                <span class="loja-logo-grande loja-img-previa ${logoAtual ? "" : "loja-logo-vazia"}" id="${prefixo}LogoPrevia"
+                      ${logoAtual ? `style="background-image:url('${url(logoAtual)}')"` : ""}>
+                    ${logoAtual ? "" : `<i class="fa-solid fa-store"></i>`}
+                </span>
+                <span class="loja-img-texto">
+                    <strong><i class="fa-solid fa-image"></i>${logoAtual ? "Trocar logo" : "Escolher logo"}</strong>
+                    <small>Quadrada, a partir de 400×400 px</small>
+                </span>
+                <input type="file" id="${prefixo}Logo" accept="${IMG_ACCEPT}" hidden>
+            </label>
+            <label class="loja-img-campo loja-img-campo-capa">
+                <span class="loja-banner loja-img-previa ${capaAtual ? "" : "loja-banner-vazio"}" id="${prefixo}BannerPrevia"
+                      ${capaAtual ? `style="--capa:url('${url(capaAtual)}')"` : ""}></span>
+                <span class="loja-img-texto">
+                    <strong><i class="fa-solid fa-panorama"></i>${capaAtual ? "Trocar capa" : "Escolher capa"}</strong>
+                    <small>Horizontal 3:1, ex.: 1500×500 px. Outros formatos aparecem inteiros.</small>
+                </span>
+                <input type="file" id="${prefixo}Banner" accept="${IMG_ACCEPT}" hidden>
+            </label>
+        </div>`;
+
+    ligarPreviaImagem(`${prefixo}Logo`, "logo", erroId);
+    ligarPreviaImagem(`${prefixo}Banner`, "capa", erroId);
+}
+
+function ligarPreviaImagem(inputId, tipo, erroId) {
+    const input  = document.getElementById(inputId);
+    const previa = document.getElementById(inputId + "Previa");
+
+    input.addEventListener("change", () => {
+        const arq = input.files[0];
+        if (!arq) return;
+
+        erro(erroId, "");
+
+        const ext = (arq.name.split(".").pop() || "").toLowerCase();
+        const direto = IMG_TIPOS_OK.includes(arq.type);
+        const converte = !direto && IMG_EXT_CONVERTE.includes(ext);
+
+        if (!direto && !converte) {
+            input.value = "";
+            erro(erroId, "Formato não aceito. Use JPG, PNG, WEBP, GIF, HEIC, TIFF, BMP ou AVIF.");
+            return;
+        }
+        if (arq.size > (converte ? IMG_CONVERTE_MAX_BYTES : IMG_MAX_BYTES)) {
+            input.value = "";
+            erro(erroId, `Imagem grande demais (máx. ${converte ? 25 : 5} MB).`);
+            return;
+        }
+
+        const rotulo = input.closest(".loja-img-campo").querySelector("strong");
+        rotulo.lastChild.textContent = tipo === "logo" ? "Logo escolhida" : "Capa escolhida";
+
+        // Limpa a prévia anterior (imagem ou aviso) antes de desenhar a nova.
+        previa.querySelector(".loja-img-aviso")?.remove();
+
+        if (converte) {
+            previa.style.backgroundImage = "";
+            previa.style.removeProperty("--capa");
+            previa.classList.add(tipo === "logo" ? "loja-logo-vazia" : "loja-banner-vazio");
+            previa.innerHTML = `<span class="loja-img-aviso"><i class="fa-solid fa-arrows-rotate"></i>
+                ${ext.toUpperCase()}: vira JPG ao salvar</span>`;
+            return;
+        }
+
+        const src = URL.createObjectURL(arq);
+
+        if (tipo === "logo") {
+            previa.classList.remove("loja-logo-vazia");
+            previa.innerHTML = "";
+            previa.style.backgroundImage = `url('${src}')`;
+        } else {
+            previa.classList.remove("loja-banner-vazio");
+            previa.style.setProperty("--capa", `url('${src}')`);
+        }
+    });
 }
 
 async function salvarPessoal() {
@@ -544,6 +650,12 @@ function desenharFormLoja(l) {
         </div>
 
         <div class="echo-bloco">
+            <span class="echo-rotulo"><i class="fa-regular fa-image"></i>Logo e capa</span>
+            <p class="echo-ajuda">Toque na imagem para trocar. A prévia é como aparece na loja.</p>
+            <div id="elImagens"></div>
+        </div>
+
+        <div class="echo-bloco">
             <label class="echo-rotulo" for="elWhats">
                 <i class="fa-brands fa-whatsapp"></i>WhatsApp
             </label>
@@ -620,16 +732,26 @@ function desenharFormLoja(l) {
         <div class="echo-erro" id="elErro"></div>
         </div>`;
 
+    montarImagensLoja(document.getElementById("elImagens"), "el", l.logo, l.banner, "elErro");
     document.getElementById("elSalvar").addEventListener("click", salvarEdicaoLoja);
 }
 
 async function salvarEdicaoLoja() {
+    const btn = document.getElementById("elSalvar");
     erro("elErro", "");
 
     const fd = new FormData();
     fd.append("nome", document.getElementById("elNome").value.trim());
     fd.append("whatsapp", document.getElementById("elWhats").value.trim());
     fd.append("descricao", document.getElementById("elDescricao").value.trim());
+
+    // Só vai arquivo se escolheu um: sem o campo, atualizar.php mantém o atual.
+    const logo   = document.getElementById("elLogo").files[0];
+    const banner = document.getElementById("elBanner").files[0];
+    if (logo)   fd.append("logo", logo);
+    if (banner) fd.append("banner", banner);
+
+    btn.disabled = true;
 
     try {
         // Dois endpoints porque são dois objetos: a loja e o agente dela.
@@ -656,8 +778,17 @@ async function salvarEdicaoLoja() {
 
         EchoUIInstance.toastSuccess("Loja atualizada.");
         estado.loja = await buscarLoja();
+
+        // Redesenha as imagens com o que ficou salvo e zera os inputs —
+        // senão um segundo "Salvar" reenviaria o mesmo arquivo.
+        if (logo || banner) {
+            const l = estado.loja.loja;
+            montarImagensLoja(document.getElementById("elImagens"), "el", l.logo, l.banner, "elErro");
+        }
     } catch (e) {
         erro("elErro", "Erro de conexão.");
+    } finally {
+        btn.disabled = false;
     }
 }
 
