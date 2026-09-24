@@ -1706,6 +1706,14 @@ INSERT IGNORE INTO video_providers (id, nome, ativo) VALUES
 CALL echo_add_index_if_missing('videos_gerados', 'idx_vg_loja', 'loja_id, status');
 CALL echo_add_index_if_missing('videos_gerados', 'idx_vg_agent', 'agent_id, status');
 
+-- Motor de anuncios (render local, Remotion — ver docs/plans/motor-anuncios.md):
+-- quando `modelo` esta preenchido, o vídeo é uma peça de marketing renderizada
+-- pelo motor em vez de vídeo por IA/banco. `formato` é 1:1/9:16/4:5 etc. e
+-- `params` guarda os campos editáveis da loja (chamada, preço, cta, foto...) em JSON.
+CALL echo_add_column_if_missing('videos_gerados', 'modelo',  'VARCHAR(40) DEFAULT NULL AFTER prompt');
+CALL echo_add_column_if_missing('videos_gerados', 'formato', 'VARCHAR(20) DEFAULT NULL AFTER modelo');
+CALL echo_add_column_if_missing('videos_gerados', 'params',  'TEXT DEFAULT NULL AFTER formato');
+
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;

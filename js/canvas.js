@@ -118,7 +118,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     document.getElementById("canvasUpload").addEventListener("change", aoEnviarFoto);
     document.getElementById("btnBaixar").addEventListener("click", baixar);
     document.getElementById("btnPublicar").addEventListener("click", publicar);
-    document.getElementById("btnVideo").addEventListener("click", gerarVideo);
+    // O botão de vídeo abre o painel do MOTOR DE ANÚNCIOS (js/canvas-video.js):
+    // modelo + formato + campos + foto -> render local ($0 de API). O fluxo
+    // antigo por prompt (gerarVideo/acompanharVideo, abaixo) fica de reserva.
+    document.getElementById("btnVideo").addEventListener("click", () => {
+        if (window.MotorVideo) window.MotorVideo.abrir(estado.loja);
+        else gerarVideo();
+    });
 
     desenharFormatos();
     desenharFiltros();

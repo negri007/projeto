@@ -29,7 +29,7 @@ if ($videoId <= 0) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT id, loja_id, prompt, status FROM videos_gerados WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, loja_id, prompt, modelo, formato, params, status FROM videos_gerados WHERE id = ?");
     $stmt->execute([$videoId]);
     $registro = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -46,6 +46,34 @@ try {
     }
 
     $lojaId = (int)$registro["loja_id"];
+
+    /* DOIS CAMINHOS:
+       - `modelo` preenchido  -> peça de marketing renderizada pelo MOTOR
+         local (Remotion, $0 de API). É o caminho novo/padrão do Canvas.
+       - `modelo` vazio        -> vídeo por IA/banco (Kling/Pexels/Coverr), o
+         caminho antigo por prompt. */
+    if (!empty($registro["modelo"])) {
+        $resultado = video_motor_render($registro);
+
+        if ($resultado["ok"]) {
+            $stmt = $pdo->prepare(
+                "UPDATE videos_gerados
+                    SET status = 'pronto', provider = 'motor', arquivo_local = ?, erro = NULL
+                  WHERE id = ?"
+            );
+            $stmt->execute([$resultado["arquivo"], $videoId]);
+
+            echo json_encode(["ok" => true, "video_id" => $videoId, "provider" => "motor"]) . "\n";
+        } else {
+            $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ?");
+            $stmt->execute([$resultado["erro"], $videoId]);
+
+            echo json_encode(["ok" => false, "video_id" => $videoId, "erro" => $resultado["erro"]]) . "\n";
+        }
+
+        exit(0);
+    }
+
     $loja = $lojaId > 0 ? loja_por_id($pdo, $lojaId) : null;
     $nicho = $loja["categoria"] ?? "Outro";
 

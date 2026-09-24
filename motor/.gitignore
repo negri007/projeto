@@ -1,0 +1,17 @@
+# Dependencias e binarios reconstruidos em cada maquina (npm install / remotion browser ensure)
+node_modules/
+
+# Videos renderizados (saida) — nao versionar
+out/
+*.mp4
+
+# Chromium que o Remotion baixa sozinho
+.remotion/
+
+# Fotos de produto enviadas pelas lojas (entram em runtime, nao versiona)
+public/uploads/
+
+# Logs e temporarios
+npm-debug.log*
+.DS_Store
+Thumbs.db

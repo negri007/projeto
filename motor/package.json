@@ -1,0 +1,19 @@
+{
+  "name": "echo-motor-anuncios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Motor de anuncios do Echo: gera videos de marketing por nicho (Flash 1 cena, Historia 3 cenas) via Remotion. Sem custo de API.",
+  "scripts": {
+    "studio": "remotion studio src/index.js",
+    "flash": "remotion render src/index.js Flash out/flash.mp4",
+    "historia": "remotion render src/index.js Historia out/historia.mp4",
+    "ensure-browser": "remotion browser ensure"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.527",
+    "@remotion/google-fonts": "^4.0.527",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.527"
+  }
+}

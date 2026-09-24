@@ -292,6 +292,127 @@ function video_gerar(PDO $pdo, string $prompt, int $lojaId, string $nicho = "Out
 }
 
 /* ======================================================================
+   MOTOR DE ANÚNCIOS (render local via Remotion, em /motor)
+
+   Quando o registro tem `modelo` preenchido, o vídeo não vem de IA nem de
+   banco de vídeo: é renderizado localmente pelo motor, sem custo de API.
+   Ver docs/plans/motor-anuncios.md.
+   ====================================================================== */
+
+/** MIME de imagem aceito no motor, com a extensão de saída. */
+const MOTOR_IMG_MIME = ["image/jpeg" => "jpg", "image/png" => "png", "image/webp" => "webp"];
+const MOTOR_IMG_MAX_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Copia uma imagem (upload OU foto de produto já no servidor) para
+ * motor/public/uploads, validando MIME real e tamanho. Devolve o caminho
+ * relativo a motor/public (o que o `staticFile()` do Remotion espera, ex.:
+ * "uploads/4_foto_ab12.jpg"), ou null se a imagem não serve.
+ */
+function motor_copiar_imagem(string $src, int $lojaId, string $tag): ?string
+{
+    if (!is_file($src) || filesize($src) > MOTOR_IMG_MAX_BYTES) {
+        return null;
+    }
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime = $finfo->file($src);
+
+    if (!isset(MOTOR_IMG_MIME[$mime])) {
+        return null;
+    }
+
+    $destDir = __DIR__ . "/../../motor/public/uploads";
+    if (!is_dir($destDir) && !mkdir($destDir, 0775, true) && !is_dir($destDir)) {
+        return null;
+    }
+
+    $nome = $lojaId . "_" . $tag . "_" . uniqid("", true) . "." . MOTOR_IMG_MIME[$mime];
+    $dest = $destDir . "/" . $nome;
+
+    if (!copy($src, $dest)) {
+        return null;
+    }
+
+    return "uploads/" . $nome;
+}
+
+/**
+ * Renderiza uma peça de marketing pelo motor Remotion.
+ *
+ * Monta o job.json a partir do registro, chama `node motor/render.js` e
+ * salva o MP4 em uploads/videos/lojas/{loja}/. As fotos já foram copiadas
+ * para motor/public/uploads em marketing.php e os `props` já apontam para
+ * elas (staticFile).
+ *
+ * @param array $registro linha de videos_gerados (modelo, formato, params, loja_id)
+ * @return array{ok:bool, arquivo:?string, erro:?string}
+ */
+function video_motor_render(array $registro): array
+{
+    $modelo  = (string)($registro["modelo"] ?? "");
+    $formato = (string)($registro["formato"] ?? "") ?: "story";
+    $lojaId  = (int)($registro["loja_id"] ?? 0);
+    $params  = json_decode((string)($registro["params"] ?? "[]"), true);
+    $params  = is_array($params) ? $params : [];
+
+    $nicho  = (string)($params["nicho"] ?? "comida");
+    $props  = is_array($params["props"] ?? null) ? $params["props"] : [];
+    $musica = $params["musica"] ?? null; // ausente = padrão do nicho; "" = mudo
+
+    // Pasta de saída — mesma convenção dos outros vídeos (relativa a uploads/).
+    $pastaRelativa = "videos/lojas/" . $lojaId;
+    $pastaAbsoluta = __DIR__ . "/../../uploads/" . $pastaRelativa;
+
+    if (!is_dir($pastaAbsoluta) && !mkdir($pastaAbsoluta, 0775, true) && !is_dir($pastaAbsoluta)) {
+        return ["ok" => false, "arquivo" => null, "erro" => "não criou a pasta de saída"];
+    }
+
+    $nome    = uniqid("mkt_", true) . ".mp4";
+    $outAbs  = $pastaAbsoluta . "/" . $nome;
+
+    $job = [
+        "modelo"  => $modelo,
+        "formato" => $formato,
+        "nicho"   => $nicho,
+        "props"   => $props,
+        "out"     => str_replace("\\", "/", $outAbs),
+    ];
+    if ($musica !== null) {
+        $job["musica"] = $musica;
+    }
+
+    $jobFile = tempnam(sys_get_temp_dir(), "echo_job_");
+    if ($jobFile === false) {
+        return ["ok" => false, "arquivo" => null, "erro" => "não criou o job temporário"];
+    }
+    file_put_contents($jobFile, json_encode($job, JSON_UNESCAPED_UNICODE));
+
+    $node      = trim((string)(video_config()["node_bin"] ?? "")) ?: "node";
+    $renderJs  = __DIR__ . "/../../motor/render.js";
+
+    // stderr descartado (é só o ruído do Remotion); a resposta vem em stdout
+    // como UMA linha JSON. render.js valida `modelo` contra whitelist própria.
+    $cmd = escapeshellarg($node) . " " . escapeshellarg($renderJs) . " " . escapeshellarg($jobFile) . " 2>NUL";
+    $saida = shell_exec($cmd);
+    @unlink($jobFile);
+
+    // Pega a última linha não-vazia (a linha JSON do render.js).
+    $linhas = array_values(array_filter(array_map("trim", explode("\n", (string)$saida))));
+    $ultima = $linhas ? end($linhas) : "";
+    $res = json_decode($ultima, true);
+
+    if (is_array($res) && !empty($res["ok"]) && is_file($outAbs)) {
+        return ["ok" => true, "arquivo" => $pastaRelativa . "/" . $nome, "erro" => null];
+    }
+
+    $erro = is_array($res) ? ($res["erro"] ?? "render falhou") : "motor sem resposta (node no PATH?)";
+    error_log("video_motor_render: $erro | saida=" . mb_substr((string)$saida, 0, 500));
+
+    return ["ok" => false, "arquivo" => null, "erro" => $erro];
+}
+
+/* ======================================================================
    PROVIDERS — cada um devolve a URL do vídeo pronto, ou null
    ====================================================================== */
 

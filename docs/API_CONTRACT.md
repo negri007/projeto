@@ -2760,9 +2760,13 @@ Pexels Vídeo.
 
 | Rota | Método | Sessão | O que faz |
 |---|---|---|---|
-| `video/gerar.php` | POST (JSON `{prompt}`) | sim | Dispara a geração em background; devolve `{ok, video_id, status: "gerando"}` na hora |
-| `video/status.php` | GET `?video_id=N` | sim | `{ok, video_id, status, arquivo, url_plataforma, provider, erro}` |
+| `video/gerar.php` | POST (JSON `{prompt}`) | sim | Vídeo por IA/banco (Kling/Pexels/Coverr) via prompt. Dispara em background; devolve `{ok, video_id, status: "gerando"}` |
+| `video/modelos.php` | GET | sim | Catálogo do **motor de anúncios**: `{ok, modelos:[{id,nome,desc,fotos,auto,campos:[{key,label,tipo,max,req}]}], formatos:[{id,nome,w,h}], nichos:[{id,nome}]}` |
+| `video/marketing.php` | POST (multipart: `modelo`, `formato`, `nicho?`, `campos` JSON, `foto0..fotoN`) | sim | Gera peça de marketing pelo motor local (render Remotion, $0 de API). Dispara em background; devolve `{ok, video_id, status:"gerando"}`. Provider gravado = `motor` |
+| `video/status.php` | GET `?video_id=N` | sim | `{ok, video_id, status, arquivo, url_plataforma, provider, erro}` (serve tanto o vídeo por IA quanto o do motor) |
 | `video/loja.php` | GET `?loja_id=N` | sim | Vídeo mais recente pronto da loja: `{ok, tem_video, video: {arquivo, url_plataforma, provider} \| null}` |
+
+**Motor de anúncios** (24/09/2026): quando `videos_gerados.modelo` está preenchido, `processar.php` renderiza uma peça de marketing pelo motor em `/motor` (Remotion) em vez de vídeo por IA/banco — custo zero de API. `formato` = `story` (9:16) \| `feed` (4:5) \| `quadrado` (1:1) \| `paisagem` (16:9); `params` (JSON) guarda `{nicho, props}` com os campos editáveis da loja e as fotos já copiadas para `motor/public/uploads`. Requer Node + Remotion instalados (`cd motor && npm install && npm run ensure-browser`); `video_config()['node_bin']` sobrescreve o binário `node`. Não passa pelo seletor de modo "acervo" (é local e grátis). Ver `docs/plans/motor-anuncios.md`.
 
 ### Decisões que o contrato precisa fixar
 
