@@ -73,6 +73,15 @@ grava em `public/uploads/` a cada peça **não** refazem o bundle: são copiadas
 direto para `.bundle/public/uploads/`. Para forçar um bundle novo, apague
 `motor/.bundle`.
 
+Cada render tem tempo máximo (`timeout_s` no job, que o PHP preenche com
+`render_timeout_s` do `video_config.php`; padrão 480 s): passou, o render.js
+cancela, fecha o Chrome e responde `{"ok":false,"erro":"render excedeu Ns"}`.
+
+**Fontes locais.** Anton e Poppins ficam em `public/fonts/` (os mesmos `.woff2`
+que o Google Fonts servia) e são carregadas por `src/fontes.js` — o render não
+acessa a internet. Para trocar a versão ou incluir uma família, ajuste a lista
+em `fontes-baixar.js` e rode `node fontes-baixar.js`.
+
 O render.js roda sempre com `motor/` como pasta atual, então usa o Chromium
 que o `npm run ensure-browser` baixou em `node_modules/.remotion`, de onde
 quer que o PHP o chame.

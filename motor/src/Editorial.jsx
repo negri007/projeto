@@ -1,5 +1,5 @@
 import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, spring, Easing} from 'remotion';
-import {loadFont as loadPoppins} from '@remotion/google-fonts/Poppins';
+import {loadPoppins} from './fontes';
 import {preset} from './presets';
 
 const POP = loadPoppins().fontFamily;

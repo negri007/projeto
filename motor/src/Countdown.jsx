@@ -1,6 +1,5 @@
 import {AbsoluteFill, Img, staticFile, useCurrentFrame, useVideoConfig, interpolate, spring} from 'remotion';
-import {loadFont as loadAnton} from '@remotion/google-fonts/Anton';
-import {loadFont as loadPoppins} from '@remotion/google-fonts/Poppins';
+import {loadAnton, loadPoppins} from './fontes';
 import {preset, familia} from './presets';
 import {Foto} from './Foto';
 
