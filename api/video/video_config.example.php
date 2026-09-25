@@ -39,6 +39,11 @@ return [
     // 'na_fila' e começa sozinho quando abre vaga. Padrão 1.
     'max_renders' => 1,
 
+    // Tempo máximo de UM render, em segundos. Passou, o render.js cancela,
+    // fecha o Chrome e a peça vira erro. Padrão 480; o teto é 540, porque
+    // precisa estourar antes dos 10 min em que a peça conta como travada.
+    'render_timeout_s' => 480,
+
     // Binários, quando não estão no PATH do Apache/PHP. Vazio = procura
     // sozinho (php: ao lado do php.ini carregado; node/ffmpeg: PATH).
     'php_bin'    => '',   // ex.: 'C:\\xampp\\php\\php.exe'

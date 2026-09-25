@@ -261,6 +261,19 @@ const VIDEO_TRAVADO_MIN = 10;
 const VIDEO_MSG_TRAVADO = "A geração demorou mais que o normal e foi cancelada. Tente gerar de novo.";
 
 /**
+ * Tempo máximo de UM render (render_timeout_s do video_config.php, padrão
+ * 480s), mandado ao render.js no job. Nunca passa de 540s: o render.js
+ * tem de desistir sozinho, e responder o erro dele, antes dos
+ * VIDEO_TRAVADO_MIN minutos em que a limpeza de travados mata tudo.
+ */
+function video_render_timeout_s(): int
+{
+    $s = (int)(video_config()["render_timeout_s"] ?? 480);
+    $teto = VIDEO_TRAVADO_MIN * 60 - 60;
+    return $s > 0 ? min($s, $teto) : 480;
+}
+
+/**
  * Marca do render na linha de comando dos processos dele (processar.php,
  * node e Chrome — ver video_motor_render). Termina em "_" para a marca do
  * vídeo 2 não casar com a do vídeo 20.
@@ -732,6 +745,7 @@ function video_motor_render(array $registro): array
     if ($musica !== null) {
         $job["musica"] = $musica;
     }
+    $job["timeout_s"] = video_render_timeout_s();
 
     $videoId = (int)($registro["id"] ?? 0);
     $marca   = video_render_marca($videoId);

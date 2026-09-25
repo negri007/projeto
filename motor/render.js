@@ -58,6 +58,48 @@ function sair(obj) {
   process.exit(obj.ok ? 0 : 1);
 }
 
+// TEMPO MAXIMO do render. O PHP manda `timeout_s` no job (render_timeout_s
+// do video_config.php); sem ele, 480s. Teto de 540s: tem de estourar ANTES
+// dos 10 min em que o PHP da a peca por travada e mata tudo.
+const PRAZO_PADRAO_S = 480;
+const PRAZO_MAX_S = 540;
+function prazoDoJob(job) {
+  const n = Number(job.timeout_s);
+  if (!Number.isFinite(n) || n <= 0) return PRAZO_PADRAO_S;
+  return Math.min(Math.max(Math.round(n), 1), PRAZO_MAX_S);
+}
+
+// O Chrome e aberto aqui (openBrowser) e passado ao selectComposition e ao
+// renderMedia, pra ser SEMPRE fechado por nos — no fim, no erro e no
+// estouro do prazo. Sem isso, um process.exit no meio deixaria o Chrome
+// orfao.
+let chrome = null;
+async function fecharChrome() {
+  const c = chrome;
+  chrome = null;
+  if (c) {
+    try { await c.close({silent: true}); } catch (_) {}
+  }
+}
+
+// Bundle temporario sendo gerado agora (apagado se o prazo estourar nele).
+let bundleEmAndamento = null;
+
+// Bundle temporario de um render que morreu no meio: apaga depois de 1h.
+function limparBundlesOrfaos() {
+  const pai = path.dirname(BUNDLE);
+  const prefixo = path.basename(BUNDLE) + '-tmp-';
+  let nomes;
+  try { nomes = fs.readdirSync(pai); } catch (_) { return; }
+  for (const nome of nomes) {
+    if (!nome.startsWith(prefixo)) continue;
+    const p = path.join(pai, nome);
+    try {
+      if (fs.statSync(p).mtimeMs < Date.now() - 60 * 60 * 1000) fs.rmSync(p, {recursive: true, force: true});
+    } catch (_) {}
+  }
+}
+
 // mtime mais novo de uma arvore; `pular` sao pastas ignoradas.
 function mtimeMaisNovo(dir, pular = new Set()) {
   let max = 0;
@@ -96,6 +138,7 @@ async function garantirBundle() {
 
   const {bundle} = require('@remotion/bundler');
   const tmp = BUNDLE + '-tmp-' + process.pid + '-' + Date.now();
+  bundleEmAndamento = tmp;
   await bundle({
     entryPoint: path.join(SRC, 'index.js'),
     outDir: tmp,
@@ -110,6 +153,7 @@ async function garantirBundle() {
   try {
     fs.rmSync(BUNDLE, {recursive: true, force: true});
     fs.renameSync(tmp, BUNDLE);
+    bundleEmAndamento = null;
     return {dir: BUNDLE, temporario: false, novo: true};
   } catch (e) {
     // .bundle em uso por outro render (Windows trava arquivo aberto):
@@ -222,6 +266,33 @@ async function main() {
     fs.mkdirSync(path.dirname(out), {recursive: true});
   } catch (e) { /* ok se ja existe */ }
 
+  limparBundlesOrfaos();
+
+  const prazo = prazoDoJob(job);
+  const {selectComposition, renderMedia, openBrowser, makeCancelSignal} = require('@remotion/renderer');
+  const {cancelSignal, cancel} = makeCancelSignal();
+  let estourou = false;
+  const msgPrazo = 'render excedeu ' + prazo + 's';
+
+  // Estourou: cancela o renderMedia e fecha o Chrome (o bundle e o
+  // selectComposition nao aceitam cancelamento; fechar o Chrome derruba o
+  // segundo). Se em 10s o main ainda nao tiver saido, sai na marra — ja com
+  // o Chrome fechado, entao nada fica orfao.
+  const relogio = setTimeout(() => {
+    estourou = true;
+    console.warn('render.js: ' + msgPrazo + ', cancelando');
+    cancel();
+    fecharChrome();
+    setTimeout(async () => {
+      await fecharChrome();
+      try { fs.unlinkSync(out); } catch (_) {}
+      if (bundleEmAndamento) {
+        try { fs.rmSync(bundleEmAndamento, {recursive: true, force: true}); } catch (_) {}
+      }
+      sair({ok: false, erro: msgPrazo});
+    }, 10000);
+  }, prazo * 1000);
+
   let serve;
   let erro = null;
   try {
@@ -232,7 +303,8 @@ async function main() {
     copiarFotosDoJob(serve.dir, fotos);
     limparFotosVelhas(serve.dir, fotos);
 
-    const {selectComposition, renderMedia} = require('@remotion/renderer');
+    if (estourou) throw new Error(msgPrazo);
+    chrome = await openBrowser('chrome', {logLevel: 'error'});
     // selectComposition roda o calculateMetadata do Root.jsx: e ele que tira
     // a dimensao do `formato` (story 1080x1920 etc).
     const composition = await selectComposition({
@@ -240,6 +312,7 @@ async function main() {
       id: modelo,
       inputProps: props,
       logLevel: 'error',
+      puppeteerInstance: chrome,
     });
     await renderMedia({
       composition,
@@ -248,6 +321,8 @@ async function main() {
       outputLocation: out,
       inputProps: props,
       logLevel: 'error',
+      puppeteerInstance: chrome,
+      cancelSignal,
     });
     // tempos por fase no stderr (o PHP descarta; util pra diagnostico).
     console.warn('render.js: bundle ' + (serve.novo ? 'refeito' : 'reaproveitado') + ' em ' + ((t1 - t0) / 1000).toFixed(1)
@@ -255,6 +330,13 @@ async function main() {
   } catch (e) {
     console.error(e);
     erro = 'render falhou: ' + (e && e.message ? e.message : 'erro desconhecido');
+  }
+
+  clearTimeout(relogio);
+  await fecharChrome();
+  if (estourou) {
+    erro = msgPrazo;
+    try { fs.unlinkSync(out); } catch (_) {} // MP4 pela metade nao serve
   }
 
   if (serve && serve.temporario) {
@@ -269,7 +351,8 @@ async function main() {
   sair({ok: true, out});
 }
 
-main().catch((e) => {
+main().catch(async (e) => {
   console.error(e);
+  await fecharChrome();
   sair({ok: false, erro: 'render falhou: ' + (e && e.message ? e.message : 'erro desconhecido')});
 });
