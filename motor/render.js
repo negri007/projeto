@@ -21,8 +21,9 @@
  * em vez do CLI: o CLI re-empacota o projeto (webpack + copia do public/) a
  * cada video. Aqui o bundle fica cacheado em motor/.bundle e so e refeito
  * quando algo em src/ ou public/ fica mais novo que ele. As fotos que o PHP
- * copia pra public/uploads a cada peca NAO invalidam o cache — sao copiadas
- * direto pra .bundle/public/uploads (ver sincronizarUploads).
+ * copia pra public/uploads a cada peca NAO invalidam o cache — cada render
+ * copia so as do proprio job pra .bundle/public/uploads, e as sem uso ha
+ * mais de 7 dias saem de la (ver copiarFotosDoJob / limparFotosVelhas).
  *
  * Sem dependencia de ffmpeg externo: a trilha entra via <Audio> do Remotion
  * (ver src/Root.jsx), entao basta `npm install` + `remotion browser ensure`.
@@ -100,6 +101,10 @@ async function garantirBundle() {
     outDir: tmp,
     enableCaching: true,
   });
+  // O bundle() copia o public/ inteiro, inclusive todas as fotos que as
+  // lojas ja mandaram. Elas nao precisam estar ali: cada render copia so as
+  // do proprio job (copiarFotosDoJob), entao o bundle novo nasce sem elas.
+  fs.rmSync(path.join(tmp, 'public', 'uploads'), {recursive: true, force: true});
   fs.writeFileSync(path.join(tmp, '.carimbo'), new Date().toISOString());
 
   try {
@@ -114,24 +119,66 @@ async function garantirBundle() {
   }
 }
 
-// Fotos que o PHP gravou em public/uploads depois do bundle: copia as que
-// faltam (ou mudaram) pra dentro do bundle, onde o staticFile() as procura.
-function sincronizarUploads(dir) {
-  let nomes;
-  try { nomes = fs.readdirSync(UPLOADS); } catch (_) { return; }
+// Fotos que o PHP gravou em public/uploads (props com "uploads/<arquivo>":
+// foto, fotos[], fotoAntes/fotoDepois, itens[].foto...). Procura em qualquer
+// lugar dos props pra nao depender do formato de cada modelo.
+function fotosDoJob(valor, achadas = new Set()) {
+  if (typeof valor === 'string') {
+    const m = /^uploads\/([^/\\]+)$/.exec(valor);
+    // so nome de arquivo simples: nada de ".." nem subpasta.
+    if (m && m[1] !== '.' && m[1] !== '..') achadas.add(m[1]);
+  } else if (valor && typeof valor === 'object') {
+    for (const v of Object.values(valor)) fotosDoJob(v, achadas);
+  }
+  return achadas;
+}
+
+// Copia so as fotos DESTE job pro bundle, onde o staticFile() as procura, e
+// renova a data delas — a data de modificacao da copia e o "ultimo uso".
+// Copiar tudo a cada render fazia dois renders simultaneos brigarem pelo
+// mesmo arquivo (EBUSY no Windows); por isso tambem a copia vai pra um nome
+// temporario e so depois e renomeada.
+function copiarFotosDoJob(dir, nomes) {
   const destDir = path.join(dir, 'public', 'uploads');
   fs.mkdirSync(destDir, {recursive: true});
+  const agora = new Date();
   for (const nome of nomes) {
     const de = path.join(UPLOADS, nome);
     const para = path.join(destDir, nome);
     let sDe;
-    try { sDe = fs.statSync(de); } catch (_) { continue; }
+    try { sDe = fs.statSync(de); } catch (_) { continue; } // o render acusa a falta
     if (!sDe.isFile()) continue;
+    let pronta = false;
+    try { pronta = fs.statSync(para).size === sDe.size; } catch (_) {}
+    if (!pronta) {
+      const tmp = para + '.tmp-' + process.pid;
+      fs.copyFileSync(de, tmp);
+      try {
+        fs.renameSync(tmp, para);
+      } catch (e) {
+        // outro render terminou a mesma copia antes: vale a dele.
+        try { fs.unlinkSync(tmp); } catch (_) {}
+        if (!fs.existsSync(para)) throw e;
+      }
+    }
+    try { fs.utimesSync(para, agora, agora); } catch (_) { /* em uso: renova no proximo */ }
+  }
+}
+
+// Apaga do bundle as fotos sem uso ha mais de 7 dias. Os originais em
+// public/uploads ficam; se a foto voltar a ser usada, e copiada de novo.
+const UPLOADS_VALIDADE_MS = 7 * 24 * 60 * 60 * 1000;
+function limparFotosVelhas(dir, emUso) {
+  const destDir = path.join(dir, 'public', 'uploads');
+  let nomes;
+  try { nomes = fs.readdirSync(destDir); } catch (_) { return; }
+  const limite = Date.now() - UPLOADS_VALIDADE_MS;
+  for (const nome of nomes) {
+    if (emUso.has(nome)) continue;
+    const p = path.join(destDir, nome);
     try {
-      const sPara = fs.statSync(para);
-      if (sPara.size === sDe.size && sPara.mtimeMs >= sDe.mtimeMs) continue;
-    } catch (_) { /* nao existe: copia */ }
-    fs.copyFileSync(de, para);
+      if (fs.statSync(p).mtimeMs < limite) fs.unlinkSync(p);
+    } catch (_) { /* em uso por outro render: fica pro proximo */ }
   }
 }
 
@@ -181,7 +228,9 @@ async function main() {
     const t0 = Date.now();
     serve = await garantirBundle();
     const t1 = Date.now();
-    sincronizarUploads(serve.dir);
+    const fotos = fotosDoJob(props);
+    copiarFotosDoJob(serve.dir, fotos);
+    limparFotosVelhas(serve.dir, fotos);
 
     const {selectComposition, renderMedia} = require('@remotion/renderer');
     // selectComposition roda o calculateMetadata do Root.jsx: e ele que tira
