@@ -403,13 +403,17 @@ function motor_img_carregar(string $src)
     }
 
     // Fallback: ffmpeg -> PNG (para formatos que o GD não abre).
+    // `-protocol_whitelist file`: a foto vem do lojista, e o ffmpeg não deve
+    // abrir nada além dela (nem rede, nem outro arquivo que ela referencie)
+    // — mesma trava de posts_converter_para_jpg().
     $ff = trim((string)(video_config()["ffmpeg_bin"] ?? "")) ?: "ffmpeg";
     $tmp = tempnam(sys_get_temp_dir(), "echo_img_");
     if ($tmp === false) {
         return null;
     }
     $tmpPng = $tmp . ".png";
-    $cmd = escapeshellarg($ff) . " -y -i " . escapeshellarg($src) . " -frames:v 1 " . escapeshellarg($tmpPng) . " 2>NUL";
+    $cmd = escapeshellarg($ff) . " -v error -y -protocol_whitelist file -i " . escapeshellarg($src)
+        . " -frames:v 1 " . escapeshellarg($tmpPng) . " 2>NUL";
     @shell_exec($cmd);
     @unlink($tmp);
 
