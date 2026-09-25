@@ -98,7 +98,10 @@ async function carregarLoja() {
         document.querySelector(".main-header-title").textContent = loja.nome;
 
         const capa = loja.banner
-            ? `<div class="loja-banner" style="--capa:url('uploads/${encodeURIComponent(loja.banner)}')"></div>`
+            /* URL ABSOLUTA: `url()` dentro de variável CSS é resolvida
+               relativa ao echo.css que usa o var() — "uploads/x" virava
+               "css/uploads/x" (404) e a capa sumia. */
+            ? `<div class="loja-banner" style="--capa:url('${new URL("uploads/" + encodeURIComponent(loja.banner), location.href).href}')"></div>`
             : `<div class="loja-banner loja-banner-vazio"></div>`;
 
         const logo = loja.logo

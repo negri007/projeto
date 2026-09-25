@@ -26,10 +26,14 @@ try {
         exit;
     }
 
+    /* Só o vídeo de APRESENTAÇÃO (gerar.php, `modelo` NULL) vira banner.
+       Peça do motor de anúncios (`modelo` preenchido) é conteúdo de post,
+       não capa: sem este filtro, o último anúncio gerado tomava o lugar
+       da capa que o lojista escolheu. */
     $stmt = $pdo->prepare(
         "SELECT arquivo_local, url_plataforma, provider
            FROM videos_gerados
-          WHERE loja_id = ? AND status = 'pronto'
+          WHERE loja_id = ? AND status = 'pronto' AND modelo IS NULL
           ORDER BY id DESC
           LIMIT 1"
     );

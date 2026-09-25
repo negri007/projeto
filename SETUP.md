@@ -11,7 +11,7 @@ Guia completo pra subir o projeto do zero, incluindo o **motor de anúncios**
 |---|---|---|
 | **PHP 8.2** + **MySQL/MariaDB** | back-end + banco | [XAMPP](https://www.apachefriends.org) (já traz os dois) |
 | **Node.js 18+** | motor de vídeo (Remotion) | [nodejs.org](https://nodejs.org) — instalador põe no PATH |
-| **ffmpeg** | converter HEIC/TIFF no upload (opcional) | `winget install Gyan.FFmpeg` |
+| **ffmpeg** | converter HEIC/TIFF/BMP/AVIF para JPG no upload (sem ele, esses formatos são recusados) | `winget install Gyan.FFmpeg` — depois ponha o caminho em `ffmpeg_bin` (seção 4) |
 | **Git** | clonar o repo | [git-scm.com](https://git-scm.com) |
 
 > O motor precisa de **~2 GB de RAM** livre pra renderizar (Chrome headless).
@@ -91,19 +91,55 @@ no PATH) e rode de novo.
 
 ---
 
-## 6. Subir o servidor
+## 6. Subir o servidor (Apache do XAMPP)
 
-```bash
-"C:/xampp/php/php.exe" -S 127.0.0.1:5258 -t .
-```
-
-Deixe essa janela aberta e abra no navegador:
+O app roda no **Apache do XAMPP**, na porta **8080**:
 
 ```
-http://127.0.0.1:5258/index.html
+http://127.0.0.1:8080/index.html
 ```
 
-Login → aba **Canvas** → **Loja** → **Gerar vídeo de marketing**.
+**Para subir:** abra o painel do XAMPP e clique em **Start** no **Apache** e no
+**MySQL**. Pronto — não precisa deixar terminal aberto.
+
+**Primeira vez numa máquina nova:** o site da porta 8080 é configurado no
+XAMPP, não no repositório. Acrescente ao fim de
+`C:/xampp/apache/conf/extra/httpd-vhosts.conf` (troque o caminho pelo da sua
+pasta do projeto) e dê Stop/Start no Apache:
+
+```apache
+Listen 8080
+<VirtualHost *:8080>
+    DocumentRoot "C:/caminho/do/projeto"
+    DirectoryIndex index.html index.php
+    <Directory "C:/caminho/do/projeto">
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+```
+
+Confira também, no `C:/xampp/php/php.ini`, que a linha `extension=gd` está
+**sem** o `;` na frente (o upload de fotos do motor precisa do GD) — depois de
+mexer no `php.ini`, Stop/Start no Apache.
+
+> **Por que Apache e não `php -S`:** o servidor embutido do PHP atende um
+> pedido por vez e manda o vídeo inteiro de uma vez (sem `Range`). Com a
+> conexão de notificações aberta, o vídeo do feed levava ~30 s pra começar;
+> no Apache começa em menos de 1 s. O `php -S` ainda serve pra um teste
+> rápido (`"C:/xampp/php/php.exe" -S 127.0.0.1:8080 -t .` com o Apache
+> parado), mas fica lento com vídeo.
+
+> **Motor sob o Apache:** o render roda num `php.exe` separado, disparado em
+> segundo plano. O caminho é descoberto sozinho (o `php.exe` ao lado do
+> `php.ini` carregado); se não achar, informe `php_bin` em
+> `api/video/video_config.php`. Idem `node_bin` se o `node` não estiver no
+> PATH de quem iniciou o Apache.
+
+Login → aba **Canvas** → **Loja** → **Gerar vídeo de marketing**. Não precisa
+esperar no modal: quando o vídeo fica pronto ele aparece em **Comércio → Meus
+vídeos**, de onde dá pra publicar na loja ou baixar.
 
 > A aba **Loja** só aparece pra conta que tem loja. Crie uma em **Comércio**.
 
@@ -124,6 +160,13 @@ E rode o servidor **nessa mesma porta**, navegando por `127.0.0.1` (não
 `localhost`). Se o app estiver em "Teste" no Console, adicione seu e-mail em
 *Tela de consentimento → Usuários de teste*.
 
+> **Atenção à porta:** a porta do `redirect_uri` precisa ser **a mesma porta
+> que serve o app**. Com o Apache do XAMPP isso é a **8080**, então o
+> `redirect_uri` em `api/auth/google_config.php` e o URI cadastrado no
+> Console viram `http://127.0.0.1:8080/api/auth/google_callback.php`. Se o
+> `google_config.php` ainda aponta para outra porta (ex.: 8123 ou 5258), o
+> Google devolve `redirect_uri_mismatch` e o login não completa.
+
 ---
 
 ## 8. Onde o motor não roda
@@ -142,5 +185,7 @@ lendo a fila `videos_gerados`.
 - ffmpeg: `apt install ffmpeg` / `brew install ffmpeg`.
 - Node: [nodejs.org](https://nodejs.org) ou `nvm`.
 - Importar banco: `mysql -u root banco < banco.sql`.
-- Servidor: `php -S 127.0.0.1:5258 -t .`.
+- Servidor: Apache com um `VirtualHost` na porta 8080 apontando para a pasta
+  do projeto (`AllowOverride All`), ou `php -S 127.0.0.1:8080 -t .` para
+  teste rápido (lento com vídeo, ver seção 6).
 - Caminhos do `mysql`/`php` sem o prefixo `C:/xampp/...`.

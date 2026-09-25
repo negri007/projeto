@@ -281,7 +281,10 @@
       .then(function (d) {
         if (d.error) { status.innerHTML = '<div class="alert alert-warning py-2 mb-0">' + escapeHtml(d.error) + "</div>"; btn.disabled = false; return; }
         if (!d.video_id) { status.innerHTML = '<div class="alert alert-warning py-2 mb-0">Enfileirado sem id.</div>'; btn.disabled = false; return; }
-        status.innerHTML = '<div class="text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Renderizando o vídeo… (30–90s)</div>';
+        status.innerHTML =
+          '<div class="text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Renderizando o vídeo… (1 a 3 min)</div>' +
+          '<div class="form-text mt-1">Não precisa esperar aqui: pode fechar. Quando ficar pronto, ele aparece em ' +
+          '<a href="comercio.html">Comércio → Meus vídeos</a>.</div>';
         acompanhar(d.video_id, btn, status);
       })
       .catch(function () {

@@ -88,6 +88,8 @@ async function carregarMinhaLoja() {
         const l = d.loja;
         const s = d.stats || {};
 
+        carregarMeusVideos();
+
         box.innerHTML = `
             <a class="echo-trend" href="loja_perfil.html?loja_id=${l.id}">
                 <span class="echo-trend-body">
@@ -100,6 +102,182 @@ async function carregarMinhaLoja() {
             </a>`;
     } catch (e) {
         box.innerHTML = `<p class="text-secondary mb-0 small">Não foi possível carregar.</p>`;
+    }
+}
+
+/* ------------------------------ meus vídeos ------------------------------
+
+   As peças do motor de anúncios da MINHA loja (api/video/meus.php — a loja
+   vem da sessão). O lojista pode fechar o modal do Canvas enquanto o vídeo
+   renderiza: ele aparece aqui como "Gerando…" e vira player quando fica
+   pronto. Enquanto houver algum gerando, consulta de novo a cada 6s (e
+   não consulta com a aba oculta); sem nenhum gerando, não consulta. */
+
+const MEUS_VIDEOS_POLL_MS = 6000;
+let meusVideosTimer = null;
+let meusVideosEstado = {};   // id -> status, para avisar quando um fica pronto
+
+async function carregarMeusVideos() {
+    clearTimeout(meusVideosTimer);
+    const box = document.getElementById("meusVideos");
+
+    let d;
+    try {
+        const r = await fetch("api/video/meus.php", { credentials: "same-origin" });
+        d = await r.json();
+    } catch (e) {
+        meusVideosTimer = setTimeout(carregarMeusVideos, MEUS_VIDEOS_POLL_MS);
+        return;
+    }
+
+    if (!d.ok) { box.hidden = true; return; }
+
+    const videos = d.videos || [];
+
+    // Avisa quem estava gerando e acabou de ficar pronto.
+    videos.forEach(v => {
+        if (meusVideosEstado[v.id] === "gerando" && v.status === "pronto") {
+            EchoUIInstance.toastSuccess("Seu vídeo ficou pronto! Está em Meus vídeos.");
+        }
+    });
+    meusVideosEstado = Object.fromEntries(videos.map(v => [v.id, v.status]));
+
+    desenharMeusVideos(videos);
+
+    if (videos.some(v => v.status === "gerando")) {
+        meusVideosTimer = setTimeout(esperarVisivelEAtualizar, MEUS_VIDEOS_POLL_MS);
+    }
+}
+
+function esperarVisivelEAtualizar() {
+    if (!document.hidden) { carregarMeusVideos(); return; }
+    document.addEventListener("visibilitychange", carregarMeusVideos, { once: true });
+}
+
+function desenharMeusVideos(videos) {
+    const box = document.getElementById("meusVideos");
+
+    // Um card aberto no meio da edição da legenda não pode sumir num poll.
+    const editando = box.querySelector(".meu-video-legenda:not([hidden])");
+    if (editando) return;
+
+    box.hidden = false;
+
+    const cabecalho = `
+        <div class="meus-videos-topo">
+            <h2><i class="fa-solid fa-film"></i>Meus vídeos</h2>
+            <small>Só você vê · pronto aparece aqui</small>
+        </div>`;
+
+    if (!videos.length) {
+        box.innerHTML = cabecalho + `
+            <p class="meus-videos-vazio">
+                Seus vídeos de marketing aparecem aqui assim que ficam prontos.
+                <a href="canvas.html">Gerar um no Canvas</a>
+            </p>`;
+        return;
+    }
+
+    box.innerHTML = cabecalho + `<div class="meus-videos-lista">${videos.map(meuVideoHTML).join("")}</div>`;
+
+    box.querySelectorAll(".meu-video").forEach(card => {
+        const id = parseInt(card.dataset.id, 10);
+        const legenda = card.querySelector(".meu-video-legenda");
+
+        card.querySelector('[data-acao="publicar"]')?.addEventListener("click", () => {
+            legenda.hidden = false;
+            legenda.querySelector("textarea").focus();
+        });
+        card.querySelector('[data-acao="cancelar"]')?.addEventListener("click", () => {
+            legenda.hidden = true;
+        });
+        card.querySelector('[data-acao="confirmar"]')?.addEventListener("click", ev =>
+            publicarMeuVideo(id, legenda.querySelector("textarea").value.trim(), ev.currentTarget));
+    });
+}
+
+function meuVideoHTML(v) {
+    const quando = EchoUIInstance.formatTime(v.created_at);
+    const nome = EchoUIInstance.escapeHTML(v.modelo || "Vídeo");
+
+    if (v.status === "gerando") {
+        return `
+        <article class="meu-video meu-video-gerando" data-id="${v.id}">
+            <div class="meu-video-midia">
+                <span class="spinner-border spinner-border-sm"></span>
+                <span>Gerando…</span>
+            </div>
+            <div class="meu-video-info"><strong>${nome}</strong><small>${quando} · 1 a 3 min</small></div>
+        </article>`;
+    }
+
+    if (v.status === "erro") {
+        return `
+        <article class="meu-video meu-video-erro" data-id="${v.id}">
+            <div class="meu-video-midia">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Não deu certo</span>
+            </div>
+            <div class="meu-video-info"><strong>${nome}</strong>
+                <small title="${EchoUIInstance.escapeHTML(v.erro || "")}">${quando} · tente gerar de novo</small></div>
+        </article>`;
+    }
+
+    const src = LojaFeed.videoSrc(v.arquivo);
+
+    return `
+    <article class="meu-video" data-id="${v.id}">
+        <div class="meu-video-midia">
+            <video src="${src}" controls muted playsinline preload="metadata"></video>
+        </div>
+        <div class="meu-video-info"><strong>${nome}</strong><small>${quando}</small></div>
+        <div class="meu-video-acoes">
+            ${v.publicado
+                ? `<span class="meu-video-publicado"><i class="fa-solid fa-circle-check"></i>Publicado</span>`
+                : `<button type="button" class="btn btn-sm btn-primary rounded-pill" data-acao="publicar">
+                       <i class="fa-solid fa-paper-plane me-1"></i>Publicar</button>`}
+            <a class="btn btn-sm btn-outline-secondary rounded-pill" href="${src}" download title="Baixar">
+                <i class="fa-solid fa-download"></i></a>
+        </div>
+        <div class="meu-video-legenda" hidden>
+            <textarea class="form-control form-control-sm" rows="2" maxlength="3000"
+                      placeholder="Legenda (opcional)"></textarea>
+            <div class="d-flex gap-2 mt-2">
+                <button type="button" class="btn btn-sm btn-primary rounded-pill flex-grow-1" data-acao="confirmar">Publicar na loja</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill" data-acao="cancelar">Cancelar</button>
+            </div>
+        </div>
+    </article>`;
+}
+
+/* Mesmo endpoint do botão do modal (post_criar.php com `video_id`): o post
+   só referencia o arquivo, sem re-upload. Publicado, recarrega o feed pra
+   ele aparecer no topo. */
+async function publicarMeuVideo(id, legenda, btn) {
+    const fd = new FormData();
+    fd.append("video_id", id);
+    fd.append("tipo", "novidade");
+    fd.append("conteudo", legenda);
+
+    btn.disabled = true;
+
+    try {
+        const r = await fetch("api/lojas/post_criar.php", { method: "POST", credentials: "same-origin", body: fd });
+        const d = await r.json();
+
+        if (d.error) {
+            EchoUIInstance.toastError(d.error);
+            btn.disabled = false;
+            return;
+        }
+
+        EchoUIInstance.toastSuccess("Publicado! Já está no feed.");
+        btn.closest(".meu-video-legenda").hidden = true;
+        carregarMeusVideos();
+        feed.load();
+    } catch (e) {
+        EchoUIInstance.toastError("Erro de conexão. Tente de novo.");
+        btn.disabled = false;
     }
 }
 

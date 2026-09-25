@@ -108,13 +108,12 @@ function video_prompt_sugerido(string $nicho, string $nomeLoja): string
  * antes de devolver, e `gerar.php` travaria a aba do lojista pelo tempo
  * exato que a arquitetura assíncrona deveria evitar.
  *
- * `PHP_BINARY` é o mesmo PHP que está atendendo esta requisição — não
- * depende de `php` estar no PATH (no XAMPP normalmente não está), mesma
- * lógica de `api/seed/seed_ia_posts.php`.
+ * O PHP de linha de comando sai de video_php_cli() — não depende de `php`
+ * estar no PATH (no XAMPP normalmente não está).
  */
 function video_disparar_processamento(int $videoId): void
 {
-    $php    = PHP_BINARY;
+    $php    = video_php_cli();
     $script = __DIR__ . "/processar.php";
 
     $cmd = "cmd /c start \"\" /B "
@@ -126,6 +125,37 @@ function video_disparar_processamento(int $videoId): void
     if ($handle !== false) {
         pclose($handle);
     }
+}
+
+/**
+ * Caminho do PHP de LINHA DE COMANDO para rodar processar.php.
+ *
+ * `PHP_BINARY` só serve quando esta requisição já roda num php CLI (o
+ * `php -S`). Sob o Apache (mod_php) ele aponta para o httpd.exe — e
+ * "httpd.exe processar.php 5" não renderiza nada. Ordem: `php_bin` de
+ * video_config.php > PHP_BINARY se for um php > php.exe ao lado do
+ * php.ini carregado (no XAMPP, C:\xampp\php\php.exe) > `php` do PATH.
+ */
+function video_php_cli(): string
+{
+    $config = trim((string)(video_config()["php_bin"] ?? ""));
+    if ($config !== "") {
+        return $config;
+    }
+
+    if (PHP_BINARY !== "" && preg_match('/^php(-cli)?(\.exe)?$/i', basename(PHP_BINARY))) {
+        return PHP_BINARY;
+    }
+
+    $ini = php_ini_loaded_file();
+    if ($ini) {
+        $aoLado = dirname($ini) . DIRECTORY_SEPARATOR . (PHP_OS_FAMILY === "Windows" ? "php.exe" : "php");
+        if (is_file($aoLado)) {
+            return $aoLado;
+        }
+    }
+
+    return "php";
 }
 
 /* ======================================================================

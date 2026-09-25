@@ -185,7 +185,9 @@ const IMG_ACCEPT = IMG_TIPOS_OK.join(",") + "," + IMG_EXT_CONVERTE.map(e => "." 
  * Os inputs ficam com id `${prefixo}Logo` e `${prefixo}Banner`.
  */
 function montarImagensLoja(box, prefixo, logoAtual, capaAtual, erroId) {
-    const url = arq => "uploads/" + encodeURIComponent(arq);
+    // Absoluta: a da capa vai em `--capa`, e `url()` dentro de variável CSS
+    // resolve relativa ao echo.css (virava css/uploads/..., 404).
+    const url = arq => new URL("uploads/" + encodeURIComponent(arq), location.href).href;
 
     box.innerHTML = `
         <div class="loja-imgs">
