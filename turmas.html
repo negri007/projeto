@@ -52,7 +52,14 @@
   </div>
 
   <div id="painel" class="card hidden">
-    <h2>Material de <span id="turmaNome"></span></h2>
+    <h2>Alunos de <span class="turmaNome"></span></h2>
+    <div id="alunos"></div>
+    <div id="addAluno" class="row hidden" style="margin-top:8px">
+      <select id="amigoSel" style="flex:1;min-width:200px"></select>
+      <button id="btnAddAluno" style="margin-top:0">Adicionar aluno</button>
+    </div>
+
+    <h2 style="margin-top:20px">Material de <span class="turmaNome"></span></h2>
 
     <div id="subir" class="hidden">
       <label>Nome do material</label>
@@ -119,10 +126,71 @@ async function criarTurma() {
 async function abrirTurma(c) {
   turmaSel = c.id; ehDono = !!c.is_owner;
   $('#painel').classList.remove('hidden');
-  $('#turmaNome').textContent = c.name;
+  document.querySelectorAll('.turmaNome').forEach(el => { el.textContent = c.name; });
   $('#subir').classList.toggle('hidden', !ehDono);
+  $('#addAluno').classList.toggle('hidden', !ehDono);
   carregarTurmas();
+  carregarAlunos();
+  if (ehDono) carregarAmigos();
   await carregarMateriais();
+}
+
+// Turma nao aparece em circulos.html, entao os alunos se gerenciam aqui.
+// Mesmos endpoints de circulo: aluno = circle_members, por user_id.
+async function carregarAlunos() {
+  const box = $('#alunos');
+  const j = await api('/api/circles/list_members.php?circle_id=' + turmaSel);
+  if (j.error) { box.innerHTML = ''; return msg(j.error, 'err'); }
+  const alunos = j.members || [];
+  if (!alunos.length) { box.innerHTML = '<span class="spin">nenhum aluno ainda.</span>'; return; }
+  box.innerHTML = '';
+  alunos.forEach(u => {
+    const d = document.createElement('div');
+    d.className = 'turma';
+    d.style.cursor = 'default';
+    d.innerHTML = `<span>${esc(u.name)}</span>`;
+    if (ehDono) {
+      const b = document.createElement('button');
+      b.className = 'ghost'; b.style.marginTop = '0'; b.textContent = 'Remover';
+      b.onclick = () => removerAluno(u.user_id);
+      d.appendChild(b);
+    }
+    box.appendChild(d);
+  });
+}
+
+async function carregarAmigos() {
+  const sel = $('#amigoSel');
+  const j = await api('/api/friends/list.php');
+  const amigos = j.friends || [];
+  sel.innerHTML = amigos.length
+    ? amigos.map(f => `<option value="${f.user_id}">${esc(f.name)}</option>`).join('')
+    : '<option value="">nenhum amigo para adicionar</option>';
+}
+
+async function addAluno() {
+  const userId = Number($('#amigoSel').value);
+  if (!userId) return;
+  $('#btnAddAluno').disabled = true;
+  const j = await api('/api/circles/add_member.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ circle_id: turmaSel, user_id: userId })
+  });
+  $('#btnAddAluno').disabled = false;
+  if (j.error) return msg(j.error, 'err');
+  msg('Aluno adicionado.');
+  carregarAlunos();
+  carregarTurmas();
+}
+
+async function removerAluno(userId) {
+  const j = await api('/api/circles/remove_member.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ circle_id: turmaSel, user_id: userId })
+  });
+  if (j.error) return msg(j.error, 'err');
+  carregarAlunos();
+  carregarTurmas();
 }
 
 async function carregarMateriais() {
@@ -198,6 +266,7 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 
 $('#btnCriarTurma').onclick = criarTurma;
 $('#btnSubir').onclick = subir;
+$('#btnAddAluno').onclick = addAluno;
 carregarTurmas().catch(() => {});
 </script>
 </body>

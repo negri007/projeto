@@ -237,12 +237,16 @@ async function loadCircles() {
             return;
         }
 
-        if (!data.ok || !data.circles || data.circles.length === 0) {
+        // Turma (tipo 'academia') vive em turmas.html, não aqui: social numa
+        // aba, academia na outra, sem o mesmo grupo aparecer nas duas.
+        const circulos = (data.circles || []).filter(c => c.tipo !== "academia");
+
+        if (!data.ok || circulos.length === 0) {
             list.innerHTML = "<p class='text-secondary mb-0 p-3 text-center'>Você ainda não criou nem participa de nenhum círculo.</p>";
             return;
         }
 
-        data.circles.forEach(c => {
+        circulos.forEach(c => {
             const el = document.createElement("div");
             el.className = "circle-list-item";
 

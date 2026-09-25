@@ -1899,14 +1899,17 @@ class EchoUI {
             const res  = await fetch("api/circles/list.php", { credentials: "same-origin" });
             const data = await res.json();
 
-            if (!data.ok || !data.circles?.length) {
+            // Turmas (tipo 'academia') ficam em turmas.html, fora deste card.
+            const circulos = (data.circles || []).filter(c => c.tipo !== "academia");
+
+            if (!data.ok || !circulos.length) {
                 this.esconderCartaoVazio(box);
                 return;
             }
 
             this.revelarCartao(box);
 
-            box.innerHTML = data.circles.slice(0, limit).map(c => `
+            box.innerHTML = circulos.slice(0, limit).map(c => `
                 <a class="echo-trend" href="circle_chat.html?circle_id=${c.id}">
                     <span class="echo-search-hash"><i class="fa-regular fa-circle"></i></span>
                     <span class="echo-trend-body">
