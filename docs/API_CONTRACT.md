@@ -2878,3 +2878,64 @@ normal e foi cancelada. Tente gerar de novo."; os processos do render
 `status.php`, `meus.php` e `marketing.php` fazem a mesma limpeza a cada
 consulta; o CLI é para quando ninguém está olhando a tela (pode ser
 agendado). Saída: `{ok, cancelados:[ids]}`.
+
+
+---
+
+## Grupos verticais — vertical acadêmico (turmas) (25/09/2026)
+
+Ver `docs/plans/grupos-verticais.md`. Um círculo ganhou a coluna `tipo`
+(`VARCHAR(20)`, default `'social'`). `'academia'` faz do círculo uma
+**turma**: dono = professor, `circle_members` = alunos. O tipo é o que
+decide quais ferramentas o agente do grupo expõe — mesma ideia dos presets
+do motor: um mecanismo, N verticais. `VARCHAR` e não `ENUM` de propósito:
+vertical novo não exige migração de schema.
+
+### Mudança de contrato — círculos
+
+- **`POST /api/circles/create.php`** passa a aceitar `tipo` no corpo JSON
+  (`"social"` | `"academia"`; valor inválido cai em `"social"`).
+- **`GET /api/circles/list.php`** e o objeto círculo em toda resposta de
+  `api/circles/` agora trazem o campo `tipo`.
+
+### `GET /api/turmas/material_listar.php?circle_id=<id>`
+
+Identidade pela sessão (`require_login`). Acesso: dono **ou** membro da
+turma; turma de tipo diferente de `'academia'`, inexistente ou de terceiros
+respondem `{"error":"Turma não encontrada."}` (o mesmo erro de propósito:
+quem não participa não descobre que existe).
+
+Resposta: `{ ok:true, is_owner:bool, materiais:[ {id, circle_id, titulo,
+tipo_arquivo, arquivo, tem_texto, tem_resumo, resumivel, created_at} ] }`.
+A listagem **não** devolve `conteudo_texto` nem `resumo` inteiros —
+`tem_texto`/`tem_resumo` bastam pra tela.
+
+### `POST /api/turmas/material_criar.php` (multipart)
+
+Identidade pela sessão. **Só o dono da turma (professor)** — membro recebe
+`{"error":"Só o professor da turma pode subir material."}`.
+
+Campos: `circle_id` (obrigatório), `titulo` (obrigatório, ≤160),
+`conteudo_texto` (opcional) e/ou `arquivo` (opcional). Pelo menos um entre
+texto e arquivo. O `arquivo` é validado pelo **MIME real** (`finfo`), nunca
+pela extensão do cliente: aceita `application/pdf`, `text/plain`,
+`text/markdown`, `image/jpeg|png|webp`, até **20 MB**. Salvo em
+`uploads/turmas/<circle_id>/` (fora do git, sem execução de PHP).
+
+Resposta: `{ ok:true, material:{...,resumo} }`.
+
+### `POST /api/turmas/material_resumir.php` (JSON)
+
+Identidade pela sessão. Acesso: dono **ou** membro (o resumo é o mesmo pra
+todos). Corpo: `{ material_id, regerar? }`.
+
+Gera o resumo do material pela **API do Claude** (mesma chave de
+`ai_config.php`): texto colado vai por `ai_chamar_api()`; PDF vai como bloco
+`document` (base64) na Messages API. **Cache**: o resultado fica em
+`turma_materiais.resumo` — a primeira chamada gera e grava, as próximas
+servem do cache sem gastar API (`do_cache:true`). `regerar:true` força de
+novo e é **só do dono**. Sem `ai_config.php`/chave: `{"error":"A IA não
+está configurada nesta instalação."}`. Material não resumível (só imagem):
+erro amigável, sem chamar a API.
+
+Resposta: `{ ok:true, resumo:"...", do_cache:bool }`.

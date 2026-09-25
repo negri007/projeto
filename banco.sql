@@ -1728,6 +1728,43 @@ CALL echo_add_column_if_missing('videos_gerados', 'iniciado_em', 'DATETIME NULL 
 CALL echo_add_index_if_missing('videos_gerados', 'idx_vg_fila', 'status, id');
 
 
+-- ======================================================================
+-- GRUPOS VERTICAIS / VERTICAL ACADEMICO (25/09/2026)
+-- Ver docs/plans/grupos-verticais.md.
+--
+-- Um circulo ganha um `tipo`. 'social' e o grupo de sempre; 'academia' e
+-- uma turma (professor = owner, alunos = circle_members). O tipo decide
+-- quais ferramentas o agente do grupo expoe e quais objetos ele tem — e a
+-- mesma ideia dos presets do motor: um mecanismo, N verticais. E VARCHAR e
+-- nao ENUM de proposito: adicionar um vertical novo (farmacia, servicos)
+-- nao deve exigir migracao de schema, so uma linha no catalogo do app.
+-- ======================================================================
+CALL echo_add_column_if_missing('circles', 'tipo', "VARCHAR(20) NOT NULL DEFAULT 'social' AFTER name");
+
+-- Materiais de uma turma (PDF, texto, imagem). O professor sobe; o agente
+-- age sobre eles (resumir e, depois, quiz). `conteudo_texto` guarda o texto
+-- quando ha (colado ou extraido); `arquivo` guarda o caminho relativo em
+-- uploads/turmas/<circle_id>/ quando o material e um arquivo. `resumo` e o
+-- cache do resumo gerado pela API do Claude — gera uma vez, serve sempre,
+-- pra nao repetir a chamada (e o custo) a cada aluno que abre.
+CREATE TABLE IF NOT EXISTS turma_materiais (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    circle_id     INT NOT NULL,
+    owner_id      INT NOT NULL,
+    titulo        VARCHAR(160) NOT NULL,
+    tipo_arquivo  VARCHAR(40) DEFAULT NULL,
+    arquivo       VARCHAR(255) DEFAULT NULL,
+    conteudo_texto MEDIUMTEXT DEFAULT NULL,
+    resumo        MEDIUMTEXT DEFAULT NULL,
+    resumo_em     TIMESTAMP NULL DEFAULT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (circle_id) REFERENCES circles(id) ON DELETE CASCADE,
+    FOREIGN KEY (owner_id)  REFERENCES users(id)   ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CALL echo_add_index_if_missing('turma_materiais', 'idx_tm_circle', 'circle_id, id');
+
+
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_fk_if_missing;

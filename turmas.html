@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Turmas — Echo (vertical acadêmico)</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --fg:#e8eaed; --mut:#9aa0aa; --ac:#5b8cff; --ac2:#3fb27f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
+  .wrap { max-width:820px; margin:0 auto; padding:24px 16px 80px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  .sub { color:var(--mut); margin:0 0 24px; font-size:13px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .card h2 { font-size:15px; margin:0 0 12px; }
+  label { display:block; font-size:13px; color:var(--mut); margin:10px 0 4px; }
+  input, textarea, select { width:100%; padding:9px 11px; background:#0f1218; border:1px solid var(--line); border-radius:8px; color:var(--fg); font:inherit; }
+  textarea { min-height:80px; resize:vertical; }
+  button { cursor:pointer; border:0; border-radius:8px; padding:9px 14px; font:inherit; font-weight:600; color:#fff; background:var(--ac); margin-top:12px; }
+  button.ghost { background:transparent; border:1px solid var(--line); color:var(--fg); font-weight:500; }
+  button.ok { background:var(--ac2); }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .turma { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; cursor:pointer; }
+  .turma.sel { border-color:var(--ac); background:#141b2e; }
+  .tag { font-size:11px; padding:2px 7px; border-radius:20px; background:#243; color:#8fd; }
+  .mat { border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; }
+  .mat .t { font-weight:600; }
+  .mat .meta { font-size:12px; color:var(--mut); margin:2px 0 8px; }
+  .resumo { white-space:pre-wrap; background:#0f1218; border:1px solid var(--line); border-radius:8px; padding:12px; margin-top:8px; font-size:14px; }
+  .msg { font-size:13px; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:none; }
+  .msg.err { background:#3a1d1d; color:#f6b1b1; display:block; }
+  .msg.info { background:#1d2a3a; color:#a9cdf6; display:block; }
+  .hidden { display:none; }
+  .spin { color:var(--mut); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Turmas</h1>
+  <p class="sub">Vertical acadêmico do Echo — turma = círculo tipo <code>academia</code>. Página de teste do fluxo: criar turma → subir material → resumir com IA.</p>
+
+  <div id="msg" class="msg"></div>
+
+  <div class="card">
+    <h2>Minhas turmas</h2>
+    <div id="turmas"><span class="spin">carregando…</span></div>
+    <div class="row" style="margin-top:12px">
+      <input id="novaTurma" placeholder="Nome da nova turma (ex.: Banco de Dados II)" style="flex:1;min-width:200px">
+      <button id="btnCriarTurma">Criar turma</button>
+    </div>
+  </div>
+
+  <div id="painel" class="card hidden">
+    <h2>Material de <span id="turmaNome"></span></h2>
+
+    <div id="subir" class="hidden">
+      <label>Nome do material</label>
+      <input id="matTitulo" placeholder="ex.: Aula 5 — Normalização">
+      <label>Texto do material (cole aqui)</label>
+      <textarea id="matTexto" placeholder="Cole o conteúdo da aula, ou deixe vazio e envie um PDF abaixo."></textarea>
+      <label>Ou envie um arquivo (PDF, TXT, MD, imagem — máx. 20MB)</label>
+      <input id="matArquivo" type="file" accept=".pdf,.txt,.md,.jpg,.jpeg,.png,.webp">
+      <button id="btnSubir">Subir material</button>
+    </div>
+
+    <div id="materiais" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let turmaSel = null, ehDono = false;
+
+function msg(txt, tipo='info') {
+  const el = $('#msg');
+  el.textContent = txt; el.className = 'msg ' + tipo;
+  if (tipo === 'info') setTimeout(() => { el.className = 'msg'; }, 4000);
+}
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({ error: 'Resposta inválida.' }));
+  if (r.status === 401) { msg('Faça login no Echo primeiro (abra index.html e entre).', 'err'); throw new Error('401'); }
+  return j;
+}
+
+async function carregarTurmas() {
+  const j = await api('/api/circles/list.php');
+  const box = $('#turmas');
+  const turmas = (j.circles || []).filter(c => c.tipo === 'academia');
+  if (!turmas.length) { box.innerHTML = '<span class="spin">nenhuma turma ainda — crie uma abaixo.</span>'; return; }
+  box.innerHTML = '';
+  turmas.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'turma' + (turmaSel === c.id ? ' sel' : '');
+    d.innerHTML = `<span>${esc(c.name)} <span class="tag">${c.is_owner ? 'professor' : 'aluno'}</span></span><span class="spin">${c.member_count} aluno(s)</span>`;
+    d.onclick = () => abrirTurma(c);
+    box.appendChild(d);
+  });
+}
+
+async function criarTurma() {
+  const name = $('#novaTurma').value.trim();
+  if (!name) return;
+  $('#btnCriarTurma').disabled = true;
+  const j = await api('/api/circles/create.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, tipo: 'academia' })
+  });
+  $('#btnCriarTurma').disabled = false;
+  if (j.error) return msg(j.error, 'err');
+  $('#novaTurma').value = '';
+  msg('Turma criada.');
+  await carregarTurmas();
+  abrirTurma(j.circle);
+}
+
+async function abrirTurma(c) {
+  turmaSel = c.id; ehDono = !!c.is_owner;
+  $('#painel').classList.remove('hidden');
+  $('#turmaNome').textContent = c.name;
+  $('#subir').classList.toggle('hidden', !ehDono);
+  carregarTurmas();
+  await carregarMateriais();
+}
+
+async function carregarMateriais() {
+  const box = $('#materiais');
+  box.innerHTML = '<span class="spin">carregando materiais…</span>';
+  const j = await api('/api/turmas/material_listar.php?circle_id=' + turmaSel);
+  if (j.error) { box.innerHTML = ''; return msg(j.error, 'err'); }
+  if (!j.materiais.length) { box.innerHTML = '<span class="spin">nenhum material ainda.</span>'; return; }
+  box.innerHTML = '';
+  j.materiais.forEach(m => box.appendChild(cardMaterial(m)));
+}
+
+function cardMaterial(m) {
+  const d = document.createElement('div');
+  d.className = 'mat';
+  const tipo = m.tipo_arquivo ? m.tipo_arquivo.toUpperCase() : (m.tem_texto ? 'TEXTO' : '—');
+  d.innerHTML = `<div class="t">${esc(m.titulo)}</div><div class="meta">${tipo}${m.tem_resumo ? ' · resumo pronto' : ''}</div>`;
+  const acoes = document.createElement('div'); acoes.className = 'row';
+  if (m.resumivel) {
+    const b = document.createElement('button');
+    b.className = 'ok'; b.textContent = m.tem_resumo ? 'Ver resumo' : 'Resumir com IA';
+    b.onclick = () => resumir(m.id, d, b, false);
+    acoes.appendChild(b);
+    if (ehDono && m.tem_resumo) {
+      const r = document.createElement('button');
+      r.className = 'ghost'; r.textContent = 'Gerar de novo';
+      r.onclick = () => resumir(m.id, d, r, true);
+      acoes.appendChild(r);
+    }
+  } else {
+    const s = document.createElement('span'); s.className = 'spin'; s.textContent = 'não resumível (imagem)';
+    acoes.appendChild(s);
+  }
+  d.appendChild(acoes);
+  return d;
+}
+
+async function resumir(id, card, btn, regerar) {
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'gerando…';
+  const j = await api('/api/turmas/material_resumir.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ material_id: id, regerar })
+  });
+  btn.disabled = false; btn.textContent = orig;
+  if (j.error) return msg(j.error, 'err');
+  let box = card.querySelector('.resumo');
+  if (!box) { box = document.createElement('div'); box.className = 'resumo'; card.appendChild(box); }
+  box.textContent = j.resumo;
+  if (!j.do_cache) carregarMateriais();
+}
+
+async function subir() {
+  const titulo = $('#matTitulo').value.trim();
+  const texto = $('#matTexto').value.trim();
+  const file = $('#matArquivo').files[0];
+  if (!titulo) return msg('Dê um nome ao material.', 'err');
+  if (!texto && !file) return msg('Cole o texto ou envie um arquivo.', 'err');
+  const fd = new FormData();
+  fd.append('circle_id', turmaSel);
+  fd.append('titulo', titulo);
+  if (texto) fd.append('conteudo_texto', texto);
+  if (file) fd.append('arquivo', file);
+  $('#btnSubir').disabled = true;
+  const j = await api('/api/turmas/material_criar.php', { method: 'POST', body: fd });
+  $('#btnSubir').disabled = false;
+  if (j.error) return msg(j.error, 'err');
+  $('#matTitulo').value = ''; $('#matTexto').value = ''; $('#matArquivo').value = '';
+  msg('Material adicionado.');
+  carregarMateriais();
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+$('#btnCriarTurma').onclick = criarTurma;
+$('#btnSubir').onclick = subir;
+carregarTurmas().catch(() => {});
+</script>
+</body>
+</html>

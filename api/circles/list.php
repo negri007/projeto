@@ -9,7 +9,7 @@ $userId = require_login();
 
 try {
     // Círculos que eu criei MAIS os círculos em que fui incluído.
-    $sql = "SELECT c.id, c.owner_id, c.name, c.description, c.created_at,
+    $sql = "SELECT c.id, c.owner_id, c.name, c.tipo, c.description, c.created_at,
                    (SELECT COUNT(*) FROM circle_members cm2 WHERE cm2.circle_id = c.id) AS member_count
             FROM circles c
             LEFT JOIN circle_members cm ON cm.circle_id = c.id AND cm.user_id = :me1
@@ -26,6 +26,7 @@ try {
             "id"          => (int)$row["id"],
             "owner_id"    => (int)$row["owner_id"],
             "name"        => $row["name"],
+            "tipo"        => $row["tipo"] ?? "social",
             "description" => $row["description"] !== null && $row["description"] !== "" ? $row["description"] : null,
             "created_at"  => $row["created_at"],
             "is_owner"    => (int)$row["owner_id"] === $userId,

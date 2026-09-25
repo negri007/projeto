@@ -60,7 +60,7 @@ function circles_load_for_user(PDO $pdo, int $circleId, int $userId): ?array
     }
 
     $stmt = $pdo->prepare(
-        "SELECT c.id, c.owner_id, c.name, c.description, c.created_at
+        "SELECT c.id, c.owner_id, c.name, c.tipo, c.description, c.created_at
          FROM circles c
          LEFT JOIN circle_members cm
            ON cm.circle_id = c.id AND cm.user_id = :me1
@@ -79,11 +79,16 @@ function circles_load_for_user(PDO $pdo, int $circleId, int $userId): ?array
         "id"          => (int)$row["id"],
         "owner_id"    => (int)$row["owner_id"],
         "name"        => $row["name"],
+        "tipo"        => $row["tipo"] ?? "social",
         "description" => $row["description"] !== null && $row["description"] !== "" ? $row["description"] : null,
         "created_at"  => $row["created_at"],
         "is_owner"    => (int)$row["owner_id"] === $userId,
     ];
 }
+
+/** Tipos de circulo aceitos. 'social' e o grupo de sempre; 'academia' e a
+ *  turma. VARCHAR no banco: novos verticais entram aqui, sem migracao. */
+const CIRCLE_TIPOS = ['social', 'academia'];
 
 /**
  * Formata o círculo para a resposta, no formato do contrato:
@@ -95,6 +100,7 @@ function circles_circle_row(array $circle, int $memberCount): array
         "id"           => $circle["id"],
         "user_id"      => $circle["owner_id"],
         "name"         => $circle["name"],
+        "tipo"         => $circle["tipo"] ?? "social",
         "description"  => $circle["description"],
         "created_at"   => $circle["created_at"],
         "member_count" => $memberCount,

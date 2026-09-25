@@ -15,6 +15,11 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 $data        = json_decode(file_get_contents("php://input"), true);
 $name        = trim((string)($data["name"] ?? ""));
 $description = trim((string)($data["description"] ?? ""));
+$tipo        = trim((string)($data["tipo"] ?? "social"));
+
+if (!in_array($tipo, CIRCLE_TIPOS, true)) {
+    $tipo = "social";
+}
 
 if ($name === "") {
     echo json_encode(["error" => "Nome do círculo é obrigatório."]);
@@ -34,9 +39,9 @@ if (mb_strlen($description) > 255) {
 
 try {
     $stmt = $pdo->prepare(
-        "INSERT INTO circles (owner_id, name, description) VALUES (?, ?, ?)"
+        "INSERT INTO circles (owner_id, name, tipo, description) VALUES (?, ?, ?, ?)"
     );
-    $stmt->execute([$userId, $name, $description !== "" ? $description : null]);
+    $stmt->execute([$userId, $name, $tipo, $description !== "" ? $description : null]);
 
     $circleId = (int)$pdo->lastInsertId();
     $circle   = circles_load_for_user($pdo, $circleId, $userId);
