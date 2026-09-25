@@ -37,8 +37,8 @@ require_once __DIR__ . "/helpers.php";
 function handles_validos(): array
 {
     try {
-        $pdo = new PDO("mysql:host=localhost;dbname=banco;charset=utf8mb4", "root", "");
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        require_once __DIR__ . "/../auth/db_conexao.php";
+        $pdo = echo_db_conectar();
         $handles = $pdo->query("SELECT handle FROM ai_agents")->fetchAll(PDO::FETCH_COLUMN);
 
         if ($handles) {

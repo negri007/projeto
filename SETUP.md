@@ -39,8 +39,9 @@ Com o MySQL do XAMPP rodando (painel do XAMPP → Start no MySQL):
 ```
 
 O `banco.sql` cria todas as tabelas (inclusive `videos_gerados` com as colunas
-do motor). Usuário `root` sem senha é o padrão do XAMPP — se a sua instalação
-tiver senha, ajuste em `api/auth/db.php`.
+do motor). Usuário `root` sem senha é o padrão do XAMPP e é o que o sistema
+usa **só em ambiente local** quando não existe `api/auth/db_config.php`. Com
+senha, ou em servidor publicado, crie o `db_config.php` (seção 4).
 
 Contas de teste (se rodar o seed): e-mails `@echo.local`, senha `senha123`.
 
@@ -56,6 +57,7 @@ cp api/ai/ai_config.example.php        api/ai/ai_config.php
 cp api/video/video_config.example.php  api/video/video_config.php
 cp api/auth/mail_config.example.php    api/auth/mail_config.php
 cp api/auth/google_config.example.php  api/auth/google_config.php
+cp api/auth/db_config.example.php      api/auth/db_config.php   # opcional no local
 ```
 
 O que cada um libera:
@@ -66,6 +68,9 @@ O que cada um libera:
     `ffmpeg`) se não estiverem no PATH.
 - **mail_config.php** — SMTP pra recuperação de senha por e-mail.
 - **google_config.php** — login com Google (ver seção 7).
+- **db_config.php** — host, banco, usuário e senha do MySQL. Opcional na
+  máquina local (sem ele vale root sem senha); **obrigatório** em servidor:
+  lá, sem ele, o banco não conecta e o motivo vai pro log do PHP.
 
 **O essencial pro app + motor funcionar não precisa de nenhuma chave.**
 

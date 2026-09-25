@@ -4,18 +4,17 @@
 // stack trace com caminho absoluto no corpo da resposta.
 require_once __DIR__ . "/../bootstrap.php";
 
+require_once __DIR__ . "/db_conexao.php";
+
 header("Content-Type: application/json; charset=utf-8");
 
 try {
-    $pdo = new PDO(
-        "mysql:host=localhost;dbname=banco;charset=utf8mb4",
-        "root",
-        "" // SEM senha, igual ao test_db.php
-    );
-
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Credenciais de api/auth/db_config.php; sem ele, padrão do XAMPP só em
+    // ambiente local (ver db_conexao.php).
+    $pdo = echo_db_conectar();
 
 } catch (Exception $e) {
+    error_log("db.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         "error" => "Erro ao conectar ao banco de dados."

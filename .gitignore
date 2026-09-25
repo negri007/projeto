@@ -10,6 +10,10 @@ api/ai/ai_config.php
 # O modelo versionado é api/video/video_config.example.php.
 api/video/video_config.php
 
+# Credenciais do banco — nunca versionar.
+# O modelo versionado é api/auth/db_config.example.php.
+api/auth/db_config.php
+
 # Credenciais OAuth do login com Google — nunca versionar.
 # O modelo versionado é api/auth/google_config.example.php.
 api/auth/google_config.php
