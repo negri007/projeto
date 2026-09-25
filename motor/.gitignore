@@ -8,6 +8,10 @@ out/
 # Chromium que o Remotion baixa sozinho
 .remotion/
 
+# Bundle cacheado do render.js (refeito sozinho quando src/ ou public/ mudam)
+.bundle/
+.bundle-tmp-*/
+
 # Fotos de produto enviadas pelas lojas (entram em runtime, nao versiona)
 public/uploads/
 

@@ -59,6 +59,24 @@ Ou qualquer composição, com dados próprios via `--props`:
 npx remotion render src/index.js Flash out/x.mp4 --props='{"nicho":"moda","chamada":["NOVA","COLECAO"],"preco":"R$ 189","marca":"ATELIE","foto":"moda.jpg"}'
 ```
 
+## Como o Echo renderiza (render.js)
+
+O back-end não usa o CLI: chama `node motor/render.js <job.json>`, que usa a
+API programática do Remotion (`@remotion/bundler` + `@remotion/renderer`) e
+devolve **uma** linha JSON no stdout (`{"ok":true,"out":"..."}` ou
+`{"ok":false,"erro":"..."}`); todo o resto vai pro stderr.
+
+O projeto é empacotado **uma vez** em `motor/.bundle` e reaproveitado entre
+renders. Ele é refeito sozinho quando algum arquivo em `src/` ou `public/`
+(ou o `package-lock.json`) fica mais novo que o bundle. As fotos que o PHP
+grava em `public/uploads/` a cada peça **não** refazem o bundle: são copiadas
+direto para `.bundle/public/uploads/`. Para forçar um bundle novo, apague
+`motor/.bundle`.
+
+O render.js roda sempre com `motor/` como pasta atual, então usa o Chromium
+que o `npm run ensure-browser` baixou em `node_modules/.remotion`, de onde
+quer que o PHP o chame.
+
 ---
 
 ## Como é montado
@@ -75,5 +93,5 @@ render — os `defaultProps` do `Root.jsx` são só o exemplo que abre no studio
 
 ## O que NÃO vai pro git
 
-`node_modules/`, `out/`, Chromium e `*.mp4` são reconstruídos/gerados em cada
+`node_modules/`, `out/`, `.bundle/`, Chromium e `*.mp4` são reconstruídos/gerados em cada
 máquina (ver `.gitignore`). Commita-se só código + config + assets pequenos.
