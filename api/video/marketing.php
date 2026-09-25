@@ -12,7 +12,9 @@
  *   campos   (JSON string)  { chave: valor } dos campos editáveis do modelo
  *   foto0, foto1, ...       arquivos de imagem, conforme o modelo pede
  *
- * Resposta: { ok:true, video_id, status:"gerando" }. O front faz poll em
+ * Resposta: { ok:true, video_id, status, posicao_fila }. A peça entra na
+ * fila global do motor (video_fila_despachar): `status` vem "gerando" se
+ * havia vaga, ou "na_fila" com a posição (1 = próximo). O front faz poll em
  * status.php até 'pronto' (aí `arquivo` tem o caminho do MP4).
  *
  * Não passa pelo seletor de modo "acervo": o motor é local e grátis, então
@@ -224,31 +226,46 @@ try {
         }
     }
 
-    // ---- freio: um render por loja por vez (evita fila empilhada) ----
+    // ---- freio: uma peça por loja por vez (na fila OU renderizando) ----
+    // Peça do motor conta sem prazo: a espera na fila pode passar de 10 min,
+    // e a que travar em 'gerando' vira erro por video_limpar_travados().
+    // Vídeo por IA (modelo NULL) continua contando só nos últimos 10 min.
     $stmt = $pdo->prepare(
         "SELECT COUNT(*) FROM videos_gerados
-          WHERE loja_id = ? AND status = 'gerando' AND created_at > NOW() - INTERVAL 10 MINUTE"
+          WHERE loja_id = ?
+            AND (   (modelo IS NOT NULL AND status IN ('na_fila', 'gerando'))
+                 OR (modelo IS NULL AND status = 'gerando' AND created_at > NOW() - INTERVAL 10 MINUTE))"
     );
     $stmt->execute([$lojaId]);
     if ((int)$stmt->fetchColumn() > 0) {
         http_response_code(429);
-        motor_erro("Já tem um vídeo sendo gerado. Espere ele terminar.");
+        motor_erro("Você já tem um vídeo na fila ou sendo gerado. Espere ele terminar.");
     }
 
-    // ---- grava e dispara ----
+    // ---- grava na fila e despacha ----
     $params = json_encode(["nicho" => $nicho, "props" => $props], JSON_UNESCAPED_UNICODE);
     $resumo = "[motor] {$modelo}/{$nicho}/{$formato}";
 
     $stmt = $pdo->prepare(
         "INSERT INTO videos_gerados (loja_id, prompt, modelo, formato, params, status)
-         VALUES (?, ?, ?, ?, ?, 'gerando')"
+         VALUES (?, ?, ?, ?, ?, 'na_fila')"
     );
     $stmt->execute([$lojaId, $resumo, $modelo, $formato, $params]);
     $videoId = (int)$pdo->lastInsertId();
 
-    video_disparar_processamento($videoId);
+    // Se houver vaga, já sai daqui como 'gerando'; senão espera a vez.
+    video_fila_despachar($pdo);
 
-    echo json_encode(["ok" => true, "video_id" => $videoId, "status" => "gerando"], JSON_UNESCAPED_UNICODE);
+    $stmt = $pdo->prepare("SELECT vg.status, " . VIDEO_SQL_POSICAO_FILA . " AS posicao_fila FROM videos_gerados vg WHERE vg.id = ?");
+    $stmt->execute([$videoId]);
+    $estado = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    echo json_encode([
+        "ok"           => true,
+        "video_id"     => $videoId,
+        "status"       => $estado["status"],
+        "posicao_fila" => $estado["posicao_fila"] === null ? null : (int)$estado["posicao_fila"],
+    ], JSON_UNESCAPED_UNICODE);
 
 } catch (Throwable $e) {
     error_log("video/marketing: " . $e->getMessage());

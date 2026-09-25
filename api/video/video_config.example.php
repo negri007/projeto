@@ -31,4 +31,17 @@ return [
     // Coverr — banco de video gratis (fallback junto do Pexels). Chave em
     // coverr.co > dashboard > "Chaves de API" (demo: 50 chamadas/hora).
     'coverr_api_key' => '',
+
+    // ---- Motor de anúncios (render local, ver motor/README.md) ----
+
+    // Quantos renders do motor rodam ao mesmo tempo no sistema TODO. Cada
+    // um sobe um Chrome headless (~2 GB de RAM); o resto espera em
+    // 'na_fila' e começa sozinho quando abre vaga. Padrão 1.
+    'max_renders' => 1,
+
+    // Binários, quando não estão no PATH do Apache/PHP. Vazio = procura
+    // sozinho (php: ao lado do php.ini carregado; node/ffmpeg: PATH).
+    'php_bin'    => '',   // ex.: 'C:\\xampp\\php\\php.exe'
+    'node_bin'   => '',   // ex.: 'C:\\Program Files\\nodejs\\node.exe'
+    'ffmpeg_bin' => '',   // ex.: 'C:\\ffmpeg\\bin\\ffmpeg.exe'
 ];

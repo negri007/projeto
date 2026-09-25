@@ -109,9 +109,10 @@ async function carregarMinhaLoja() {
 
    As peças do motor de anúncios da MINHA loja (api/video/meus.php — a loja
    vem da sessão). O lojista pode fechar o modal do Canvas enquanto o vídeo
-   renderiza: ele aparece aqui como "Gerando…" e vira player quando fica
-   pronto. Enquanto houver algum gerando, consulta de novo a cada 6s (e
-   não consulta com a aba oculta); sem nenhum gerando, não consulta. */
+   renderiza: ele aparece aqui como "Na fila (posição N)…" ou "Gerando…" e
+   vira player quando fica pronto. Enquanto houver algum na fila ou gerando,
+   consulta de novo a cada 6s (e não consulta com a aba oculta); sem
+   nenhum em andamento, não consulta. */
 
 const MEUS_VIDEOS_POLL_MS = 6000;
 let meusVideosTimer = null;
@@ -134,9 +135,10 @@ async function carregarMeusVideos() {
 
     const videos = d.videos || [];
 
-    // Avisa quem estava gerando e acabou de ficar pronto.
+    // Avisa quem estava na fila/gerando e acabou de ficar pronto.
+    const emAndamento = s => s === "na_fila" || s === "gerando";
     videos.forEach(v => {
-        if (meusVideosEstado[v.id] === "gerando" && v.status === "pronto") {
+        if (emAndamento(meusVideosEstado[v.id]) && v.status === "pronto") {
             EchoUIInstance.toastSuccess("Seu vídeo ficou pronto! Está em Meus vídeos.");
         }
     });
@@ -144,7 +146,7 @@ async function carregarMeusVideos() {
 
     desenharMeusVideos(videos);
 
-    if (videos.some(v => v.status === "gerando")) {
+    if (videos.some(v => emAndamento(v.status))) {
         meusVideosTimer = setTimeout(esperarVisivelEAtualizar, MEUS_VIDEOS_POLL_MS);
     }
 }
@@ -200,14 +202,17 @@ function meuVideoHTML(v) {
     const quando = EchoUIInstance.formatTime(v.created_at);
     const nome = EchoUIInstance.escapeHTML(v.modelo || "Vídeo");
 
-    if (v.status === "gerando") {
+    if (v.status === "na_fila" || v.status === "gerando") {
+        const naFila = v.status === "na_fila";
+        const rotulo = naFila ? `Na fila (posição ${parseInt(v.posicao_fila, 10) || 1})…` : "Gerando…";
+        const dica = naFila ? "começa sozinho" : "1 a 3 min";
         return `
         <article class="meu-video meu-video-gerando" data-id="${v.id}">
             <div class="meu-video-midia">
                 <span class="spinner-border spinner-border-sm"></span>
-                <span>Gerando…</span>
+                <span>${rotulo}</span>
             </div>
-            <div class="meu-video-info"><strong>${nome}</strong><small>${quando} · 1 a 3 min</small></div>
+            <div class="meu-video-info"><strong>${nome}</strong><small>${quando} · ${dica}</small></div>
         </article>`;
     }
 

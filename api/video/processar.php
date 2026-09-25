@@ -55,21 +55,27 @@ try {
     if (!empty($registro["modelo"])) {
         $resultado = video_motor_render($registro);
 
+        /* Grava só se a linha ainda estiver 'gerando': se a limpeza de
+           travados já a marcou como erro (e deu a vaga a outro), um render
+           que termine depois não pode ressuscitá-la. */
         if ($resultado["ok"]) {
             $stmt = $pdo->prepare(
                 "UPDATE videos_gerados
                     SET status = 'pronto', provider = 'motor', arquivo_local = ?, erro = NULL
-                  WHERE id = ?"
+                  WHERE id = ? AND status = 'gerando'"
             );
             $stmt->execute([$resultado["arquivo"], $videoId]);
 
             echo json_encode(["ok" => true, "video_id" => $videoId, "provider" => "motor"]) . "\n";
         } else {
-            $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ? AND status = 'gerando'");
             $stmt->execute([$resultado["erro"], $videoId]);
 
             echo json_encode(["ok" => false, "video_id" => $videoId, "erro" => $resultado["erro"]]) . "\n";
         }
+
+        // Vaga liberada: o próximo da fila global começa agora.
+        video_fila_despachar($pdo);
 
         exit(0);
     }
@@ -98,9 +104,12 @@ try {
     error_log("video/processar($videoId): " . $e->getMessage());
 
     try {
-        $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ? AND status = 'gerando'");
         $stmt->execute(["Erro interno ao gerar o vídeo.", $videoId]);
-    } catch (Exception $e2) {
+
+        // Se era peça do motor, a vaga dela abriu.
+        video_fila_despachar($pdo);
+    } catch (Throwable $e2) {
         // Nada mais a fazer — o registro fica preso em 'gerando' até
         // alguém olhar o log.
     }

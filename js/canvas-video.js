@@ -281,10 +281,7 @@
       .then(function (d) {
         if (d.error) { status.innerHTML = '<div class="alert alert-warning py-2 mb-0">' + escapeHtml(d.error) + "</div>"; btn.disabled = false; return; }
         if (!d.video_id) { status.innerHTML = '<div class="alert alert-warning py-2 mb-0">Enfileirado sem id.</div>'; btn.disabled = false; return; }
-        status.innerHTML =
-          '<div class="text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Renderizando o vídeo… (1 a 3 min)</div>' +
-          '<div class="form-text mt-1">Não precisa esperar aqui: pode fechar. Quando ficar pronto, ele aparece em ' +
-          '<a href="comercio.html">Comércio → Meus vídeos</a>.</div>';
+        mostrarAndamento(status, d.status, d.posicao_fila);
         acompanhar(d.video_id, btn, status);
       })
       .catch(function () {
@@ -293,8 +290,21 @@
       });
   }
 
+  /* "Na fila (posição N)…" enquanto espera a vez na fila global do motor;
+     "Renderizando…" depois que começou. */
+  function mostrarAndamento(status, estado, posicao) {
+    var linha = estado === "na_fila"
+      ? '<span class="spinner-border spinner-border-sm me-2"></span>Na fila (posição ' + (parseInt(posicao, 10) || 1) + ')…'
+      : '<span class="spinner-border spinner-border-sm me-2"></span>Renderizando o vídeo… (1 a 3 min)';
+    status.innerHTML =
+      '<div class="text-secondary">' + linha + '</div>' +
+      '<div class="form-text mt-1">Não precisa esperar aqui: pode fechar. Quando ficar pronto, ele aparece em ' +
+      '<a href="comercio.html">Comércio → Meus vídeos</a>.</div>';
+  }
+
   function acompanhar(id, btn, status) {
     var inicio = Date.now();
+    var ultimo = null;
     var poll = function () {
       fetch("api/video/status.php?video_id=" + encodeURIComponent(id), { credentials: "same-origin" })
         .then(function (r) { return r.json(); })
@@ -317,6 +327,12 @@
             btn.disabled = false;
             return;
           }
+          if (d.status === "na_fila" || d.status === "gerando") {
+            var chave = d.status + ":" + d.posicao_fila;
+            if (chave !== ultimo) { mostrarAndamento(status, d.status, d.posicao_fila); ultimo = chave; }
+          }
+          // O prazo de "está demorando" só conta depois que saiu da fila.
+          if (d.status === "na_fila") inicio = Date.now();
           if (Date.now() - inicio > 5 * 60 * 1000) {
             status.innerHTML = '<div class="alert alert-warning py-2 mb-0">Está demorando; confira mais tarde.</div>';
             btn.disabled = false;

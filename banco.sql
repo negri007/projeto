@@ -1714,6 +1714,19 @@ CALL echo_add_column_if_missing('videos_gerados', 'modelo',  'VARCHAR(40) DEFAUL
 CALL echo_add_column_if_missing('videos_gerados', 'formato', 'VARCHAR(20) DEFAULT NULL AFTER modelo');
 CALL echo_add_column_if_missing('videos_gerados', 'params',  'TEXT DEFAULT NULL AFTER formato');
 
+-- Fila global do motor (25/09/2026): o render do motor pesa ~2 GB de RAM
+-- por Chrome, entao so `max_renders` (video_config.php, padrao 1) rodam
+-- ao mesmo tempo no sistema todo. Pedido novo entra como 'na_fila' e
+-- video_fila_despachar() (api/video/helpers.php) passa o mais antigo para
+-- 'gerando' quando abre vaga. `iniciado_em` e quando saiu da fila — e dele
+-- que conta o prazo de travado (10 min), nao do created_at, que inclui a
+-- espera na fila. Video por IA (modelo NULL) nao passa pela fila.
+-- O MODIFY repetido nao faz mal: reexecutar deixa o ENUM igual.
+ALTER TABLE videos_gerados
+    MODIFY status ENUM('na_fila','gerando','pronto','erro') NOT NULL DEFAULT 'gerando';
+CALL echo_add_column_if_missing('videos_gerados', 'iniciado_em', 'DATETIME NULL DEFAULT NULL AFTER status');
+CALL echo_add_index_if_missing('videos_gerados', 'idx_vg_fila', 'status, id');
+
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;

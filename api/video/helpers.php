@@ -159,6 +159,95 @@ function video_php_cli(): string
 }
 
 /* ======================================================================
+   FILA GLOBAL DO MOTOR
+   ====================================================================== */
+
+/** Nome do GET_LOCK que serializa o despacho entre requisições e CLIs. */
+const VIDEO_FILA_LOCK = "echo_video_fila";
+
+/**
+ * Quantos renders do motor podem rodar ao mesmo tempo no sistema todo.
+ * Cada render sobe um Chrome headless (~2 GB de RAM), então o padrão é 1.
+ */
+function video_max_renders(): int
+{
+    return max(1, (int)(video_config()["max_renders"] ?? 1));
+}
+
+/**
+ * Passa peças do motor de 'na_fila' para 'gerando' enquanto houver vaga e
+ * dispara o processar.php de cada uma. Devolve os ids despachados.
+ *
+ * Chamado quando um pedido entra (marketing.php) e quando um render
+ * termina (processar.php). Duas chamadas ao mesmo tempo — dois lojistas
+ * pedindo juntos, ou um render terminando enquanto outro pedido chega —
+ * contariam a mesma vaga duas vezes; o GET_LOCK faz uma esperar a outra.
+ * O UPDATE ainda confere `status = 'na_fila'`, então nem um despacho fora
+ * da trava tiraria a mesma peça da fila duas vezes.
+ *
+ * Só o motor (`modelo` preenchido): vídeo por IA não pesa na máquina e
+ * não entra na fila.
+ */
+function video_fila_despachar(PDO $pdo): array
+{
+    $trava = $pdo->query("SELECT GET_LOCK('" . VIDEO_FILA_LOCK . "', 10)")->fetchColumn();
+    if ((int)$trava !== 1) {
+        // Outro despacho segurou a trava por 10s — anormal, mas não perde
+        // nada: a peça segue 'na_fila' e o próximo despacho a pega.
+        error_log("video_fila_despachar: não obteve a trava da fila");
+        return [];
+    }
+
+    $despachados = [];
+    try {
+        $rodando = (int)$pdo->query(
+            "SELECT COUNT(*) FROM videos_gerados WHERE status = 'gerando' AND modelo IS NOT NULL"
+        )->fetchColumn();
+        $vagas = video_max_renders() - $rodando;
+
+        if ($vagas > 0) {
+            // $vagas é int calculado aqui, não entrada — seguro no LIMIT.
+            $ids = $pdo->query(
+                "SELECT id FROM videos_gerados
+                  WHERE status = 'na_fila' AND modelo IS NOT NULL
+                  ORDER BY id LIMIT " . (int)$vagas
+            )->fetchAll(PDO::FETCH_COLUMN);
+
+            $tira = $pdo->prepare(
+                "UPDATE videos_gerados SET status = 'gerando', iniciado_em = NOW()
+                  WHERE id = ? AND status = 'na_fila'"
+            );
+            foreach ($ids as $id) {
+                $tira->execute([(int)$id]);
+                if ($tira->rowCount() === 1) {
+                    $despachados[] = (int)$id;
+                }
+            }
+        }
+    } finally {
+        $pdo->query("SELECT RELEASE_LOCK('" . VIDEO_FILA_LOCK . "')");
+    }
+
+    // Fora da trava: o status já mudou, e o disparo não precisa segurar
+    // os outros despachos.
+    foreach ($despachados as $id) {
+        video_disparar_processamento($id);
+    }
+
+    return $despachados;
+}
+
+/**
+ * Trecho de SELECT que calcula a posição na fila de `vg` (1 = próximo),
+ * NULL fora da fila. Usado por status.php e meus.php.
+ */
+const VIDEO_SQL_POSICAO_FILA =
+    "CASE WHEN vg.status = 'na_fila' THEN
+        (SELECT COUNT(*) FROM videos_gerados f
+          WHERE f.status = 'na_fila' AND f.modelo IS NOT NULL AND f.id <= vg.id)
+     END";
+
+/* ======================================================================
    ESTADO DOS PROVIDERS (tabela video_providers)
    ====================================================================== */
 
@@ -520,7 +609,9 @@ function video_motor_render(array $registro): array
     $erro = is_array($res) ? ($res["erro"] ?? "render falhou") : "motor sem resposta (node no PATH?)";
     error_log("video_motor_render: $erro | saida=" . mb_substr((string)$saida, 0, 500));
 
-    return ["ok" => false, "arquivo" => null, "erro" => $erro];
+    // O detalhe (caminho do servidor, mensagem do Remotion) fica só no log:
+    // `erro` vai para a tela do lojista.
+    return ["ok" => false, "arquivo" => null, "erro" => "Não consegui gerar o vídeo. Tente de novo."];
 }
 
 /* ======================================================================
