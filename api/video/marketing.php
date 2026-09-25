@@ -226,6 +226,10 @@ try {
         }
     }
 
+    // Travada há mais de 10 min vira erro antes do freio: senão ela
+    // seguraria a loja (e a vaga) para sempre.
+    video_limpar_travados($pdo);
+
     // ---- freio: uma peça por loja por vez (na fila OU renderizando) ----
     // Peça do motor conta sem prazo: a espera na fila pode passar de 10 min,
     // e a que travar em 'gerando' vira erro por video_limpar_travados().

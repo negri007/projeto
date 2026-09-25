@@ -2794,7 +2794,7 @@ Pexels Vídeo.
 
 **Motor de anúncios** (24/09/2026): quando `videos_gerados.modelo` está preenchido, `processar.php` renderiza uma peça de marketing pelo motor em `/motor` (Remotion) em vez de vídeo por IA/banco — custo zero de API. `formato` = `story` (9:16) \| `feed` (4:5) \| `quadrado` (1:1) \| `paisagem` (16:9); `params` (JSON) guarda `{nicho, props}` com os campos editáveis da loja e as fotos já copiadas para `motor/public/uploads`. Requer Node + Remotion instalados (`cd motor && npm install && npm run ensure-browser`); `video_config()['node_bin']` sobrescreve o binário `node`. Não passa pelo seletor de modo "acervo" (é local e grátis). Ver `docs/plans/motor-anuncios.md`.
 
-**Fila global do motor** (25/09/2026): cada render sobe um Chrome (~2 GB de RAM), então só `max_renders` peças (`video_config.php`, padrão 1) renderizam ao mesmo tempo **no sistema todo**. `marketing.php` grava a peça como `na_fila` e chama `video_fila_despachar()`, que — serializado por `GET_LOCK("echo_video_fila")` — passa as mais antigas para `gerando` (grava `iniciado_em`) enquanto houver vaga e dispara `processar.php` para cada uma. `processar.php` chama o despacho de novo ao terminar, com sucesso ou erro, e só grava o resultado se a linha ainda estiver `gerando`. `posicao_fila` = quantas peças `na_fila` do motor têm `id` menor ou igual. Vídeo por IA (`gerar.php`, `modelo` NULL) **não** entra na fila.
+**Fila global do motor** (25/09/2026): cada render sobe um Chrome (~2 GB de RAM), então só `max_renders` peças (`video_config.php`, padrão 1) renderizam ao mesmo tempo **no sistema todo**. `marketing.php` grava a peça como `na_fila` e chama `video_fila_despachar()`, que — serializado por `GET_LOCK("echo_video_fila")` — passa as mais antigas para `gerando` (grava `iniciado_em`) enquanto houver vaga e dispara `processar.php` para cada uma. `processar.php` chama o despacho de novo ao terminar, com sucesso ou erro, e só grava o resultado se a linha ainda estiver `gerando`. `posicao_fila` = quantas peças `na_fila` do motor têm `id` menor ou igual. Vídeo por IA (`gerar.php`, `modelo` NULL) **não** entra na fila. Peça em `gerando` há mais de 10 min vira `erro` (ver `api/video/limpar_travados.php` em "Endpoints internos").
 
 ### Decisões que o contrato precisa fixar
 
@@ -2868,3 +2868,13 @@ de uso, porque os quatro do agendador gastam chamada de API.
 (`video_disparar_processamento()`, `start /B` + `PHP_BINARY`) a cada
 geração pedida. `php api/video/processar.php <video_id>` continua útil à
 mão para reprocessar um registro preso em `'gerando'`.
+
+**`api/video/limpar_travados.php`** (25/09/2026), mesma guarda: peça do
+motor em `gerando` há mais de 10 min, contados de `iniciado_em` (sem ele,
+de `created_at`), vira `erro` com a mensagem "A geração demorou mais que o
+normal e foi cancelada. Tente gerar de novo."; os processos do render
+(processar.php, node, Chrome, ffmpeg) são encerrados pela **marca**
+`echo_render_v{id}_` na linha de comando e o próximo da fila é despachado.
+`status.php`, `meus.php` e `marketing.php` fazem a mesma limpeza a cada
+consulta; o CLI é para quando ninguém está olhando a tela (pode ser
+agendado). Saída: `{ok, cancelados:[ids]}`.

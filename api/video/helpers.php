@@ -116,8 +116,11 @@ function video_disparar_processamento(int $videoId): void
     $php    = video_php_cli();
     $script = __DIR__ . "/processar.php";
 
+    // O último argumento é a marca do render: processar.php não o lê, mas
+    // ela deixa video_encerrar_render() achar este processo também.
     $cmd = "cmd /c start \"\" /B "
         . escapeshellarg($php) . " " . escapeshellarg($script) . " " . escapeshellarg((string)$videoId)
+        . " " . escapeshellarg(video_render_marca($videoId))
         . " > NUL 2>&1";
 
     $handle = popen($cmd, "r");
@@ -246,6 +249,154 @@ const VIDEO_SQL_POSICAO_FILA =
         (SELECT COUNT(*) FROM videos_gerados f
           WHERE f.status = 'na_fila' AND f.modelo IS NOT NULL AND f.id <= vg.id)
      END";
+
+/* ======================================================================
+   RENDER TRAVADO
+   ====================================================================== */
+
+/** Minutos em 'gerando' (contados de iniciado_em) até a peça contar como travada. */
+const VIDEO_TRAVADO_MIN = 10;
+
+/** O que o lojista lê quando a peça travou e foi cancelada. */
+const VIDEO_MSG_TRAVADO = "A geração demorou mais que o normal e foi cancelada. Tente gerar de novo.";
+
+/**
+ * Marca do render na linha de comando dos processos dele (processar.php,
+ * node e Chrome — ver video_motor_render). Termina em "_" para a marca do
+ * vídeo 2 não casar com a do vídeo 20.
+ */
+function video_render_marca(int $videoId): string
+{
+    return "echo_render_v{$videoId}_";
+}
+
+/** O "arquivo nulo" do sistema, para descartar saída. */
+function video_nulo(?string $os = null): string
+{
+    return ($os ?? PHP_OS_FAMILY) === "Windows" ? "NUL" : "/dev/null";
+}
+
+/**
+ * Argumentos do comando que mata todo processo com a marca na linha de
+ * comando (e os filhos dele), menos o processo $poupar (quem chama: o
+ * processar.php leva a marca no próprio argumento). Separado de
+ * video_encerrar_render() para o comando do Linux poder ser conferido
+ * rodando no Windows.
+ *
+ * No Windows mata SÓ os processos com a marca, nunca a árvore (taskkill
+ * /T): a árvore vem do ParentProcessId, e PID no Windows é reaproveitado —
+ * um serviço antigo (o mysqld do XAMPP) cujo pai já morreu pode ter como
+ * "pai" o PID reaproveitado por um node do render, e morreria junto. Isso
+ * aconteceu no teste. Node, Chrome e processar.php levam a marca; os
+ * filhos do Chrome (que não levam) só entram se nasceram depois do pai.
+ *
+ * O comando nunca leva a marca literal: senão ele mesmo casaria com a
+ * busca e se mataria antes de terminar. No Windows vai como
+ * -EncodedCommand (base64); no Linux, o "[e]" da regex não casa com o
+ * próprio texto "[e]cho...".
+ */
+function video_cmd_encerrar(string $marca, int $poupar = 0, ?string $os = null): array
+{
+    if (($os ?? PHP_OS_FAMILY) === "Windows") {
+        // Alvos: quem tem a marca, mais os descendentes que NASCERAM DEPOIS
+        // do pai (filho de verdade; PID reaproveitado é sempre mais velho).
+        $ps = "\$m = '" . str_replace("'", "''", $marca) . "'; \$poupar = " . $poupar . ";"
+            . " \$todos = @(Get-CimInstance Win32_Process);"
+            . " \$alvo = @(\$todos | Where-Object { \$_.CommandLine -and \$_.CommandLine.Contains(\$m)"
+            . " -and \$_.ProcessId -ne \$PID -and \$_.ProcessId -ne \$poupar });"
+            . " do { \$n = \$alvo.Count;"
+            . " \$alvo += @(\$todos | Where-Object { \$f = \$_; (\$alvo.ProcessId -notcontains \$f.ProcessId)"
+            . " -and \$f.ProcessId -ne \$PID -and \$f.ProcessId -ne \$poupar"
+            . " -and (\$alvo | Where-Object { \$_.ProcessId -eq \$f.ParentProcessId -and \$f.CreationDate -gt \$_.CreationDate }) })"
+            . " } while (\$alvo.Count -gt \$n);"
+            . " \$alvo | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }";
+        return [
+            "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+            "-EncodedCommand", base64_encode(mb_convert_encoding($ps, "UTF-16LE", "UTF-8")),
+        ];
+    }
+
+    $regex = "[" . $marca[0] . "]" . preg_quote(substr($marca, 1), "/");
+    $sh = "for p in $(pgrep -f " . escapeshellarg($regex) . "); do"
+        . " [ \"\$p\" = " . $poupar . " ] && continue;"
+        . " pkill -KILL -P \"\$p\"; kill -KILL \"\$p\";"
+        . " done 2>/dev/null; true";
+    return ["/bin/sh", "-c", $sh];
+}
+
+/**
+ * Mata node, Chrome e processar.php do render deste vídeo, se ainda
+ * existirem — menos o processo que chama.
+ */
+function video_encerrar_render(int $videoId): void
+{
+    $proc = @proc_open(
+        video_cmd_encerrar(video_render_marca($videoId), (int)getmypid()),
+        [0 => ["file", video_nulo(), "r"], 1 => ["file", video_nulo(), "w"], 2 => ["file", video_nulo(), "w"]],
+        $pipes
+    );
+    if (is_resource($proc)) {
+        proc_close($proc);
+    }
+}
+
+/** Apaga uma pasta temporária do render (e o que tiver dentro). */
+function video_apagar_pasta(string $dir): void
+{
+    if (!is_dir($dir)) {
+        return;
+    }
+    $itens = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($itens as $item) {
+        $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+    }
+    @rmdir($dir);
+}
+
+/**
+ * Peça do motor em 'gerando' há mais de VIDEO_TRAVADO_MIN minutos (contados
+ * de iniciado_em; sem ele, de created_at) vira erro, os processos dela são
+ * encerrados e a vaga passa para o próximo da fila. Devolve os ids.
+ *
+ * Roda a cada consulta (status.php, meus.php, marketing.php) — a busca usa
+ * o índice (status, id) e quase sempre não acha nada — e pelo CLI
+ * api/video/limpar_travados.php.
+ */
+function video_limpar_travados(PDO $pdo): array
+{
+    $ids = $pdo->query(
+        "SELECT id FROM videos_gerados
+          WHERE status = 'gerando' AND modelo IS NOT NULL
+            AND COALESCE(iniciado_em, created_at) < NOW() - INTERVAL " . VIDEO_TRAVADO_MIN . " MINUTE"
+    )->fetchAll(PDO::FETCH_COLUMN);
+
+    if (!$ids) {
+        return [];
+    }
+
+    $marca = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ? AND status = 'gerando'");
+    $cancelados = [];
+    foreach ($ids as $id) {
+        $marca->execute([VIDEO_MSG_TRAVADO, (int)$id]);
+        if ($marca->rowCount() === 1) {
+            $cancelados[] = (int)$id;
+        }
+    }
+
+    foreach ($cancelados as $id) {
+        error_log("video_limpar_travados: vídeo $id passou de " . VIDEO_TRAVADO_MIN . " min em 'gerando'; cancelado");
+        video_encerrar_render($id);
+    }
+
+    if ($cancelados) {
+        video_fila_despachar($pdo);
+    }
+
+    return $cancelados;
+}
 
 /* ======================================================================
    ESTADO DOS PROVIDERS (tabela video_providers)
@@ -582,32 +733,70 @@ function video_motor_render(array $registro): array
         $job["musica"] = $musica;
     }
 
-    $jobFile = tempnam(sys_get_temp_dir(), "echo_job_");
-    if ($jobFile === false) {
-        return ["ok" => false, "arquivo" => null, "erro" => "não criou o job temporário"];
+    $videoId = (int)($registro["id"] ?? 0);
+    $marca   = video_render_marca($videoId);
+
+    /* Pasta temporária própria do render, com a MARCA no nome. O job.json
+       mora nela (a marca entra na linha de comando do node) e ela vira o
+       TEMP do node — o Remotion cria o perfil do Chrome em os.tmpdir(),
+       então a marca entra também no --user-data-dir do Chrome. É por essa
+       marca que video_encerrar_render() acha o node e o Chrome, inclusive
+       o Chrome que sobra quando alguém mata o node. */
+    $tmpDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $marca . "tmp";
+    if (!is_dir($tmpDir) && !@mkdir($tmpDir, 0700, true) && !is_dir($tmpDir)) {
+        return ["ok" => false, "arquivo" => null, "erro" => "Não consegui gerar o vídeo. Tente de novo."];
     }
+    $jobFile = $tmpDir . DIRECTORY_SEPARATOR . "echo_job_v{$videoId}.json";
     file_put_contents($jobFile, json_encode($job, JSON_UNESCAPED_UNICODE));
 
-    $node      = trim((string)(video_config()["node_bin"] ?? "")) ?: "node";
-    $renderJs  = __DIR__ . "/../../motor/render.js";
+    $node     = trim((string)(video_config()["node_bin"] ?? "")) ?: "node";
+    $renderJs = realpath(__DIR__ . "/../../motor/render.js") ?: (__DIR__ . "/../../motor/render.js");
 
-    // stderr descartado (é só o ruído do Remotion); a resposta vem em stdout
-    // como UMA linha JSON. render.js valida `modelo` contra whitelist própria.
-    $cmd = escapeshellarg($node) . " " . escapeshellarg($renderJs) . " " . escapeshellarg($jobFile) . " 2>NUL";
-    $saida = shell_exec($cmd);
-    @unlink($jobFile);
+    // stderr (ruído do Remotion + tempos) vai para um log por vídeo, que só
+    // fica se o render falhar. logs/ está no .gitignore.
+    $logDir = __DIR__ . "/../../logs/motor";
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0775, true);
+    }
+    $logFile = $logDir . "/v{$videoId}.log";
+
+    $env = getenv();
+    $env["TEMP"] = $env["TMP"] = $env["TMPDIR"] = $tmpDir;
+
+    /* proc_open com lista de argumentos: não passa por shell nenhum (nada de
+       aspas nem de 2>NUL, e funciona igual no Windows e no Linux). A
+       resposta vem em stdout como UMA linha JSON; render.js valida `modelo`
+       contra whitelist própria. */
+    $saida = "";
+    $proc = @proc_open(
+        [$node, $renderJs, $jobFile],
+        [0 => ["file", video_nulo(), "r"], 1 => ["pipe", "w"], 2 => ["file", $logFile, "w"]],
+        $pipes,
+        dirname($renderJs),
+        $env
+    );
+    if (is_resource($proc)) {
+        $saida = (string)stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($proc);
+    }
+
+    // O que sobrar com a marca (Chrome de um node morto no meio) morre aqui.
+    video_encerrar_render($videoId);
+    video_apagar_pasta($tmpDir);
 
     // Pega a última linha não-vazia (a linha JSON do render.js).
-    $linhas = array_values(array_filter(array_map("trim", explode("\n", (string)$saida))));
+    $linhas = array_values(array_filter(array_map("trim", explode("\n", $saida))));
     $ultima = $linhas ? end($linhas) : "";
     $res = json_decode($ultima, true);
 
     if (is_array($res) && !empty($res["ok"]) && is_file($outAbs)) {
+        @unlink($logFile);
         return ["ok" => true, "arquivo" => $pastaRelativa . "/" . $nome, "erro" => null];
     }
 
     $erro = is_array($res) ? ($res["erro"] ?? "render falhou") : "motor sem resposta (node no PATH?)";
-    error_log("video_motor_render: $erro | saida=" . mb_substr((string)$saida, 0, 500));
+    error_log("video_motor_render($videoId): $erro | stderr em logs/motor/v{$videoId}.log");
 
     // O detalhe (caminho do servidor, mensagem do Remotion) fica só no log:
     // `erro` vai para a tela do lojista.

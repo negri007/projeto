@@ -21,6 +21,10 @@ $userId = require_login();
 liberar_sessao();
 
 try {
+    // Peça travada há mais de 10 min vira erro e libera a vaga antes de
+    // responder — é por aqui que a tela para de mostrar "Gerando…" eterno.
+    video_limpar_travados($pdo);
+
     $loja = loja_do_usuario($pdo, $userId);
 
     if ($loja === null) {
