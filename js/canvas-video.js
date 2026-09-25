@@ -281,8 +281,13 @@
       .then(function (d) {
         if (d.error) { status.innerHTML = '<div class="alert alert-warning py-2 mb-0">' + escapeHtml(d.error) + "</div>"; btn.disabled = false; return; }
         if (!d.video_id) { status.innerHTML = '<div class="alert alert-warning py-2 mb-0">Enfileirado sem id.</div>'; btn.disabled = false; return; }
+        var naFila = d.status === "na_fila";
         status.innerHTML =
-          '<div class="text-secondary"><span class="spinner-border spinner-border-sm me-2"></span>Renderizando o vídeo… (1 a 3 min)</div>' +
+          '<div class="text-secondary motor-status-linha"><span class="spinner-border spinner-border-sm me-2"></span>' +
+            (naFila
+              ? "Na fila" + (d.posicao_fila ? " (posição " + d.posicao_fila + ")" : "") + "… começa assim que o vídeo da vez terminar."
+              : "Renderizando o vídeo… (1 a 3 min)") +
+          "</div>" +
           '<div class="form-text mt-1">Não precisa esperar aqui: pode fechar. Quando ficar pronto, ele aparece em ' +
           '<a href="comercio.html">Comércio → Meus vídeos</a>.</div>';
         acompanhar(d.video_id, btn, status);
@@ -312,13 +317,28 @@
             btn.disabled = false;
             return;
           }
+          if (d.status === "na_fila") {
+            // Fila global do motor: outro vídeo está renderizando agora.
+            var linha = status.querySelector(".motor-status-linha");
+            if (linha) {
+              linha.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' +
+                "Na fila" + (d.posicao_fila ? " (posição " + d.posicao_fila + ")" : "") +
+                "… começa assim que o vídeo da vez terminar.";
+            }
+          } else if (d.status === "gerando") {
+            var l2 = status.querySelector(".motor-status-linha");
+            if (l2) l2.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Renderizando o vídeo… (1 a 3 min)';
+          }
           if (d.status === "erro") {
-            status.innerHTML = '<div class="alert alert-danger py-2 mb-0">A geração falhou' + (d.erro ? ": " + escapeHtml(d.erro) : "") + ".</div>";
+            // O servidor já manda o texto pronto pra loja (ex.: tempo esgotado).
+            status.innerHTML = '<div class="alert alert-danger py-2 mb-0">' + escapeHtml(d.erro || "A geração falhou. Tente de novo.") + "</div>";
             btn.disabled = false;
             return;
           }
           if (Date.now() - inicio > 5 * 60 * 1000) {
-            status.innerHTML = '<div class="alert alert-warning py-2 mb-0">Está demorando; confira mais tarde.</div>';
+            // Com fila, pode passar disso. O servidor garante que termina (pronto
+            // ou erro); o modal só para de acompanhar e aponta onde ver.
+            status.innerHTML = '<div class="alert alert-warning py-2 mb-0">Ainda não terminou. Quando ficar pronto, ele aparece em <a href="comercio.html" class="alert-link">Comércio → Meus vídeos</a>.</div>';
             btn.disabled = false;
             return;
           }

@@ -102,29 +102,227 @@ function video_prompt_sugerido(string $nicho, string $nomeLoja): string
  * Dispara `processar.php` para o `$videoId` e devolve na hora, sem
  * esperar a geração terminar.
  *
- * `start /B` (Windows) devolve assim que o processo filho nasce — é isso
+ * Windows: `start /B` devolve assim que o processo filho nasce — é isso
  * que torna a chamada fire-and-forget de verdade. Sem o `start`, o
  * `popen()` ficaria preso esperando o `processar.php` inteiro (30 a 90s)
  * antes de devolver, e `gerar.php` travaria a aba do lojista pelo tempo
- * exato que a arquitetura assíncrona deveria evitar.
+ * exato que a arquitetura assíncrona deveria evitar. Linux/macOS: o
+ * equivalente é `nohup … &` com a saída jogada fora — sem redirecionar,
+ * o `exec()` esperaria o filho fechar o stdout.
  *
  * O PHP de linha de comando sai de video_php_cli() — não depende de `php`
  * estar no PATH (no XAMPP normalmente não está).
  */
 function video_disparar_processamento(int $videoId): void
 {
-    $php    = video_php_cli();
-    $script = __DIR__ . "/processar.php";
+    $cmd = video_cmd_disparo(video_php_cli(), __DIR__ . "/processar.php", $videoId, PHP_OS_FAMILY);
 
-    $cmd = "cmd /c start \"\" /B "
-        . escapeshellarg($php) . " " . escapeshellarg($script) . " " . escapeshellarg((string)$videoId)
-        . " > NUL 2>&1";
-
-    $handle = popen($cmd, "r");
-
-    if ($handle !== false) {
-        pclose($handle);
+    if (PHP_OS_FAMILY === "Windows") {
+        $handle = popen($cmd, "r");
+        if ($handle !== false) {
+            pclose($handle);
+        }
+        return;
     }
+
+    exec($cmd);
+}
+
+/** Monta o comando de disparo para o sistema dado (separado para teste). */
+function video_cmd_disparo(string $php, string $script, int $videoId, string $so): string
+{
+    $args = escapeshellarg($php) . " " . escapeshellarg($script) . " " . escapeshellarg((string)$videoId);
+
+    return $so === "Windows"
+        ? "cmd /c start \"\" /B " . $args . " > NUL 2>&1"
+        : "nohup " . $args . " > /dev/null 2>&1 &";
+}
+
+/** Descarte do stderr no shell do sistema (`2>NUL` só existe no Windows). */
+function video_sem_stderr(): string
+{
+    return PHP_OS_FAMILY === "Windows" ? " 2>NUL" : " 2>/dev/null";
+}
+
+/* ======================================================================
+   FILA GLOBAL DO MOTOR + LIMPEZA DE TRAVADOS
+
+   O render local come CPU/RAM desta máquina: só `max_renders` (config,
+   padrão 1) peças do motor rodam juntas. O excedente fica 'na_fila' e sai
+   dela aqui, em video_fila_despachar(), chamada ao criar o pedido, no fim
+   de cada render e na limpeza. Vídeo por IA (`modelo` NULL) roda fora
+   daqui — é API externa, não pesa na máquina.
+
+   Tempos: render.js encerra o próprio render em `render_timeout_s`
+   (padrão 480 = 8 min); a limpeza marca 'erro' o que ficou em 'gerando'
+   por mais de VIDEO_GERANDO_MAX_MIN (10 min, contados de `iniciado_em`).
+   O primeiro é sempre menor que o segundo (video_render_timeout_s()
+   garante), então a limpeza só pega o que morreu sem avisar.
+   ====================================================================== */
+
+const VIDEO_GERANDO_MAX_MIN = 10;
+
+const VIDEO_MSG_TEMPO_ESGOTADO = "A geração demorou mais que o normal e foi cancelada. Tente gerar de novo.";
+
+function video_max_renders(): int
+{
+    return max(1, (int)(video_config()["max_renders"] ?? 1));
+}
+
+/** Tempo máximo do render.js, sempre pelo menos 1 min abaixo da limpeza. */
+function video_render_timeout_s(): int
+{
+    $teto = VIDEO_GERANDO_MAX_MIN * 60 - 60;
+    $cfg  = (int)(video_config()["render_timeout_s"] ?? 480);
+
+    return max(30, min($cfg > 0 ? $cfg : 480, $teto));
+}
+
+/** Marca que aparece na linha de comando de tudo que o render do vídeo
+ *  abre (job, props do Remotion) — é por ela que se acha o que sobrou. */
+function video_render_marca(int $videoId): string
+{
+    return "echo_render_v" . $videoId . "_";
+}
+
+/**
+ * Encerra qualquer processo do render deste vídeo que ainda esteja vivo
+ * (render.js, npx, node do Remotion e, pela árvore, o Chrome). Usado
+ * quando o render morre sem avisar ou estoura o tempo: sem isto a vaga
+ * seria liberada com o Chrome antigo ainda ocupando RAM.
+ */
+function video_render_encerrar_orfaos(int $videoId): void
+{
+    /* A marca é montada em DUAS partes dentro do comando: o shell que roda
+       esta busca (cmd/powershell, sh) também aparece na lista de processos,
+       e se a marca estivesse inteira na linha de comando dele, ele se
+       acharia e se mataria no meio. Partes só [a-z0-9_]: seguras no shell. */
+    $a = "echo_render";
+    $b = "_v" . $videoId . "_";
+
+    if (PHP_OS_FAMILY === "Windows") {
+        $ps = "\$m = '*' + '{$a}' + '{$b}' + '*'; "
+            . "Get-CimInstance Win32_Process | Where-Object { \$_.CommandLine -like \$m } | "
+            . "ForEach-Object { taskkill /PID \$_.ProcessId /T /F 2>\$null | Out-Null }";
+        @shell_exec("powershell -NoProfile -NonInteractive -Command " . escapeshellarg($ps) . " 2>NUL");
+        return;
+    }
+
+    // Linux/macOS: render.js abre o Remotion em grupo próprio; mata o grupo.
+    @shell_exec("for p in $(pgrep -f {$a}''{$b}); do "
+        . "g=$(ps -o pgid= \"\$p\" | tr -d ' '); [ -n \"\$g\" ] && kill -KILL -- \"-\$g\"; kill -KILL \"\$p\"; done 2>/dev/null");
+}
+
+/**
+ * Marca como 'erro' o que está em 'gerando' há mais de 10 min (motor ou
+ * IA), encerra os órfãos do motor e libera a vaga. Barato — um UPDATE
+ * por índice — então roda sempre que alguém consulta estado de vídeo
+ * (status.php, meus.php) e no despachante; não depende de cron.
+ * Devolve quantos marcou.
+ */
+function video_limpar_travados(PDO $pdo): int
+{
+    $stmt = $pdo->prepare(
+        "SELECT id, modelo FROM videos_gerados
+          WHERE status = 'gerando'
+            AND COALESCE(iniciado_em, created_at) < NOW() - INTERVAL " . VIDEO_GERANDO_MAX_MIN . " MINUTE"
+    );
+    $stmt->execute();
+    $travados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (!$travados) {
+        return 0;
+    }
+
+    $marcar = $pdo->prepare(
+        "UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ? AND status = 'gerando'"
+    );
+
+    $n = 0;
+    foreach ($travados as $v) {
+        $marcar->execute([VIDEO_MSG_TEMPO_ESGOTADO, (int)$v["id"]]);
+
+        if ($marcar->rowCount() > 0) {
+            $n++;
+            error_log("video: {$v["id"]} passou de " . VIDEO_GERANDO_MAX_MIN . " min em 'gerando' — marcado erro");
+            if (!empty($v["modelo"])) {
+                video_render_encerrar_orfaos((int)$v["id"]);
+            }
+        }
+    }
+
+    return $n;
+}
+
+/**
+ * Tira da fila quantos couberem no limite global e dispara cada um.
+ *
+ * GET_LOCK serializa o "conta quem roda + escolhe o próximo + marca
+ * gerando": sem ele, dois pedidos chegando juntos veriam a mesma vaga
+ * livre e os dois passariam. Timeout curto: se outro já está despachando,
+ * ele mesmo vai ver este pedido na fila.
+ */
+function video_fila_despachar(PDO $pdo): void
+{
+    video_limpar_travados($pdo);
+
+    if ((int)$pdo->query("SELECT GET_LOCK('echo_video_fila', 5)")->fetchColumn() !== 1) {
+        return;
+    }
+
+    $disparar = [];
+
+    try {
+        $rodando = (int)$pdo->query(
+            "SELECT COUNT(*) FROM videos_gerados WHERE status = 'gerando' AND modelo IS NOT NULL"
+        )->fetchColumn();
+
+        $vagas = video_max_renders() - $rodando;
+
+        if ($vagas > 0) {
+            $stmt = $pdo->prepare(
+                "SELECT id FROM videos_gerados
+                  WHERE status = 'na_fila' AND modelo IS NOT NULL
+                  ORDER BY id ASC LIMIT " . (int)$vagas
+            );
+            $stmt->execute();
+
+            $marcar = $pdo->prepare(
+                "UPDATE videos_gerados SET status = 'gerando', iniciado_em = NOW()
+                  WHERE id = ? AND status = 'na_fila'"
+            );
+
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $id) {
+                $marcar->execute([(int)$id]);
+                if ($marcar->rowCount() > 0) {
+                    $disparar[] = (int)$id;
+                }
+            }
+        }
+    } finally {
+        $pdo->query("SELECT RELEASE_LOCK('echo_video_fila')");
+    }
+
+    // Dispara fora da trava: o disparo é rápido, mas não precisa segurá-la.
+    foreach ($disparar as $id) {
+        video_disparar_processamento($id);
+    }
+}
+
+/**
+ * Posição na fila (1 = o próximo a sair). null se não está na fila.
+ */
+function video_posicao_fila(PDO $pdo, int $videoId): ?int
+{
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM videos_gerados f
+           JOIN videos_gerados v ON v.id = ? AND v.status = 'na_fila'
+          WHERE f.status = 'na_fila' AND f.modelo IS NOT NULL AND f.id <= v.id"
+    );
+    $stmt->execute([$videoId]);
+    $pos = (int)$stmt->fetchColumn();
+
+    return $pos > 0 ? $pos : null;
 }
 
 /**
@@ -409,7 +607,11 @@ function motor_img_carregar(string $src)
         return null;
     }
     $tmpPng = $tmp . ".png";
-    $cmd = escapeshellarg($ff) . " -y -i " . escapeshellarg($src) . " -frames:v 1 " . escapeshellarg($tmpPng) . " 2>NUL";
+    // -protocol_whitelist file: a imagem veio do lojista, e o ffmpeg não
+    // deve abrir nada além dela (nem rede, nem arquivo referenciado) —
+    // mesma regra do conversor de api/posts/helpers.php.
+    $cmd = escapeshellarg($ff) . " -y -protocol_whitelist file -i " . escapeshellarg($src)
+        . " -frames:v 1 " . escapeshellarg($tmpPng) . video_sem_stderr();
     @shell_exec($cmd);
     @unlink($tmp);
 
@@ -489,20 +691,27 @@ function video_motor_render(array $registro): array
         $job["musica"] = $musica;
     }
 
-    $jobFile = tempnam(sys_get_temp_dir(), "echo_job_");
-    if ($jobFile === false) {
+    // Tempo máximo que o render.js impõe a si mesmo (menor que a limpeza).
+    $job["timeout_s"] = video_render_timeout_s();
+
+    /* O nome do job leva a marca do vídeo: ela aparece na linha de comando
+       do render.js e (pelo <job>.props.json) do Remotion — é como
+       video_render_encerrar_orfaos() acha o que sobrar se o render morrer. */
+    $videoId = (int)($registro["id"] ?? 0);
+    $jobFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . video_render_marca($videoId) . uniqid("", true) . ".json";
+    if (file_put_contents($jobFile, json_encode($job, JSON_UNESCAPED_UNICODE)) === false) {
         return ["ok" => false, "arquivo" => null, "erro" => "não criou o job temporário"];
     }
-    file_put_contents($jobFile, json_encode($job, JSON_UNESCAPED_UNICODE));
 
     $node      = trim((string)(video_config()["node_bin"] ?? "")) ?: "node";
     $renderJs  = __DIR__ . "/../../motor/render.js";
 
     // stderr descartado (é só o ruído do Remotion); a resposta vem em stdout
     // como UMA linha JSON. render.js valida `modelo` contra whitelist própria.
-    $cmd = escapeshellarg($node) . " " . escapeshellarg($renderJs) . " " . escapeshellarg($jobFile) . " 2>NUL";
+    $cmd = escapeshellarg($node) . " " . escapeshellarg($renderJs) . " " . escapeshellarg($jobFile) . video_sem_stderr();
     $saida = shell_exec($cmd);
     @unlink($jobFile);
+    @unlink($jobFile . ".props.json");
 
     // Pega a última linha não-vazia (a linha JSON do render.js).
     $linhas = array_values(array_filter(array_map("trim", explode("\n", (string)$saida))));
@@ -513,8 +722,21 @@ function video_motor_render(array $registro): array
         return ["ok" => true, "arquivo" => $pastaRelativa . "/" . $nome, "erro" => null];
     }
 
-    $erro = is_array($res) ? ($res["erro"] ?? "render falhou") : "motor sem resposta (node no PATH?)";
-    error_log("video_motor_render: $erro | saida=" . mb_substr((string)$saida, 0, 500));
+    /* Falhou. Se o render.js morreu sem responder (processo encerrado de
+       fora, falta de memória), o Remotion/Chrome dele podem ter ficado
+       vivos — encerra antes de a vaga ir para o próximo da fila. */
+    $interno = is_array($res) ? ($res["erro"] ?? "render falhou") : "motor sem resposta";
+    error_log("video_motor_render($videoId): $interno | saida=" . mb_substr((string)$saida, 0, 500));
+
+    if ($videoId > 0) {
+        video_render_encerrar_orfaos($videoId);
+    }
+    @unlink($outAbs); // MP4 pela metade não serve
+
+    // O detalhe técnico fica no log; a tela da loja recebe texto de gente.
+    $erro = str_contains($interno, "passou de")
+        ? VIDEO_MSG_TEMPO_ESGOTADO
+        : "Não foi possível gerar o vídeo agora. Tente de novo em instantes.";
 
     return ["ok" => false, "arquivo" => null, "erro" => $erro];
 }

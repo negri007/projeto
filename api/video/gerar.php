@@ -89,7 +89,7 @@ try {
         exit;
     }
 
-    $stmt = $pdo->prepare("INSERT INTO videos_gerados (loja_id, prompt, status) VALUES (?, ?, 'gerando')");
+    $stmt = $pdo->prepare("INSERT INTO videos_gerados (loja_id, prompt, status, iniciado_em) VALUES (?, ?, 'gerando', NOW())");
     $stmt->execute([$lojaId, $prompt]);
     $videoId = (int)$pdo->lastInsertId();
 

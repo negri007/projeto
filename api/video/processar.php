@@ -47,6 +47,19 @@ try {
 
     $lojaId = (int)$registro["loja_id"];
 
+    /* Peça do motor ocupa uma vaga da fila global. Ao terminar — com
+       sucesso, erro ou exceção (shutdown roda em qualquer saída) — dispara
+       o próximo que estiver 'na_fila'. */
+    if (!empty($registro["modelo"])) {
+        register_shutdown_function(function () use ($pdo) {
+            try {
+                video_fila_despachar($pdo);
+            } catch (Throwable $e) {
+                error_log("video/processar: despachar fila: " . $e->getMessage());
+            }
+        });
+    }
+
     /* DOIS CAMINHOS:
        - `modelo` preenchido  -> peça de marketing renderizada pelo MOTOR
          local (Remotion, $0 de API). É o caminho novo/padrão do Canvas.
@@ -59,13 +72,13 @@ try {
             $stmt = $pdo->prepare(
                 "UPDATE videos_gerados
                     SET status = 'pronto', provider = 'motor', arquivo_local = ?, erro = NULL
-                  WHERE id = ?"
+                  WHERE id = ? AND status = 'gerando'"
             );
             $stmt->execute([$resultado["arquivo"], $videoId]);
 
             echo json_encode(["ok" => true, "video_id" => $videoId, "provider" => "motor"]) . "\n";
         } else {
-            $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ?");
+            $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ? AND status = 'gerando'");
             $stmt->execute([$resultado["erro"], $videoId]);
 
             echo json_encode(["ok" => false, "video_id" => $videoId, "erro" => $resultado["erro"]]) . "\n";
@@ -83,13 +96,13 @@ try {
         $stmt = $pdo->prepare(
             "UPDATE videos_gerados
                 SET status = 'pronto', provider = ?, arquivo_local = ?, url_plataforma = ?, erro = NULL
-              WHERE id = ?"
+              WHERE id = ? AND status = 'gerando'"
         );
         $stmt->execute([$resultado["provider"], $resultado["arquivo"], $resultado["url"], $videoId]);
 
         echo json_encode(["ok" => true, "video_id" => $videoId, "provider" => $resultado["provider"]]) . "\n";
     } else {
-        $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ? AND status = 'gerando'");
         $stmt->execute([$resultado["erro"], $videoId]);
 
         echo json_encode(["ok" => false, "video_id" => $videoId, "erro" => $resultado["erro"]]) . "\n";
@@ -98,7 +111,7 @@ try {
     error_log("video/processar($videoId): " . $e->getMessage());
 
     try {
-        $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE videos_gerados SET status = 'erro', erro = ? WHERE id = ? AND status = 'gerando'");
         $stmt->execute(["Erro interno ao gerar o vídeo.", $videoId]);
     } catch (Exception $e2) {
         // Nada mais a fazer — o registro fica preso em 'gerando' até

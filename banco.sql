@@ -1714,6 +1714,19 @@ CALL echo_add_column_if_missing('videos_gerados', 'modelo',  'VARCHAR(40) DEFAUL
 CALL echo_add_column_if_missing('videos_gerados', 'formato', 'VARCHAR(20) DEFAULT NULL AFTER modelo');
 CALL echo_add_column_if_missing('videos_gerados', 'params',  'TEXT DEFAULT NULL AFTER formato');
 
+-- Fila global do motor (24/09/2026): o render local come CPU/RAM desta
+-- máquina, então só `max_renders` (api/video/video_config.php, padrão 1)
+-- rodam ao mesmo tempo; o excedente espera em 'na_fila' e é disparado
+-- quando um termina (video_fila_despachar em api/video/helpers.php).
+-- `iniciado_em` marca quando o render COMEÇOU (saiu da fila) — é dele que
+-- conta o tempo máximo de 'gerando', não de created_at, senão quem esperou
+-- na fila seria cancelado por ter esperado. MODIFY é idempotente: rodar
+-- de novo só reafirma a mesma lista.
+ALTER TABLE videos_gerados
+    MODIFY status ENUM('na_fila','gerando','pronto','erro') NOT NULL DEFAULT 'gerando';
+CALL echo_add_column_if_missing('videos_gerados', 'iniciado_em', 'DATETIME NULL DEFAULT NULL AFTER status');
+CALL echo_add_index_if_missing('videos_gerados', 'idx_vg_fila', 'status, modelo, id');
+
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;

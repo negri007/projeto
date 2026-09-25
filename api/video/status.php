@@ -8,6 +8,7 @@ header("Content-Type: application/json; charset=utf-8");
 
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
+require_once __DIR__ . "/helpers.php";
 
 $userId = require_login();
 liberar_sessao();
@@ -19,6 +20,11 @@ try {
         echo json_encode(["error" => "video_id inválido."]);
         exit;
     }
+
+    /* Consultar o estado também põe a fila pra andar: marca 'erro' o que
+       travou em 'gerando' (o front não espera pra sempre) e dispara o
+       próximo se houver vaga. Sem cron — o próprio poll do front move. */
+    video_fila_despachar($pdo);
 
     // O vídeo só existe para quem é dono da loja dele — join com lojas
     // em vez de aceitar loja_id do cliente para conferir posse.
@@ -44,6 +50,7 @@ try {
         "url_plataforma" => $video["url_plataforma"],
         "provider"       => $video["provider"],
         "erro"           => $video["erro"],
+        "posicao_fila"   => $video["status"] === "na_fila" ? video_posicao_fila($pdo, (int)$video["id"]) : null,
     ], JSON_UNESCAPED_UNICODE);
 
 } catch (Exception $e) {

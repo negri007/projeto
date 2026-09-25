@@ -14,6 +14,10 @@ api/video/video_config.php
 # O modelo versionado é api/auth/google_config.example.php.
 api/auth/google_config.php
 
+# Credenciais do banco — nunca versionar.
+# O modelo versionado é api/auth/db_config.example.php.
+api/auth/db_config.php
+
 # Log de e-mail do driver de desenvolvimento.
 logs/
 
@@ -28,8 +32,16 @@ uploads/*
 # Estrutura de pastas dos vídeos gerados — versiona só a árvore
 # (.gitkeep), nunca o .mp4 enviado. `uploads/*` acima já ignora
 # `uploads/videos` inteiro; cada nível precisa da própria exceção.
+#
+# Reabrir um diretório com `!` desfaz o ignore de TUDO que está dentro
+# dele — por isso cada nível reaberto é fechado de novo logo abaixo
+# (`<nivel>/*`) e só o .gitkeep volta. Sem o `uploads/videos/lojas/*`,
+# as pastas de cada loja (uploads/videos/lojas/<id>/) apareciam como
+# arquivo novo no git status.
 !uploads/videos/
+uploads/videos/*
 !uploads/videos/lojas/
+uploads/videos/lojas/*
 !uploads/videos/lojas/.gitkeep
 
 # Avatares de agente de usuário (upload) — os SVG fixos dos seis agentes
@@ -52,3 +64,6 @@ testes_mobile/**/*.png
 # Dumps do banco local feitos antes de migracao. Contem e-mail de usuario
 # real — nunca versionar.
 backup_*.sql
+
+# Leitor local de credenciais do banco (substituído por db_conexao.php) — não versionar.
+api/auth/db_credenciais.php

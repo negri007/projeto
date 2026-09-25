@@ -39,8 +39,9 @@ Com o MySQL do XAMPP rodando (painel do XAMPP → Start no MySQL):
 ```
 
 O `banco.sql` cria todas as tabelas (inclusive `videos_gerados` com as colunas
-do motor). Usuário `root` sem senha é o padrão do XAMPP — se a sua instalação
-tiver senha, ajuste em `api/auth/db.php`.
+do motor). As credenciais do banco ficam em `api/auth/db_config.php` (seção 4). Sem
+esse arquivo, **só em ambiente local** o app usa o padrão do XAMPP (`root`
+sem senha); fora do local ele recusa conectar e deixa o motivo no log.
 
 Contas de teste (se rodar o seed): e-mails `@echo.local`, senha `senha123`.
 
@@ -52,6 +53,7 @@ Os arquivos com chaves **não vão pro git**. Copie cada `.example` e preencha
 (ou deixe em branco — o que estiver sem chave só desliga aquele recurso):
 
 ```bash
+cp api/auth/db_config.example.php      api/auth/db_config.php
 cp api/ai/ai_config.example.php        api/ai/ai_config.php
 cp api/video/video_config.example.php  api/video/video_config.php
 cp api/auth/mail_config.example.php    api/auth/mail_config.php
@@ -59,11 +61,22 @@ cp api/auth/google_config.example.php  api/auth/google_config.php
 ```
 
 O que cada um libera:
+- **db_config.php** — host, banco, usuário e senha do MySQL. Em local pode
+  faltar (usa `root` sem senha); **em servidor é obrigatório**. Para forçar o
+  modo servidor numa máquina local, defina a variável de ambiente `ECHO_ENV`
+  com um valor diferente de `local`.
 - **ai_config.php** — chave Pexels (fotos/ vídeos de banco grátis) e IA de texto.
 - **video_config.php** — Kling (vídeo por IA, pago) e Coverr. **O motor de
   anúncios NÃO precisa de nenhuma chave** — é render local, custo zero.
   - Opcional: `node_bin` (caminho do `node`) e `ffmpeg_bin` (caminho do
     `ffmpeg`) se não estiverem no PATH.
+  - `max_renders` (padrão 1): quantos vídeos do motor renderizam ao mesmo
+    tempo — cada um abre um Chrome (~1-2 GB de RAM). O excedente espera na
+    fila e sai sozinho.
+  - `render_timeout_s` (padrão 480 = 8 min): tempo máximo de um render; o
+    motor encerra o Chrome e marca erro. Vídeo parado em "gerando" por mais
+    de 10 min também vira erro. Para agendar essa limpeza (opcional — ela
+    já roda quando alguém abre a tela): `php api/video/limpar_travados.php`.
 - **mail_config.php** — SMTP pra recuperação de senha por e-mail.
 - **google_config.php** — login com Google (ver seção 7).
 

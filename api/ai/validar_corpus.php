@@ -37,7 +37,12 @@ require_once __DIR__ . "/helpers.php";
 function handles_validos(): array
 {
     try {
-        $pdo = new PDO("mysql:host=localhost;dbname=banco;charset=utf8mb4", "root", "");
+        require_once __DIR__ . "/../auth/db_credenciais.php";
+        $cred = echo_db_credenciais();
+        if ($cred === null) {
+            throw new RuntimeException("sem credenciais de banco");
+        }
+        $pdo = new PDO($cred["dsn"], $cred["user"], $cred["pass"]);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $handles = $pdo->query("SELECT handle FROM ai_agents")->fetchAll(PDO::FETCH_COLUMN);
 

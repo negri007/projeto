@@ -136,7 +136,8 @@ async function carregarMeusVideos() {
 
     // Avisa quem estava gerando e acabou de ficar pronto.
     videos.forEach(v => {
-        if (meusVideosEstado[v.id] === "gerando" && v.status === "pronto") {
+        const antes = meusVideosEstado[v.id];
+        if ((antes === "gerando" || antes === "na_fila") && v.status === "pronto") {
             EchoUIInstance.toastSuccess("Seu vídeo ficou pronto! Está em Meus vídeos.");
         }
     });
@@ -144,7 +145,7 @@ async function carregarMeusVideos() {
 
     desenharMeusVideos(videos);
 
-    if (videos.some(v => v.status === "gerando")) {
+    if (videos.some(v => v.status === "gerando" || v.status === "na_fila")) {
         meusVideosTimer = setTimeout(esperarVisivelEAtualizar, MEUS_VIDEOS_POLL_MS);
     }
 }
@@ -200,6 +201,17 @@ function meuVideoHTML(v) {
     const quando = EchoUIInstance.formatTime(v.created_at);
     const nome = EchoUIInstance.escapeHTML(v.modelo || "Vídeo");
 
+    if (v.status === "na_fila") {
+        return `
+        <article class="meu-video meu-video-gerando" data-id="${v.id}">
+            <div class="meu-video-midia">
+                <i class="fa-regular fa-clock"></i>
+                <span>Na fila${v.posicao_fila ? " · " + v.posicao_fila + "º" : ""}</span>
+            </div>
+            <div class="meu-video-info"><strong>${nome}</strong><small>${quando} · começa quando o da vez terminar</small></div>
+        </article>`;
+    }
+
     if (v.status === "gerando") {
         return `
         <article class="meu-video meu-video-gerando" data-id="${v.id}">
@@ -218,8 +230,8 @@ function meuVideoHTML(v) {
                 <i class="fa-solid fa-triangle-exclamation"></i>
                 <span>Não deu certo</span>
             </div>
-            <div class="meu-video-info"><strong>${nome}</strong>
-                <small title="${EchoUIInstance.escapeHTML(v.erro || "")}">${quando} · tente gerar de novo</small></div>
+            <div class="meu-video-info"><strong>${nome}</strong><small>${quando}</small></div>
+            <p class="meu-video-erro-msg">${EchoUIInstance.escapeHTML(v.erro || "Não deu para gerar. Tente de novo.")}</p>
         </article>`;
     }
 

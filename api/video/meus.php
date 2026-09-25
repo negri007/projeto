@@ -14,6 +14,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/../lojas/helpers.php";
+require_once __DIR__ . "/helpers.php";
 
 $userId = require_login();
 liberar_sessao();
@@ -25,6 +26,9 @@ try {
         echo json_encode(["error" => "Você ainda não tem loja."]);
         exit;
     }
+
+    // Mesmo "poll move a fila" de status.php: limpa travados, despacha.
+    video_fila_despachar($pdo);
 
     /* `publicado`: existe post ATIVO da loja apontando para o arquivo, no
        formato que post_criar.php grava ("video:<arquivo_local>"). */
@@ -48,6 +52,7 @@ try {
         "arquivo"    => $v["status"] === "pronto" ? $v["arquivo_local"] : null,
         "erro"       => $v["status"] === "erro" ? $v["erro"] : null,
         "publicado"  => (bool)$v["publicado"],
+        "posicao_fila" => $v["status"] === "na_fila" ? video_posicao_fila($pdo, (int)$v["id"]) : null,
         "created_at" => $v["created_at"],
     ], $stmt->fetchAll(PDO::FETCH_ASSOC));
 

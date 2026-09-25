@@ -2787,12 +2787,19 @@ Pexels Vídeo.
 |---|---|---|---|
 | `video/gerar.php` | POST (JSON `{prompt}`) | sim | Vídeo por IA/banco (Kling/Pexels/Coverr) via prompt. Dispara em background; devolve `{ok, video_id, status: "gerando"}` |
 | `video/modelos.php` | GET | sim | Catálogo do **motor de anúncios**: `{ok, modelos:[{id,nome,desc,fotos,auto,campos:[{key,label,tipo,max,req}]}], formatos:[{id,nome,w,h}], nichos:[{id,nome}]}` |
-| `video/marketing.php` | POST (multipart: `modelo`, `formato`, `nicho?`, `campos` JSON, `foto0..fotoN`) | sim | Gera peça de marketing pelo motor local (render Remotion, $0 de API). Dispara em background; devolve `{ok, video_id, status:"gerando"}`. Provider gravado = `motor` |
-| `video/status.php` | GET `?video_id=N` | sim | `{ok, video_id, status, arquivo, url_plataforma, provider, erro}` (serve tanto o vídeo por IA quanto o do motor) |
-| `video/meus.php` | GET | sim | "Meus vídeos" do Comércio (24/09/2026): peças do **motor** (`modelo` preenchido) da loja **da sessão**, 20 mais novas: `{ok, videos:[{id, modelo, formato, status, arquivo, erro, publicado, created_at}]}`. `arquivo` só com `status` `pronto`, `erro` só com `erro`; `publicado` = há post ativo da loja com esse vídeo. Sem loja: `{error: "Você ainda não tem loja."}` |
+| `video/marketing.php` | POST (multipart: `modelo`, `formato`, `nicho?`, `campos` JSON, `foto0..fotoN`) | sim | Gera peça de marketing pelo motor local (render Remotion, $0 de API). Entra na **fila global** e sai na hora se houver vaga; devolve `{ok, video_id, status: "gerando"|"na_fila", posicao_fila}` (`posicao_fila` só com `na_fila`, 1 = próximo). 429 se a loja já tem vídeo `na_fila`/`gerando`. Provider gravado = `motor` |
+| `video/status.php` | GET `?video_id=N` | sim | `{ok, video_id, status, arquivo, url_plataforma, provider, erro, posicao_fila}` (serve tanto o vídeo por IA quanto o do motor). `status` ∈ `na_fila`, `gerando`, `pronto`, `erro`. Cada consulta também limpa travados e despacha a fila |
+| `video/meus.php` | GET | sim | "Meus vídeos" do Comércio (24/09/2026): peças do **motor** (`modelo` preenchido) da loja **da sessão**, 20 mais novas: `{ok, videos:[{id, modelo, formato, status, arquivo, erro, publicado, posicao_fila, created_at}]}`. `arquivo` só com `status` `pronto`, `erro` só com `erro`; `publicado` = há post ativo da loja com esse vídeo. Sem loja: `{error: "Você ainda não tem loja."}` |
 | `video/loja.php` | GET `?loja_id=N` | sim | Vídeo de **apresentação** mais recente pronto da loja (só `modelo` NULL — peça do motor de anúncios não conta; desde 24/09/2026): `{ok, tem_video, video: {arquivo, url_plataforma, provider} \| null}` |
 
 **Motor de anúncios** (24/09/2026): quando `videos_gerados.modelo` está preenchido, `processar.php` renderiza uma peça de marketing pelo motor em `/motor` (Remotion) em vez de vídeo por IA/banco — custo zero de API. `formato` = `story` (9:16) \| `feed` (4:5) \| `quadrado` (1:1) \| `paisagem` (16:9); `params` (JSON) guarda `{nicho, props}` com os campos editáveis da loja e as fotos já copiadas para `motor/public/uploads`. Requer Node + Remotion instalados (`cd motor && npm install && npm run ensure-browser`); `video_config()['node_bin']` sobrescreve o binário `node`. Não passa pelo seletor de modo "acervo" (é local e grátis). Ver `docs/plans/motor-anuncios.md`.
+
+**Fila global e tempo máximo** (24/09/2026):
+- Só `max_renders` peças do motor (config, padrão 1) ficam em `gerando` ao mesmo tempo; o excedente espera em `na_fila` e é disparado, por ordem de chegada, quando um render termina (`video_fila_despachar()`, serializado por `GET_LOCK`). Vídeo por IA (`modelo` NULL) fica fora da fila.
+- `motor/render.js` encerra o próprio render (Remotion + Chrome, árvore inteira) após `render_timeout_s` (padrão 480 s, sempre < 10 min) e responde erro.
+- O que ficar em `gerando` por mais de **10 min contados de `iniciado_em`** (quando saiu da fila) vira `erro` com a mensagem *"A geração demorou mais que o normal e foi cancelada. Tente gerar de novo."*; os processos do render que sobraram são encerrados pela marca `echo_render_v<id>_` na linha de comando. Roda a cada `status.php`/`meus.php`/`marketing.php` (sem cron) e em `php api/video/limpar_travados.php` (para agendar; 404 por HTTP).
+- `processar.php` só grava resultado se o vídeo ainda está `gerando`: render que termina depois de cancelado não sobrescreve o erro.
+- Erros do render chegam à loja como texto de gente; o detalhe técnico fica no log.
 
 ### Decisões que o contrato precisa fixar
 

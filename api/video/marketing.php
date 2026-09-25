@@ -224,31 +224,44 @@ try {
         }
     }
 
-    // ---- freio: um render por loja por vez (evita fila empilhada) ----
+    // ---- freio: um vídeo por loja por vez, contando o que espera na fila
+    // (senão uma loja enfileiraria vários e passaria na frente das outras).
+    // Antes, a limpeza: um 'gerando' travado não pode segurar a loja. ----
+    video_limpar_travados($pdo);
+
     $stmt = $pdo->prepare(
         "SELECT COUNT(*) FROM videos_gerados
-          WHERE loja_id = ? AND status = 'gerando' AND created_at > NOW() - INTERVAL 10 MINUTE"
+          WHERE loja_id = ? AND status IN ('na_fila', 'gerando') AND modelo IS NOT NULL"
     );
     $stmt->execute([$lojaId]);
     if ((int)$stmt->fetchColumn() > 0) {
         http_response_code(429);
-        motor_erro("Já tem um vídeo sendo gerado. Espere ele terminar.");
+        motor_erro("Já tem um vídeo seu na fila ou sendo gerado. Espere ele terminar.");
     }
 
-    // ---- grava e dispara ----
+    // ---- grava na fila e despacha (sai na hora se houver vaga) ----
     $params = json_encode(["nicho" => $nicho, "props" => $props], JSON_UNESCAPED_UNICODE);
     $resumo = "[motor] {$modelo}/{$nicho}/{$formato}";
 
     $stmt = $pdo->prepare(
         "INSERT INTO videos_gerados (loja_id, prompt, modelo, formato, params, status)
-         VALUES (?, ?, ?, ?, ?, 'gerando')"
+         VALUES (?, ?, ?, ?, ?, 'na_fila')"
     );
     $stmt->execute([$lojaId, $resumo, $modelo, $formato, $params]);
     $videoId = (int)$pdo->lastInsertId();
 
-    video_disparar_processamento($videoId);
+    video_fila_despachar($pdo);
 
-    echo json_encode(["ok" => true, "video_id" => $videoId, "status" => "gerando"], JSON_UNESCAPED_UNICODE);
+    $stmt = $pdo->prepare("SELECT status FROM videos_gerados WHERE id = ?");
+    $stmt->execute([$videoId]);
+    $status = (string)$stmt->fetchColumn();
+
+    echo json_encode([
+        "ok"          => true,
+        "video_id"    => $videoId,
+        "status"      => $status,
+        "posicao_fila" => $status === "na_fila" ? video_posicao_fila($pdo, $videoId) : null,
+    ], JSON_UNESCAPED_UNICODE);
 
 } catch (Throwable $e) {
     error_log("video/marketing: " . $e->getMessage());

@@ -31,4 +31,19 @@ return [
     // Coverr — banco de video gratis (fallback junto do Pexels). Chave em
     // coverr.co > dashboard > "Chaves de API" (demo: 50 chamadas/hora).
     'coverr_api_key' => '',
+
+    // ---- Motor de anúncios (render local) ----
+
+    // Quantos renders do motor rodam AO MESMO TEMPO nesta máquina (cada um
+    // abre um Chrome headless, ~1-2 GB de RAM). O excedente espera em
+    // 'na_fila' e sai sozinho quando um termina. Padrão 1.
+    'max_renders' => 1,
+    // Tempo máximo de UM render, em segundos: passado dele, o render.js
+    // encerra o Remotion e o Chrome e marca erro. Padrão 480 (8 min). Fica
+    // sempre abaixo da limpeza de 10 min (valores maiores são cortados).
+    'render_timeout_s' => 480,
+    // Caminhos, se não estiverem no PATH de quem roda o PHP/Apache:
+    // 'node_bin'   => 'C:/Program Files/nodejs/node.exe',
+    // 'ffmpeg_bin' => 'C:/caminho/ffmpeg.exe',
+    // 'php_bin'    => 'C:/xampp/php/php.exe',  // PHP de linha de comando do render em segundo plano
 ];
