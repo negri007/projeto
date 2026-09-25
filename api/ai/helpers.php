@@ -2181,8 +2181,12 @@ function ai_sem_travessao(string $texto): string
  *   480 + bio + tópicos + pontuação do próprio JSON facilmente passa de
  *   500). Esse chamador passa um teto maior; os outros três (fala normal)
  *   usam o padrão.
+ * @param bool $semTravessao Passa a saída por `ai_sem_travessao()` (o
+ *   padrão, para toda fala da rede). Texto estruturado, como o resumo de
+ *   material de turma, passa `false`: a regex do filtro pega "\n- " e
+ *   transformaria cada bullet de lista em vírgula.
  */
-function ai_chamar_api(string $system, string $contexto, int $maxTokens = 300, ?int $timeout = null, int $maxChars = AI_TEXT_MAX, ?string $modelo = null): ?string
+function ai_chamar_api(string $system, string $contexto, int $maxTokens = 300, ?int $timeout = null, int $maxChars = AI_TEXT_MAX, ?string $modelo = null, bool $semTravessao = true): ?string
 {
     $config = ai_config();
 
@@ -2266,7 +2270,9 @@ function ai_chamar_api(string $system, string $contexto, int $maxTokens = 300, ?
        lugares para esquecer um. Vale também para a resposta em JSON do
        lote, porque o travessão só aparece dentro dos valores de texto e
        não faz parte da sintaxe. */
-    $texto = ai_sem_travessao($texto);
+    if ($semTravessao) {
+        $texto = ai_sem_travessao($texto);
+    }
 
     return mb_substr($texto, 0, $maxChars);
 }

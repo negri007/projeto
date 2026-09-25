@@ -187,7 +187,9 @@ function turma_resumir_material(array $material): array
     if ($texto !== "") {
         // Corta um texto absurdo antes de mandar (teto de custo/token).
         $texto  = mb_substr($texto, 0, 40000);
-        $resumo = ai_chamar_api($system, $texto, 1200, $timeout, 6000, $model);
+        // false: o resumo e Markdown com bullets ("- "), que o filtro de
+        // travessao da rede transformaria em virgulas.
+        $resumo = ai_chamar_api($system, $texto, 1200, $timeout, 6000, $model, false);
 
         return $resumo !== null
             ? ["ok" => true, "resumo" => $resumo]
