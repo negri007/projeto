@@ -102,32 +102,59 @@ function video_prompt_sugerido(string $nicho, string $nomeLoja): string
  * Dispara `processar.php` para o `$videoId` e devolve na hora, sem
  * esperar a geração terminar.
  *
- * `start /B` (Windows) devolve assim que o processo filho nasce — é isso
- * que torna a chamada fire-and-forget de verdade. Sem o `start`, o
- * `popen()` ficaria preso esperando o `processar.php` inteiro (30 a 90s)
- * antes de devolver, e `gerar.php` travaria a aba do lojista pelo tempo
- * exato que a arquitetura assíncrona deveria evitar.
+ * O comando devolve assim que o processo filho nasce — é isso que torna a
+ * chamada fire-and-forget de verdade. Sem isso, o `popen()` ficaria preso
+ * esperando o `processar.php` inteiro (30 a 90s) antes de devolver, e a
+ * requisição travaria a aba do lojista pelo tempo exato que a arquitetura
+ * assíncrona deveria evitar.
  *
  * O PHP de linha de comando sai de video_php_cli() — não depende de `php`
  * estar no PATH (no XAMPP normalmente não está).
  */
 function video_disparar_processamento(int $videoId): void
 {
-    $php    = video_php_cli();
-    $script = __DIR__ . "/processar.php";
-
-    // O último argumento é a marca do render: processar.php não o lê, mas
-    // ela deixa video_encerrar_render() achar este processo também.
-    $cmd = "cmd /c start \"\" /B "
-        . escapeshellarg($php) . " " . escapeshellarg($script) . " " . escapeshellarg((string)$videoId)
-        . " " . escapeshellarg(video_render_marca($videoId))
-        . " > NUL 2>&1";
-
-    $handle = popen($cmd, "r");
+    $handle = popen(video_cmd_disparar(video_php_cli(), __DIR__ . "/processar.php", $videoId), "r");
 
     if ($handle !== false) {
         pclose($handle);
     }
+}
+
+/**
+ * O comando de disparo em background, por sistema: `start /B` no Windows,
+ * `nohup ... &` no Linux. Separado para o comando do Linux poder ser
+ * conferido rodando no Windows.
+ *
+ * O último argumento é a marca do render: processar.php não o lê, mas ela
+ * deixa video_encerrar_render() achar este processo também.
+ */
+function video_cmd_disparar(string $php, string $script, int $videoId, ?string $os = null): string
+{
+    $os   = $os ?? PHP_OS_FAMILY;
+    $args = implode(" ", array_map(
+        fn($a) => video_arg_shell($a, $os),
+        [$php, $script, (string)$videoId, video_render_marca($videoId)]
+    ));
+
+    if ($os === "Windows") {
+        return "cmd /c start \"\" /B " . $args . " > NUL 2>&1";
+    }
+
+    return "nohup " . $args . " > /dev/null 2>&1 &";
+}
+
+/**
+ * Aspas de shell para o sistema pedido. escapeshellarg() segue o sistema
+ * em que o PHP RODA; aqui o sistema é parâmetro, para montar (e testar) o
+ * comando do outro.
+ */
+function video_arg_shell(string $arg, string $os): string
+{
+    if ($os === "Windows") {
+        return '"' . str_replace(['"', '%', '!'], ' ', $arg) . '"';
+    }
+
+    return "'" . str_replace("'", "'\''", $arg) . "'";
 }
 
 /**
@@ -666,7 +693,7 @@ function motor_img_carregar(string $src)
     }
     $tmpPng = $tmp . ".png";
     $cmd = escapeshellarg($ff) . " -v error -y -protocol_whitelist file -i " . escapeshellarg($src)
-        . " -frames:v 1 " . escapeshellarg($tmpPng) . " 2>NUL";
+        . " -frames:v 1 " . escapeshellarg($tmpPng) . " 2>" . video_nulo();
     @shell_exec($cmd);
     @unlink($tmp);
 

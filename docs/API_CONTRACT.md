@@ -2865,7 +2865,7 @@ de uso, porque os quatro do agendador gastam chamada de API.
 
 **`api/video/processar.php`** (22/09/2026) segue a mesma guarda, mas não
 é agendado — `video/gerar.php` dispara ele em background
-(`video_disparar_processamento()`, `start /B` + `PHP_BINARY`) a cada
+(`video_disparar_processamento()`: `start /B` no Windows, `nohup … &` no Linux, com o PHP de `video_php_cli()`) a cada
 geração pedida. `php api/video/processar.php <video_id>` continua útil à
 mão para reprocessar um registro preso em `'gerando'`.
 
