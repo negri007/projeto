@@ -84,7 +84,8 @@ MIME real no upload, erro `{"error":...}`, PDO preparado):
   `turma_material_views` (abertura de material/resumo pelo aluno) e
   endpoints `material_abrir` e `alunos_risco` (só o professor, SQL puro,
   custo zero de API). Em risco: menos de 60% num quiz ativo, quiz
-  disponível há mais de 3 dias sem resposta, ou material não aberto. A
+  disponível há mais de 3 dias sem resposta, ou material postado há mais
+  de 3 dias e não aberto (mesma carência do quiz). A
   tela dá o número ("4 de 7 alunos em risco"), o recorte por assunto ("3
   alunos em risco em BCNF") e o motivo de cada aluno. "Entregou" (tarefa)
   fica para quando houver tarefas no vertical.

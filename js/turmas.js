@@ -72,7 +72,7 @@ async function carregarRisco() {
   const alunos = j.alunos.map(a =>
     `<div class="rs-aluno"><b>${esc(a.name)}</b><ul>${a.motivos.map(m => `<li>${esc(m.texto)}</li>`).join('')}</ul></div>`).join('');
   box.innerHTML = `<div class="rs-num ${cls}">${j.em_risco} de ${j.total_alunos} aluno(s) em risco</div>
-    <div class="spin">Critério: menos de ${j.criterios.pct}% num quiz, quiz sem resposta há mais de ${j.criterios.dias} dias, ou material não aberto.</div>
+    <div class="spin">Critério: menos de ${j.criterios.pct}% num quiz, quiz sem resposta ou material não aberto há mais de ${j.criterios.dias} dias.</div>
     ${assuntos}${alunos}`;
 }
 

@@ -3032,7 +3032,8 @@ quem não é da turma: `{"error":"Turma não encontrada."}`. SQL puro, sem API.
 Aluno em risco = pelo menos um motivo:
 - `nota_baixa`: acertou menos de 60% num quiz ativo;
 - `quiz_pendente`: quiz ativo disponível há mais de 3 dias, sem resposta;
-- `nao_abriu`: material da turma que ele não abriu pelo Echo (sem prazo).
+- `nao_abriu`: material da turma postado há mais de 3 dias que ele não
+  abriu pelo Echo (mesma carência do quiz).
 
 Resposta: `{ ok:true, total_alunos, em_risco, criterios:{pct:60, dias:3},
 assuntos:[{assunto, alunos_em_risco, responderam}], alunos:[{user_id, name,

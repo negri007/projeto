@@ -9,7 +9,9 @@
  * - nota_baixa:    acertou menos de TURMA_RISCO_PCT% num quiz ativo;
  * - quiz_pendente: quiz ativo disponível há mais de TURMA_RISCO_DIAS dias
  *                  e ele não respondeu;
- * - nao_abriu:     há material da turma que ele não abriu pelo Echo.
+ * - nao_abriu:     há material da turma postado há mais de TURMA_RISCO_DIAS
+ *                  dias que ele não abriu pelo Echo (a mesma carência do
+ *                  quiz: material recém-postado não infla o número).
  *
  * Resposta: { ok:true, total_alunos, em_risco, criterios:{pct, dias},
  *             assuntos:[{assunto, alunos_em_risco, responderam}],
@@ -60,7 +62,9 @@ try {
     }
 
     // Materiais e quem abriu cada um.
-    $stmt = $pdo->prepare("SELECT id, titulo FROM turma_materiais WHERE circle_id = ? ORDER BY id");
+    $stmt = $pdo->prepare("SELECT id, titulo FROM turma_materiais
+          WHERE circle_id = ? AND created_at < NOW() - INTERVAL " . TURMA_RISCO_DIAS . " DAY
+          ORDER BY id");
     $stmt->execute([$circleId]);
     $materiais = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
