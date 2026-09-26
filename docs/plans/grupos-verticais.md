@@ -68,7 +68,18 @@ MIME real no upload, erro `{"error":...}`, PDO preparado):
 - `POST /api/turmas/material_resumir.php` — **resumo pela API do Claude**
   (texto por `ai_chamar_api()`, PDF por bloco `document` base64), com
   **cache**: gera uma vez, serve sempre; regerar só o professor.
-- `turmas.html` — página de teste do fluxo ponta a ponta.
+- `turmas.html` + `js/turmas.js` — página do fluxo ponta a ponta; alunos
+  da turma são geridos aqui (a turma não aparece em `circulos.html`).
+- **Quiz por conteúdo (feito, 25/09/2026)** — tabelas `turma_quizzes`,
+  `turma_quiz_questoes`, `turma_quiz_respostas`; endpoints `quiz_gerar`,
+  `quiz_ver`, `quiz_responder`, `quiz_painel`. Gerado pelo **Sonnet**
+  (gabarito precisa estar certo) por tool_use forçado com `strict`, uma
+  vez por material (cache; regerar só o professor). Cada questão cita o
+  `trecho_fonte` do material, e o PHP descarta a questão cuja fonte não
+  está no texto. O gabarito só sai para o professor ou para o aluno que já
+  respondeu. Painel: % de acerto por questão e por assunto e a pior
+  questão ("100% errou a questão 2 (2FN)"). Custo medido: ~US$ 0,013 por
+  quiz de um material curto (1.300 tokens de entrada, 1.001 de saída).
 
 Ver `docs/API_CONTRACT.md`, seção "Grupos verticais".
 
@@ -77,9 +88,10 @@ Ver `docs/API_CONTRACT.md`, seção "Grupos verticais".
 1. **Material com ações do agente** — barra de ações sobre o documento:
    resumir (feito), gerar quiz, extrair "o que cai na prova", virar
    resumo em vídeo pelo motor. É a cara do vertical.
-2. **Quiz por conteúdo, com painel de dificuldades + citação da fonte** —
-   a IA ancorada no material real ("isto está na página 7"), e o painel da
-   turma ("70% errou X") que o professor vê antes da prova.
+2. **Quiz por conteúdo, com painel de dificuldades + citação da fonte**
+   (**feito** — ver acima) — a IA ancorada no material real ("isto está na
+   página 7"), e o painel da turma ("70% errou X") que o professor vê
+   antes da prova.
 3. **Alerta de aluno em risco** — cruza quem não abriu material + errou no
    quiz + não entregou. O único que dá **número de impacto** para a banca.
 

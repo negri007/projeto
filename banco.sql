@@ -1764,6 +1764,70 @@ CREATE TABLE IF NOT EXISTS turma_materiais (
 
 CALL echo_add_index_if_missing('turma_materiais', 'idx_tm_circle', 'circle_id, id');
 
+-- Quiz por conteudo: gerado pela API do Claude (Sonnet, porque o gabarito
+-- precisa estar certo) a partir de UM material, uma vez — os alunos
+-- respondem o mesmo quiz guardado, sem nova chamada. Regerar (so o
+-- professor) desativa o anterior (`ativo = 0`) e cria outro; as respostas
+-- antigas ficam no banco, mas painel e alerta olham so o quiz ativo.
+-- `tokens_in`/`tokens_out` guardam o uso da chamada, pra conta de custo.
+CREATE TABLE IF NOT EXISTS turma_quizzes (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    material_id  INT NOT NULL,
+    circle_id    INT NOT NULL,
+    criado_por   INT NOT NULL,
+    modelo       VARCHAR(60) NOT NULL,
+    ativo        TINYINT(1) NOT NULL DEFAULT 1,
+    tokens_in    INT DEFAULT NULL,
+    tokens_out   INT DEFAULT NULL,
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (material_id) REFERENCES turma_materiais(id) ON DELETE CASCADE,
+    FOREIGN KEY (circle_id)   REFERENCES circles(id)         ON DELETE CASCADE,
+    FOREIGN KEY (criado_por)  REFERENCES users(id)           ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CALL echo_add_index_if_missing('turma_quizzes', 'idx_tq_material', 'material_id, ativo');
+CALL echo_add_index_if_missing('turma_quizzes', 'idx_tq_circle', 'circle_id, ativo');
+
+-- Questoes de multipla escolha. `alternativas` e um array JSON de 4
+-- strings; `correta` e o indice (0-3) — o GABARITO, que nunca vai para o
+-- aluno antes de ele responder. `trecho_fonte` e a frase do material de
+-- onde sai a resposta (o PHP confere que ela existe no texto); `pagina`
+-- so vale para PDF. `assunto` agrupa o painel ("70% errou Normalizacao").
+CREATE TABLE IF NOT EXISTS turma_quiz_questoes (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    quiz_id       INT NOT NULL,
+    ordem         TINYINT NOT NULL,
+    enunciado     TEXT NOT NULL,
+    alternativas  TEXT NOT NULL,
+    correta       TINYINT NOT NULL,
+    assunto       VARCHAR(80) NOT NULL,
+    trecho_fonte  TEXT NOT NULL,
+    pagina        INT DEFAULT NULL,
+    FOREIGN KEY (quiz_id) REFERENCES turma_quizzes(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CALL echo_add_index_if_missing('turma_quiz_questoes', 'idx_tqq_quiz', 'quiz_id, ordem');
+
+-- Uma linha por questao respondida. `acertou` e calculado no PHP contra o
+-- gabarito; o cliente so manda a alternativa escolhida. UNIQUE por
+-- (questao, aluno): responde uma vez, e uma corrida de dois envios
+-- esbarra no banco em vez de gravar duas vezes.
+CREATE TABLE IF NOT EXISTS turma_quiz_respostas (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    quiz_id     INT NOT NULL,
+    questao_id  INT NOT NULL,
+    user_id     INT NOT NULL,
+    escolhida   TINYINT NOT NULL,
+    acertou     TINYINT(1) NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_tqr_questao_user (questao_id, user_id),
+    FOREIGN KEY (quiz_id)    REFERENCES turma_quizzes(id)       ON DELETE CASCADE,
+    FOREIGN KEY (questao_id) REFERENCES turma_quiz_questoes(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id)    REFERENCES users(id)               ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CALL echo_add_index_if_missing('turma_quiz_respostas', 'idx_tqr_quiz_user', 'quiz_id, user_id');
+
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;

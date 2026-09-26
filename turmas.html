@@ -32,6 +32,23 @@
   .resumo p { margin:8px 0; }
   .resumo ul { margin:4px 0 8px; padding-left:20px; }
   .resumo li { margin:3px 0; }
+  .quiz { background:#0f1218; border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-top:8px; font-size:14px; }
+  .qz-cab { color:var(--mut); font-size:13px; margin-bottom:8px; }
+  .qz-q { border-top:1px solid var(--line); padding:10px 0; }
+  .qz-enun { font-weight:600; margin-bottom:6px; }
+  .qz-alts { list-style:none; margin:0; padding:0; }
+  .qz-alts li { padding:3px 8px; border-radius:6px; margin:2px 0; }
+  .qz-alts li.certa { background:#173a2a; color:#8fe0b5; }
+  .qz-alts li.errada { background:#3a1d1d; color:#f6b1b1; }
+  .qz-opt { display:block; color:var(--fg); font-size:14px; margin:4px 0; cursor:pointer; }
+  .qz-opt input { width:auto; margin-right:4px; }
+  .qz-fonte { font-size:12px; color:var(--mut); margin-top:6px; }
+  .qz-res { font-size:12px; font-weight:600; margin-top:4px; }
+  .qz-res.ok { color:var(--ac2); } .qz-res.no { color:#f6b1b1; }
+  .qz-painel { border-top:1px solid var(--line); margin-top:10px; padding-top:10px; }
+  .qz-painel ul { margin:4px 0 8px; padding-left:20px; }
+  .qz-destaque { background:#3a2a14; color:#f6d38f; border-radius:6px; padding:6px 10px; margin:8px 0; font-weight:600; }
+  .qz-sub { font-size:12px; color:var(--mut); margin-top:8px; }
   .msg { font-size:13px; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:none; }
   .msg.err { background:#3a1d1d; color:#f6b1b1; display:block; }
   .msg.info { background:#1d2a3a; color:#a9cdf6; display:block; }
@@ -79,227 +96,6 @@
   </div>
 </div>
 
-<script>
-const $ = s => document.querySelector(s);
-let turmaSel = null, ehDono = false;
-
-function msg(txt, tipo='info') {
-  const el = $('#msg');
-  el.textContent = txt; el.className = 'msg ' + tipo;
-  if (tipo === 'info') setTimeout(() => { el.className = 'msg'; }, 4000);
-}
-
-async function api(url, opts) {
-  const r = await fetch(url, opts);
-  const j = await r.json().catch(() => ({ error: 'Resposta inválida.' }));
-  if (r.status === 401) { msg('Faça login no Echo primeiro (abra index.html e entre).', 'err'); throw new Error('401'); }
-  return j;
-}
-
-async function carregarTurmas() {
-  const j = await api('/api/circles/list.php');
-  const box = $('#turmas');
-  const turmas = (j.circles || []).filter(c => c.tipo === 'academia');
-  if (!turmas.length) { box.innerHTML = '<span class="spin">nenhuma turma ainda — crie uma abaixo.</span>'; return; }
-  box.innerHTML = '';
-  turmas.forEach(c => {
-    const d = document.createElement('div');
-    d.className = 'turma' + (turmaSel === c.id ? ' sel' : '');
-    d.innerHTML = `<span>${esc(c.name)} <span class="tag">${c.is_owner ? 'professor' : 'aluno'}</span></span><span class="spin">${c.member_count} aluno(s)</span>`;
-    d.onclick = () => abrirTurma(c);
-    box.appendChild(d);
-  });
-}
-
-async function criarTurma() {
-  const name = $('#novaTurma').value.trim();
-  if (!name) return;
-  $('#btnCriarTurma').disabled = true;
-  const j = await api('/api/circles/create.php', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, tipo: 'academia' })
-  });
-  $('#btnCriarTurma').disabled = false;
-  if (j.error) return msg(j.error, 'err');
-  $('#novaTurma').value = '';
-  msg('Turma criada.');
-  await carregarTurmas();
-  abrirTurma(j.circle);
-}
-
-async function abrirTurma(c) {
-  turmaSel = c.id; ehDono = !!c.is_owner;
-  $('#painel').classList.remove('hidden');
-  document.querySelectorAll('.turmaNome').forEach(el => { el.textContent = c.name; });
-  $('#subir').classList.toggle('hidden', !ehDono);
-  $('#addAluno').classList.toggle('hidden', !ehDono);
-  carregarTurmas();
-  carregarAlunos();
-  if (ehDono) carregarAmigos();
-  await carregarMateriais();
-}
-
-// Turma nao aparece em circulos.html, entao os alunos se gerenciam aqui.
-// Mesmos endpoints de circulo: aluno = circle_members, por user_id.
-async function carregarAlunos() {
-  const box = $('#alunos');
-  const j = await api('/api/circles/list_members.php?circle_id=' + turmaSel);
-  if (j.error) { box.innerHTML = ''; return msg(j.error, 'err'); }
-  const alunos = j.members || [];
-  if (!alunos.length) { box.innerHTML = '<span class="spin">nenhum aluno ainda.</span>'; return; }
-  box.innerHTML = '';
-  alunos.forEach(u => {
-    const d = document.createElement('div');
-    d.className = 'turma';
-    d.style.cursor = 'default';
-    d.innerHTML = `<span>${esc(u.name)}</span>`;
-    if (ehDono) {
-      const b = document.createElement('button');
-      b.className = 'ghost'; b.style.marginTop = '0'; b.textContent = 'Remover';
-      b.onclick = () => removerAluno(u.user_id);
-      d.appendChild(b);
-    }
-    box.appendChild(d);
-  });
-}
-
-async function carregarAmigos() {
-  const sel = $('#amigoSel');
-  const j = await api('/api/friends/list.php');
-  const amigos = j.friends || [];
-  sel.innerHTML = amigos.length
-    ? amigos.map(f => `<option value="${f.user_id}">${esc(f.name)}</option>`).join('')
-    : '<option value="">nenhum amigo para adicionar</option>';
-}
-
-async function addAluno() {
-  const userId = Number($('#amigoSel').value);
-  if (!userId) return;
-  $('#btnAddAluno').disabled = true;
-  const j = await api('/api/circles/add_member.php', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ circle_id: turmaSel, user_id: userId })
-  });
-  $('#btnAddAluno').disabled = false;
-  if (j.error) return msg(j.error, 'err');
-  msg('Aluno adicionado.');
-  carregarAlunos();
-  carregarTurmas();
-}
-
-async function removerAluno(userId) {
-  const j = await api('/api/circles/remove_member.php', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ circle_id: turmaSel, user_id: userId })
-  });
-  if (j.error) return msg(j.error, 'err');
-  carregarAlunos();
-  carregarTurmas();
-}
-
-async function carregarMateriais() {
-  const box = $('#materiais');
-  box.innerHTML = '<span class="spin">carregando materiais…</span>';
-  const j = await api('/api/turmas/material_listar.php?circle_id=' + turmaSel);
-  if (j.error) { box.innerHTML = ''; return msg(j.error, 'err'); }
-  if (!j.materiais.length) { box.innerHTML = '<span class="spin">nenhum material ainda.</span>'; return; }
-  box.innerHTML = '';
-  j.materiais.forEach(m => box.appendChild(cardMaterial(m)));
-}
-
-function cardMaterial(m) {
-  const d = document.createElement('div');
-  d.className = 'mat';
-  const tipo = m.tipo_arquivo ? m.tipo_arquivo.toUpperCase() : (m.tem_texto ? 'TEXTO' : '—');
-  d.innerHTML = `<div class="t">${esc(m.titulo)}</div><div class="meta">${tipo}${m.tem_resumo ? ' · resumo pronto' : ''}</div>`;
-  const acoes = document.createElement('div'); acoes.className = 'row';
-  if (m.resumivel) {
-    const b = document.createElement('button');
-    b.className = 'ok'; b.textContent = m.tem_resumo ? 'Ver resumo' : 'Resumir com IA';
-    b.onclick = () => resumir(m, d, b, false);
-    acoes.appendChild(b);
-    if (ehDono && m.tem_resumo) {
-      const r = document.createElement('button');
-      r.className = 'ghost'; r.textContent = 'Gerar de novo';
-      r.onclick = () => resumir(m, d, r, true);
-      acoes.appendChild(r);
-    }
-  } else {
-    const s = document.createElement('span'); s.className = 'spin'; s.textContent = 'não resumível (imagem)';
-    acoes.appendChild(s);
-  }
-  d.appendChild(acoes);
-  return d;
-}
-
-async function resumir(m, card, btn, regerar) {
-  btn.disabled = true; const orig = btn.textContent; btn.textContent = 'gerando…';
-  const j = await api('/api/turmas/material_resumir.php', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ material_id: m.id, regerar })
-  });
-  btn.disabled = false; btn.textContent = orig;
-  if (j.error) return msg(j.error, 'err');
-  // Resumo novo: redesenha so este card (vira "resumo pronto" + "Gerar de
-  // novo") em vez de recarregar a lista, que apagaria o texto recem-gerado.
-  if (!j.do_cache) {
-    m.tem_resumo = true;
-    const novo = cardMaterial(m);
-    card.replaceWith(novo);
-    card = novo;
-  }
-  let box = card.querySelector('.resumo');
-  if (!box) { box = document.createElement('div'); box.className = 'resumo'; card.appendChild(box); }
-  box.innerHTML = markdownSeguro(j.resumo);
-}
-
-// Subconjunto minimo de Markdown (## titulo, - lista, **negrito**). O texto
-// vem da IA a partir do material, entao TUDO e escapado primeiro e so depois
-// ganha as poucas tags abaixo — nenhum HTML do resumo chega cru ao innerHTML.
-function markdownSeguro(md) {
-  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  const out = [];
-  let lista = false;
-  const fechaLista = () => { if (lista) { out.push('</ul>'); lista = false; } };
-  String(md).split(/\r?\n/).forEach(linha => {
-    const t = linha.trim();
-    let r;
-    if (!t) { fechaLista(); return; }
-    if ((r = t.match(/^#{1,6}\s+(.*)$/))) { fechaLista(); out.push('<h3>' + inline(r[1]) + '</h3>'); return; }
-    if ((r = t.match(/^[-*•]\s+(.*)$/))) { if (!lista) { out.push('<ul>'); lista = true; } out.push('<li>' + inline(r[1]) + '</li>'); return; }
-    fechaLista();
-    out.push('<p>' + inline(t) + '</p>');
-  });
-  fechaLista();
-  return out.join('');
-}
-
-async function subir() {
-  const titulo = $('#matTitulo').value.trim();
-  const texto = $('#matTexto').value.trim();
-  const file = $('#matArquivo').files[0];
-  if (!titulo) return msg('Dê um nome ao material.', 'err');
-  if (!texto && !file) return msg('Cole o texto ou envie um arquivo.', 'err');
-  const fd = new FormData();
-  fd.append('circle_id', turmaSel);
-  fd.append('titulo', titulo);
-  if (texto) fd.append('conteudo_texto', texto);
-  if (file) fd.append('arquivo', file);
-  $('#btnSubir').disabled = true;
-  const j = await api('/api/turmas/material_criar.php', { method: 'POST', body: fd });
-  $('#btnSubir').disabled = false;
-  if (j.error) return msg(j.error, 'err');
-  $('#matTitulo').value = ''; $('#matTexto').value = ''; $('#matArquivo').value = '';
-  msg('Material adicionado.');
-  carregarMateriais();
-}
-
-function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-
-$('#btnCriarTurma').onclick = criarTurma;
-$('#btnSubir').onclick = subir;
-$('#btnAddAluno').onclick = addAluno;
-carregarTurmas().catch(() => {});
-</script>
+<script src="js/turmas.js"></script>
 </body>
 </html>

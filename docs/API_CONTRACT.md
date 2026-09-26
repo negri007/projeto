@@ -2939,3 +2939,66 @@ está configurada nesta instalação."}`. Material não resumível (só imagem):
 erro amigável, sem chamar a API.
 
 Resposta: `{ ok:true, resumo:"...", do_cache:bool }`.
+
+O `resumo` é Markdown (`##` título, `- ` lista, `**negrito**`); a tela
+escapa todo o texto antes de converter esse subconjunto em HTML.
+
+### Quiz por conteúdo (25/09/2026)
+
+Tabelas `turma_quizzes`, `turma_quiz_questoes`, `turma_quiz_respostas`
+(`banco.sql`). Um quiz **ativo** por material; regerar desativa o anterior
+(`ativo = 0`) e cria outro — as respostas antigas ficam, mas o painel olha
+só o ativo. Em todos os endpoints abaixo a identidade vem da sessão e o
+acesso é pela turma do material: quem não é dono nem membro recebe
+`{"error":"Material não encontrado."}` (ou `"Quiz não encontrado."`).
+
+**Gate do gabarito:** `correta`, `trecho_fonte`, `pagina` e `assunto` só
+saem para o **professor** ou para o **aluno que já respondeu**. O aluno que
+ainda não respondeu recebe, por questão, apenas `{id, ordem, enunciado,
+alternativas}`.
+
+Objeto questão completo: `{ id, ordem, enunciado, alternativas:[4 strings],
+correta:0-3, assunto, trecho_fonte, pagina:int|null }`. Para o aluno que
+respondeu, soma `escolhida:0-3` e `acertou:bool`.
+
+#### `POST /api/turmas/quiz_gerar.php` (JSON)
+
+**Só o professor** (`{"error":"Só o professor pode gerar o quiz."}`).
+Corpo: `{ material_id, regerar? }`. Com quiz ativo e sem `regerar`, devolve
+o existente **sem chamar a API** (`do_cache:true`). Sem quiz, ou com
+`regerar:true`, gera pela API do Claude com o modelo **Sonnet**
+(`model_sonnet` do `ai_config.php`), por tool_use com `tool_choice` forçado
+e `strict:true`; o PHP descarta questão com alternativas inválidas,
+`correta` fora de 0-3 ou `trecho_fonte` que não está no texto do material,
+e exige ao menos 3 válidas. Material só de imagem: erro amigável, sem API.
+
+Resposta: `{ ok:true, quiz:{ id, material_id, created_at, total,
+questoes:[completas] }, do_cache:bool }`.
+
+#### `GET /api/turmas/quiz_ver.php?material_id=<id>`
+
+Professor ou aluno. Resposta: `{ ok:true, is_owner:bool, quiz:null | {...} }`.
+Para o aluno, `quiz` traz também `respondido:bool` e, se respondeu,
+`acertos`. Visão das questões conforme o gate acima.
+
+#### `POST /api/turmas/quiz_responder.php` (JSON)
+
+**Só aluno** (professor: `{"error":"O professor não responde o quiz."}`),
+**uma vez** (`{"error":"Você já respondeu este quiz."}`, também numa corrida
+de dois envios, pelo UNIQUE do banco). Corpo: `{ quiz_id, respostas:{
+"<questao_id>": 0-3, ... } }` com **todas** as questões do quiz ativo, cada
+valor inteiro de 0 a 3 (senão `{"error":"Responda todas as questões."}`).
+O acerto é calculado no PHP; o cliente nunca informa se acertou.
+
+Resposta: `{ ok:true, quiz:{... visão de quem respondeu ...} }`.
+
+#### `GET /api/turmas/quiz_painel.php?material_id=<id>`
+
+**Só o professor** (`{"error":"Só o professor vê o painel do quiz."}`).
+Conta só quem é aluno da turma hoje.
+
+Resposta: `{ ok:true, quiz:null | { quiz_id, total_alunos, responderam,
+media_pct, questoes:[{ordem, enunciado, assunto, respostas, acertos,
+pct_acerto}], assuntos:[{assunto, respostas, acertos, pct_acerto}],
+pior_questao:{ordem, assunto, pct_acerto, pct_erro}|null } }`.
+`pct_acerto` é `null` em questão sem nenhuma resposta.
