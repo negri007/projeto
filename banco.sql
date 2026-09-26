@@ -1828,6 +1828,20 @@ CREATE TABLE IF NOT EXISTS turma_quiz_respostas (
 
 CALL echo_add_index_if_missing('turma_quiz_respostas', 'idx_tqr_quiz_user', 'quiz_id, user_id');
 
+-- Material aberto pelo aluno (sinal "nao abriu" do alerta de risco). Uma
+-- linha por (material, aluno), gravada com INSERT IGNORE quando ele abre o
+-- material ou o resumo pelo Echo (material_abrir.php / material_resumir.php).
+-- Mede "abriu pelo Echo", nao "leu": quem baixa o arquivo direto de
+-- uploads/ nao aparece aqui.
+CREATE TABLE IF NOT EXISTS turma_material_views (
+    material_id  INT NOT NULL,
+    user_id      INT NOT NULL,
+    primeiro_em  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (material_id, user_id),
+    FOREIGN KEY (material_id) REFERENCES turma_materiais(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id)     REFERENCES users(id)           ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;

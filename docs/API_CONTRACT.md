@@ -3002,3 +3002,42 @@ media_pct, questoes:[{ordem, enunciado, assunto, respostas, acertos,
 pct_acerto}], assuntos:[{assunto, respostas, acertos, pct_acerto}],
 pior_questao:{ordem, assunto, pct_acerto, pct_erro}|null } }`.
 `pct_acerto` é `null` em questão sem nenhuma resposta.
+
+### Alerta de aluno em risco (25/09/2026)
+
+Tabela `turma_material_views` (`banco.sql`): uma linha por (material,
+aluno), gravada com `INSERT IGNORE` quando o **aluno** abre o material
+(`material_abrir.php`) ou o resumo (`material_resumir.php`). Abertura do
+professor não conta. Mede "abriu pelo Echo", não "leu".
+
+#### `POST /api/turmas/material_abrir.php` (JSON)
+
+Professor ou aluno da turma; os demais recebem `{"error":"Material não
+encontrado."}`. Corpo: `{ material_id }`. Se for aluno, registra a abertura.
+
+Resposta: `{ ok:true, material:{ id, titulo, tipo_arquivo,
+conteudo_texto:string|null, arquivo_url:"uploads/..."|null } }`. O caminho
+do arquivo só sai aqui e em `material_listar.php`, ambos restritos a quem é
+da turma.
+
+#### `POST /api/turmas/material_resumir.php` — mudança
+
+Passa a registrar a abertura do aluno (mesma tabela) antes de devolver o
+resumo. Formato de resposta inalterado.
+
+#### `GET /api/turmas/alunos_risco.php?circle_id=<id>`
+
+**Só o professor** (`{"error":"Só o professor vê o alerta da turma."}`);
+quem não é da turma: `{"error":"Turma não encontrada."}`. SQL puro, sem API.
+Aluno em risco = pelo menos um motivo:
+- `nota_baixa`: acertou menos de 60% num quiz ativo;
+- `quiz_pendente`: quiz ativo disponível há mais de 3 dias, sem resposta;
+- `nao_abriu`: material da turma que ele não abriu pelo Echo (sem prazo).
+
+Resposta: `{ ok:true, total_alunos, em_risco, criterios:{pct:60, dias:3},
+assuntos:[{assunto, alunos_em_risco, responderam}], alunos:[{user_id, name,
+motivos:[{tipo, material_id, texto, ...}]}] }`. `assuntos` conta, por
+assunto das questões dos quizzes ativos, quem acertou menos de 60% nele (só
+assuntos com alguém em risco, do maior para o menor). `alunos` traz só quem
+está em risco, com mais motivos primeiro. `nota_baixa` soma `acertos`,
+`total`, `pct`; `quiz_pendente` soma `dias`.

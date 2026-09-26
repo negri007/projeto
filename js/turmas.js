@@ -51,10 +51,29 @@ async function abrirTurma(c) {
   document.querySelectorAll('.turmaNome').forEach(el => { el.textContent = c.name; });
   $('#subir').classList.toggle('hidden', !ehDono);
   $('#addAluno').classList.toggle('hidden', !ehDono);
+  $('#riscoBox').classList.toggle('hidden', !ehDono);
+  if (!ehDono) $('#risco').innerHTML = '';
   carregarTurmas();
   carregarAlunos();
-  if (ehDono) carregarAmigos();
+  if (ehDono) { carregarAmigos(); carregarRisco(); }
   await carregarMateriais();
+}
+
+// Alerta de aluno em risco (so o professor; o PHP recusa aluno). Todo
+// texto — nome, titulo do material, assunto vindo da IA — passa por esc().
+async function carregarRisco() {
+  const box = $('#risco');
+  box.innerHTML = '<span class="spin">calculando…</span>';
+  const j = await api('/api/turmas/alunos_risco.php?circle_id=' + turmaSel);
+  if (j.error) { box.innerHTML = ''; return msg(j.error, 'err'); }
+  const cls = j.em_risco > 0 ? 'alto' : 'ok';
+  const assuntos = j.assuntos.map(a =>
+    `<div class="rs-assunto">${a.alunos_em_risco} aluno(s) em risco em ${esc(a.assunto)} (de ${a.responderam} que responderam)</div>`).join('');
+  const alunos = j.alunos.map(a =>
+    `<div class="rs-aluno"><b>${esc(a.name)}</b><ul>${a.motivos.map(m => `<li>${esc(m.texto)}</li>`).join('')}</ul></div>`).join('');
+  box.innerHTML = `<div class="rs-num ${cls}">${j.em_risco} de ${j.total_alunos} aluno(s) em risco</div>
+    <div class="spin">Critério: menos de ${j.criterios.pct}% num quiz, quiz sem resposta há mais de ${j.criterios.dias} dias, ou material não aberto.</div>
+    ${assuntos}${alunos}`;
 }
 
 // Turma nao aparece em circulos.html, entao os alunos se gerenciam aqui.
@@ -103,6 +122,7 @@ async function addAluno() {
   msg('Aluno adicionado.');
   carregarAlunos();
   carregarTurmas();
+  carregarRisco();
 }
 
 async function removerAluno(userId) {
@@ -131,6 +151,10 @@ function cardMaterial(m) {
   const tipo = m.tipo_arquivo ? m.tipo_arquivo.toUpperCase() : (m.tem_texto ? 'TEXTO' : '—');
   d.innerHTML = `<div class="t">${esc(m.titulo)}</div><div class="meta">${tipo}${m.tem_resumo ? ' · resumo pronto' : ''}</div>`;
   const acoes = document.createElement('div'); acoes.className = 'row';
+  const ab = document.createElement('button');
+  ab.className = 'ghost'; ab.textContent = 'Abrir';
+  ab.onclick = () => abrirMaterial(m, d);
+  acoes.appendChild(ab);
   if (m.resumivel) {
     const b = document.createElement('button');
     b.className = 'ok'; b.textContent = m.tem_resumo ? 'Ver resumo' : 'Resumir com IA';
@@ -152,6 +176,21 @@ function cardMaterial(m) {
   }
   d.appendChild(acoes);
   return d;
+}
+
+// Abre o material (texto na tela ou link do arquivo). No PHP, a abertura do
+// aluno fica registrada para o alerta de risco.
+async function abrirMaterial(m, card) {
+  const j = await api('/api/turmas/material_abrir.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ material_id: m.id })
+  });
+  if (j.error) return msg(j.error, 'err');
+  let box = card.querySelector('.mat-texto');
+  if (!box) { box = document.createElement('div'); box.className = 'mat-texto'; card.appendChild(box); }
+  const mat = j.material;
+  box.innerHTML = (mat.conteudo_texto ? esc(mat.conteudo_texto) : '')
+    + (mat.arquivo_url ? `${mat.conteudo_texto ? '\n\n' : ''}<a href="${esc(mat.arquivo_url)}" target="_blank" rel="noopener">Abrir arquivo (${esc((mat.tipo_arquivo || '').toUpperCase())})</a>` : '');
 }
 
 async function resumir(m, card, btn, regerar) {

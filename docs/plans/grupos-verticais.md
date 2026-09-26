@@ -80,6 +80,14 @@ MIME real no upload, erro `{"error":...}`, PDO preparado):
   respondeu. Painel: % de acerto por questão e por assunto e a pior
   questão ("100% errou a questão 2 (2FN)"). Custo medido: ~US$ 0,013 por
   quiz de um material curto (1.300 tokens de entrada, 1.001 de saída).
+- **Alerta de aluno em risco (feito, 25/09/2026)** — tabela
+  `turma_material_views` (abertura de material/resumo pelo aluno) e
+  endpoints `material_abrir` e `alunos_risco` (só o professor, SQL puro,
+  custo zero de API). Em risco: menos de 60% num quiz ativo, quiz
+  disponível há mais de 3 dias sem resposta, ou material não aberto. A
+  tela dá o número ("4 de 7 alunos em risco"), o recorte por assunto ("3
+  alunos em risco em BCNF") e o motivo de cada aluno. "Entregou" (tarefa)
+  fica para quando houver tarefas no vertical.
 
 Ver `docs/API_CONTRACT.md`, seção "Grupos verticais".
 
@@ -92,8 +100,10 @@ Ver `docs/API_CONTRACT.md`, seção "Grupos verticais".
    (**feito** — ver acima) — a IA ancorada no material real ("isto está na
    página 7"), e o painel da turma ("70% errou X") que o professor vê
    antes da prova.
-3. **Alerta de aluno em risco** — cruza quem não abriu material + errou no
-   quiz + não entregou. O único que dá **número de impacto** para a banca.
+3. **Alerta de aluno em risco** (**feito** — ver acima; sem o sinal "não
+   entregou", que depende de tarefas) — cruza quem não abriu material +
+   errou no quiz + não respondeu. O único que dá **número de impacto**
+   para a banca.
 
 Somados ao agente respondendo dúvidas + relatório do fim do dia (reuso da
 Fase 5), fecham a história: *o agente aprende, cria conteúdo e antecipa

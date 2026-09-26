@@ -104,6 +104,21 @@ function turma_material_load(PDO $pdo, int $materialId, int $userId): ?array
 }
 
 /**
+ * Registra que o aluno abriu o material (sinal "nao abriu" do alerta de
+ * risco). So aluno: a abertura do professor nao conta. INSERT IGNORE — a
+ * primeira abertura fica, as seguintes nao mudam nada.
+ */
+function turma_registrar_view(PDO $pdo, array $material, int $userId): void
+{
+    if ($material["is_owner"]) {
+        return;
+    }
+
+    $pdo->prepare("INSERT IGNORE INTO turma_material_views (material_id, user_id) VALUES (?, ?)")
+        ->execute([$material["id"], $userId]);
+}
+
+/**
  * Valida um arquivo enviado ($_FILES[...]). Devolve
  * ["ok"=>true,"mime"=>..,"ext"=>..] ou ["ok"=>false,"erro"=>..].
  * O MIME vem do finfo (conteudo real), nunca de $file["type"].

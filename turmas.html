@@ -49,6 +49,14 @@
   .qz-painel ul { margin:4px 0 8px; padding-left:20px; }
   .qz-destaque { background:#3a2a14; color:#f6d38f; border-radius:6px; padding:6px 10px; margin:8px 0; font-weight:600; }
   .qz-sub { font-size:12px; color:var(--mut); margin-top:8px; }
+  #riscoBox { margin-bottom:20px; }
+  .rs-num { font-size:22px; font-weight:700; }
+  .rs-num.alto { color:#f6b1b1; } .rs-num.ok { color:var(--ac2); }
+  .rs-assunto { background:#3a2a14; color:#f6d38f; border-radius:6px; padding:5px 10px; margin:4px 0; font-size:13px; font-weight:600; }
+  .rs-aluno { border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin:6px 0; }
+  .rs-aluno ul { margin:4px 0 0; padding-left:18px; font-size:13px; color:var(--mut); }
+  .mat-texto { white-space:pre-wrap; background:#0f1218; border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-top:8px; font-size:14px; }
+  .mat-texto a { color:var(--ac); }
   .msg { font-size:13px; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:none; }
   .msg.err { background:#3a1d1d; color:#f6b1b1; display:block; }
   .msg.info { background:#1d2a3a; color:#a9cdf6; display:block; }
@@ -73,6 +81,11 @@
   </div>
 
   <div id="painel" class="card hidden">
+    <div id="riscoBox" class="hidden">
+      <h2>Alunos em risco</h2>
+      <div id="risco"></div>
+    </div>
+
     <h2>Alunos de <span class="turmaNome"></span></h2>
     <div id="alunos"></div>
     <div id="addAluno" class="row hidden" style="margin-top:8px">

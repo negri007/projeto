@@ -36,6 +36,9 @@ try {
         exit;
     }
 
+    // Aluno abrindo o resumo conta como "abriu o material" (alerta de risco).
+    turma_registrar_view($pdo, $material, $userId);
+
     // Cache: se já há resumo e não é pedido de regerar, devolve na hora.
     $cache = trim((string)($material["resumo"] ?? ""));
 
