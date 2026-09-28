@@ -3620,7 +3620,36 @@ URL direta antiga 404.
 ### Limites conhecidos
 
 - Sob `php -S` o `.htaccess` não vale: `uploads/turmas/` volta a ser
-  acessível por URL. Arquivos novos têm nome de 128 bits aleatórios; os já
-  existentes (nome `uniqid`) continuam adivinháveis nesse modo.
+  acessível por URL, e a única trava é o nome aleatório. Os arquivos
+  antigos (nome `uniqid`) são renomeados por
+  `php api/turmas/migrar_nomes_arquivos.php` — só CLI, idempotente,
+  desfaz o rename se o UPDATE falhar. **Rodar em toda máquina que já
+  tinha material de turma.** Nesta, 1 material migrado; o PDF abre por
+  `material_arquivo.php` com o mesmo SHA-256 de antes.
 - Vídeos de loja (`uploads/videos/lojas/`) seguem públicos, de propósito:
   são conteúdo de post público.
+
+### Verificações depois dos commits
+
+- **Teto global:** `ai_chamadas_api_na_ultima_hora()` conta toda linha de
+  `ai_api_uso`, com ou sem `user_id`. Uma chamada de `ai_exigir_cota()`
+  levou a contagem global de 0 para 1. Resumo, quiz e criação de agente
+  **consomem** o teto de 20/h (e podem calar a rede automática), mas não
+  são **barrados** por ele — só pelo freio por pessoa.
+- **Links de redefinição expostos:** o driver de e-mail desta máquina é
+  SMTP, então `logs/mail.log` nunca existiu. O que tinha link era o
+  `php_server.log` da raiz (log do `php -S`, que registra a URL
+  acessada): uma linha com `reset.html?token=`. O token não batia com
+  nenhum registro de `password_resets`; mesmo assim o valor foi
+  substituído no log. O único token pendente no banco (já expirado) foi
+  marcado como usado.
+- **Motor:** o render de teste falhou, mas não pelo `.htaccess`: o
+  webpack não acha `@remotion/fonts`, declarado em `motor/package.json`
+  no commit `cda63cc` (25/09 15:52) e nunca instalado em
+  `motor/node_modules`. O último render bem-sucedido é de 25/09 15:45,
+  antes desse commit. Conserto: `npm install` em `motor/`.
+- **Vídeo de loja:** os 41 posts de loja com vídeo apontam para arquivos
+  que não existem nesta máquina (só há vídeos das lojas 1, 2, 3 e 22).
+  Um vídeo que existe sai com 206 `video/mp4` e `Range`.
+- **Fumaça por HTTP:** as 26 referências locais (`src`/`href`) de todas
+  as telas e as APIs de feed, notificações, loja e vídeo respondem 200.
