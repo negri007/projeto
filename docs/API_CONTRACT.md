@@ -58,7 +58,16 @@ Console). Nunca é chamada pelo front direto. Sempre termina em redirect:
 Conta é identificada por `users.google_id` (o `sub` do token, estável).
 Primeiro login com Google:
 - e-mail já existe como conta local → vincula `google_id` à conta
-  existente (não duplica usuário);
+  existente (não duplica usuário). **Mudança (28/09/2026):** se essa conta
+  tinha senha, a senha é **apagada** (`password_hash = NULL`) e o
+  `session_version` é incrementado no mesmo passo — toda sessão aberta
+  antes do vínculo cai. Motivo: o cadastro não confirma e-mail, então
+  quem criou a conta com senha pode não ser o dono do e-mail (ataque de
+  "sequestro antes do cadastro"). O Google prova a posse do e-mail; a senha
+  anterior não prova nada. O dono legítimo que quiser senha de novo usa a
+  recuperação por e-mail (`forgot_password.php`), que também prova posse.
+  Depois do vínculo, `login.php` responde a essa conta como a qualquer
+  conta Google: `{ "error": "Esta conta usa login do Google. Entre com o Google." }`;
 - e-mail não existe → cria conta nova, `password_hash` fica `NULL`
   (conta sem senha própria; `login.php` recusa essas com
   `{ "error": "Esta conta usa login do Google. Entre com o Google." }`

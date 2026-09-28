@@ -127,10 +127,30 @@ try {
                 google_falhar("e-mail já vinculado a outra conta Google: " . $email);
             }
 
-            $pdo->prepare("UPDATE users SET google_id = ? WHERE id = ?")
-                ->execute([$googleId, $existente["id"]]);
+            // O vínculo APAGA a senha e derruba as sessões abertas.
+            //
+            // O cadastro não confirma e-mail: qualquer um cria a conta
+            // "vitima@gmail.com" com uma senha sua. Se o vínculo só
+            // gravasse o google_id, a dona do e-mail entraria pelo Google
+            // numa conta cuja senha outra pessoa conhece — e essa pessoa
+            // continuaria entrando por login.php e lendo tudo. O Google
+            // acabou de provar a posse do e-mail; a senha antiga não prova
+            // nada. Quem é dona de verdade e quer senha de novo usa a
+            // recuperação por e-mail, que também prova posse.
+            //
+            // `session_version + 1` expulsa quem já estava logado com a
+            // senha velha (session_validate_version, em db.php).
+            $pdo->prepare(
+                "UPDATE users
+                    SET google_id = ?, password_hash = NULL, session_version = session_version + 1
+                  WHERE id = ?"
+            )->execute([$googleId, $existente["id"]]);
+
+            $stmt = $pdo->prepare("SELECT session_version FROM users WHERE id = ?");
+            $stmt->execute([$existente["id"]]);
 
             $user = $existente;
+            $user["session_version"] = (int)$stmt->fetchColumn();
         } else {
             $pdo->prepare(
                 "INSERT INTO users (name, email, google_id, password_hash) VALUES (?, ?, ?, NULL)"

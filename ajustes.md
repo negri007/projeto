@@ -3554,3 +3554,14 @@ tomar a conta), `.git/`, `docs/`, `ajustes.md` e `testes_mobile/`.
 Testado no Apache (8080): todos esses caminhos dão 403/404; `index.html`,
 `css/`, `js/`, `assets/` e as imagens de `uploads/` seguem 200.
 
+### 2. Sequestro de conta antes do cadastro (Google)
+
+O cadastro não confirma e-mail. Dava para criar `vitima@gmail.com` com uma
+senha própria; quando a dona entrava pelo Google, o callback só gravava o
+`google_id` e a senha do atacante continuava valendo. Agora o vínculo
+apaga `password_hash` e incrementa `session_version` (todas as sessões
+anteriores caem). A dona que quiser senha usa a recuperação por e-mail.
+
+Não testado ao vivo (exige o fluxo OAuth real); conferido por leitura e
+`php -l`.
+
