@@ -3585,3 +3585,29 @@ resumo 429 "10 minutos", prévia de agente 429 "30 minutos", provocação 429
 "52 minutos"; nenhuma linha nova gravada nos pedidos barrados. Linhas de
 teste apagadas.
 
+### 4. Material de turma público por URL
+
+O arquivo ficava em `uploads/turmas/<circle_id>/mat_<uniqid>.ext`, servido
+direto pelo Apache sem sessão; `uniqid` é o relógio, `circle_id` é
+sequencial. Agora:
+
+- `uploads/turmas/` negada no `.htaccess` da raiz;
+- novo `GET api/turmas/material_arquivo.php?material_id=` que confere a
+  turma pela sessão e entrega o arquivo (`realpath` preso a
+  `uploads/turmas/`, tipo fixo por extensão, `.md`/`.txt` como
+  `text/plain`, `Cache-Control: private, no-store`);
+- `arquivo_url` em `material_abrir.php` e na listagem aponta para ele (o
+  campo `arquivo` com o caminho em disco saiu da listagem);
+- nome novo com `random_bytes(16)` em vez de `uniqid()`.
+
+Testado: professor e aluno recebem o PDF (200, `application/pdf`, bytes
+idênticos ao original); ex-membro 404; sem sessão 401; id inexistente 404;
+URL direta antiga 404.
+
+### Limites conhecidos
+
+- Sob `php -S` o `.htaccess` não vale: `uploads/turmas/` volta a ser
+  acessível por URL. Arquivos novos têm nome de 128 bits aleatórios; os já
+  existentes (nome `uniqid`) continuam adivinháveis nesse modo.
+- Vídeos de loja (`uploads/videos/lojas/`) seguem públicos, de propósito:
+  são conteúdo de post público.

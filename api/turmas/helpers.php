@@ -142,6 +142,47 @@ function turma_validar_arquivo(array $file): array
     return ["ok" => true, "mime" => $mime, "ext" => TURMA_MIME_EXT[$mime]];
 }
 
+/**
+ * URL por onde o arquivo do material sai, ou null se ele não tem arquivo.
+ *
+ * O arquivo NÃO é servido direto de uploads/ — `uploads/turmas/` é negada
+ * no .htaccess da raiz. Sai por material_arquivo.php, que confere a turma
+ * pela sessão a cada pedido: saber a URL não dá acesso a nada.
+ */
+function turma_material_url(array $material): ?string
+{
+    if (($material["arquivo"] ?? null) === null || $material["arquivo"] === "") {
+        return null;
+    }
+
+    return "api/turmas/material_arquivo.php?material_id=" . (int)$material["id"];
+}
+
+/**
+ * Caminho absoluto do arquivo do material em disco, ou null se não existe
+ * ou escapa de uploads/turmas/. O caminho vem do banco, gravado por
+ * material_criar.php — a conferência com realpath() é a defesa para o dia
+ * em que alguém gravar ali algo que não veio de lá.
+ */
+function turma_material_caminho(array $material): ?string
+{
+    $rel = (string)($material["arquivo"] ?? "");
+
+    if ($rel === "") {
+        return null;
+    }
+
+    $base    = realpath(__DIR__ . "/../../uploads/turmas");
+    $caminho = realpath(__DIR__ . "/../../uploads/" . $rel);
+
+    if ($base === false || $caminho === false || !is_file($caminho)
+        || strpos($caminho, $base . DIRECTORY_SEPARATOR) !== 0) {
+        return null;
+    }
+
+    return $caminho;
+}
+
 /** Da pra gerar resumo deste material? So texto colado ou PDF, por ora.
  *  Imagem fica guardada, mas nao entra na sumarizacao v1. */
 function turma_material_resumivel(array $material): bool
@@ -304,7 +345,8 @@ function turma_material_row(array $m, bool $completo = false): array
         "circle_id"    => (int)$m["circle_id"],
         "titulo"       => $m["titulo"],
         "tipo_arquivo" => $m["tipo_arquivo"],
-        "arquivo"      => $m["arquivo"] !== null && $m["arquivo"] !== "" ? $m["arquivo"] : null,
+        // A URL protegida, nunca o caminho em disco (ver material_arquivo.php).
+        "arquivo_url"  => turma_material_url($m),
         "tem_texto"    => trim((string)($m["conteudo_texto"] ?? "")) !== "",
         "tem_resumo"   => trim((string)($m["resumo"] ?? "")) !== "",
         "resumivel"    => turma_material_resumivel($m),

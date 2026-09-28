@@ -70,7 +70,11 @@ try {
         }
 
         $dir  = turma_uploads_dir($circleId);
-        $nome = uniqid("mat_", true) . "." . $val["ext"];
+        // 128 bits aleatórios, e não uniqid(): uniqid é o relógio em
+        // microssegundos, dá para varrer. O nome não é a trava (quem trava
+        // é o .htaccess + material_arquivo.php), mas é a segunda camada
+        // sob `php -S`, onde o .htaccess não vale.
+        $nome = "mat_" . bin2hex(random_bytes(16)) . "." . $val["ext"];
         $dest = $dir . "/" . $nome;
 
         if (!move_uploaded_file($_FILES["arquivo"]["tmp_name"], $dest)) {

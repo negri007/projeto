@@ -2928,7 +2928,13 @@ respondem `{"error":"Turma não encontrada."}` (o mesmo erro de propósito:
 quem não participa não descobre que existe).
 
 Resposta: `{ ok:true, is_owner:bool, materiais:[ {id, circle_id, titulo,
-tipo_arquivo, arquivo, tem_texto, tem_resumo, resumivel, created_at} ] }`.
+tipo_arquivo, arquivo_url, tem_texto, tem_resumo, resumivel, created_at} ] }`.
+
+**Mudança (28/09/2026):** o campo `arquivo` (caminho em disco,
+`"turmas/<id>/mat_....pdf"`) saiu e deu lugar a `arquivo_url`
+(`"api/turmas/material_arquivo.php?material_id=<id>"` ou `null`). O
+arquivo deixou de ser servido direto de `uploads/`; ver
+`material_arquivo.php` abaixo.
 A listagem **não** devolve `conteudo_texto` nem `resumo` inteiros —
 `tem_texto`/`tem_resumo` bastam pra tela.
 
@@ -2942,9 +2948,27 @@ Campos: `circle_id` (obrigatório), `titulo` (obrigatório, ≤160),
 texto e arquivo. O `arquivo` é validado pelo **MIME real** (`finfo`), nunca
 pela extensão do cliente: aceita `application/pdf`, `text/plain`,
 `text/markdown`, `image/jpeg|png|webp`, até **20 MB**. Salvo em
-`uploads/turmas/<circle_id>/` (fora do git, sem execução de PHP).
+`uploads/turmas/<circle_id>/` (fora do git, sem execução de PHP) com nome
+aleatório de 128 bits (`random_bytes`) — nunca `uniqid()`, que é derivado
+do relógio e dá para adivinhar. A pasta `uploads/turmas/` é **negada por
+HTTP** no `.htaccess` da raiz: o arquivo só sai por `material_arquivo.php`.
 
 Resposta: `{ ok:true, material:{...,resumo} }`.
+
+### `GET /api/turmas/material_arquivo.php?material_id=<id>` (28/09/2026)
+
+Entrega o arquivo do material. Identidade pela sessão; acesso: dono **ou**
+membro da turma. Não é JSON no sucesso: devolve o arquivo com o
+`Content-Type` do tipo validado no upload (`application/pdf`,
+`image/jpeg|png|webp`; `.txt` e `.md` saem como `text/plain; charset=utf-8`),
+`Content-Disposition: inline`, `Cache-Control: private, no-store` e
+`X-Content-Type-Options: nosniff`. Não registra abertura — quem registra é
+`material_abrir.php`, que a tela chama antes.
+
+Erros (JSON):
+- sem sessão → 401 `{ "error": "Não autenticado." }`;
+- material inexistente, de turma alheia ou sem arquivo → 404
+  `{ "error": "Material não encontrado." }` (mesmo erro, de propósito).
 
 ### `POST /api/turmas/material_resumir.php` (JSON)
 
@@ -3049,9 +3073,11 @@ Professor ou aluno da turma; os demais recebem `{"error":"Material não
 encontrado."}`. Corpo: `{ material_id }`. Se for aluno, registra a abertura.
 
 Resposta: `{ ok:true, material:{ id, titulo, tipo_arquivo,
-conteudo_texto:string|null, arquivo_url:"uploads/..."|null } }`. O caminho
-do arquivo só sai aqui e em `material_listar.php`, ambos restritos a quem é
-da turma.
+conteudo_texto:string|null, arquivo_url:string|null } }`.
+**Mudança (28/09/2026):** `arquivo_url` passou de `"uploads/..."` para
+`"api/turmas/material_arquivo.php?material_id=<id>"` — a URL protegida por
+sessão. Saber a URL não dá acesso: o endpoint confere a turma a cada
+pedido.
 
 #### `POST /api/turmas/material_resumir.php` — mudança
 

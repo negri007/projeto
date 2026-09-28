@@ -7,9 +7,9 @@
  * Resposta: { ok:true, material:{ id, titulo, tipo_arquivo, conteudo_texto,
  *             arquivo_url } }
  *
- * O caminho do arquivo só sai aqui e em material_listar.php — os dois
- * exigem ser professor ou aluno da turma. Quem não é recebe o mesmo
- * "Material não encontrado." de um id inexistente.
+ * `arquivo_url` aponta para material_arquivo.php, que confere a turma de
+ * novo a cada pedido — a URL sozinha não abre nada. Quem não é da turma
+ * recebe o mesmo "Material não encontrado." de um id inexistente.
  */
 
 header("Content-Type: application/json; charset=utf-8");
@@ -39,8 +39,7 @@ try {
 
     turma_registrar_view($pdo, $material, $userId);
 
-    $texto   = trim((string)($material["conteudo_texto"] ?? ""));
-    $arquivo = (string)($material["arquivo"] ?? "");
+    $texto = trim((string)($material["conteudo_texto"] ?? ""));
 
     echo json_encode([
         "ok"       => true,
@@ -49,7 +48,7 @@ try {
             "titulo"         => $material["titulo"],
             "tipo_arquivo"   => $material["tipo_arquivo"],
             "conteudo_texto" => $texto !== "" ? $texto : null,
-            "arquivo_url"    => $arquivo !== "" ? "uploads/" . $arquivo : null,
+            "arquivo_url"    => turma_material_url($material),
         ],
     ], JSON_UNESCAPED_UNICODE);
 
