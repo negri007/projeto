@@ -3826,3 +3826,4 @@ Como cada módulo foi movido (um commit por módulo):
 | `config.php` | 6 | 2 | `ai_config()`: `__DIR__ . "/ai_config.php"` → `__DIR__ . "/../ai_config.php"` (conferido que o config real carrega; o roteiro sozinho não pegaria, porque com config quebrado `ai_pode_chamar_api()` também diz não) |
 | `estado.php` | 9 | 5 | nenhum |
 | `assuntos.php` | 11 | 2 | nenhum |
+| `acervo.php` | 11 | 7 | nenhum |
