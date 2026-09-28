@@ -61,10 +61,10 @@ try {
         if ($resultado["ok"]) {
             $stmt = $pdo->prepare(
                 "UPDATE videos_gerados
-                    SET status = 'pronto', provider = 'motor', arquivo_local = ?, erro = NULL
+                    SET status = 'pronto', provider = 'motor', arquivo_local = ?, poster = ?, erro = NULL
                   WHERE id = ? AND status = 'gerando'"
             );
-            $stmt->execute([$resultado["arquivo"], $videoId]);
+            $stmt->execute([$resultado["arquivo"], $resultado["poster"] ?? null, $videoId]);
 
             echo json_encode(["ok" => true, "video_id" => $videoId, "provider" => "motor"]) . "\n";
         } else {

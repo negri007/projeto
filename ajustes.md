@@ -3787,3 +3787,27 @@ Testado:
 Não testado de ponta a ponta: o caso "host remoto" com um `db_config.php`
 real apontando para fora — só pela função pura, para não mexer no config
 desta máquina.
+
+## 28/09/2026 — poster de vídeo do motor (capa) + diagnóstico do "Alimenta??o"
+
+**Capa preta dos vídeos ("Meus vídeos" e feed do Comércio) — corrigido.**
+O `<video>` sem poster mostrava caixa preta. Agora:
+- `video_gerar_poster()` (api/video/helpers.php) extrai um quadro do MP4 com o
+  ffmpeg (`ffmpeg -ss 0.5 -i x.mp4 -frames:v 1 -q:v 3 x.jpg`), sem shell (lista
+  de argumentos). Binário: `ffmpeg_bin` do video_config.php ou `ffmpeg` do PATH.
+- `video_motor_render()` gera o poster ao fim de um render bem-sucedido e o
+  devolve; `processar.php` grava em `videos_gerados.poster` (coluna nova, migração
+  em banco.sql). `meus.php` devolve `poster`.
+- Front: `comercio.js` usa `poster="uploads/<poster>"` quando há; `loja-feed.js`
+  ganhou `posterSrc()`. Vídeo antigo sem poster (poster NULL) cai no fallback
+  `src=...#t=0.1`, que mostra um quadro em vez de preto. Versão dos JS subida.
+- Vídeos já existentes no banco local foram backfillados (script pontual no
+  scratchpad, fora do git) só para a demo — não é necessário para o sistema.
+
+**"Alimenta??o" nas categorias do Comércio — diagnosticado, sem bug vivo.**
+HEX confirmou dado corrompido no banco (os acentos viraram `3F3F` = dois `?`),
+mas só em 2 linhas de teste: loja 25 (Loja do Gabriel) e 26 (Loja Teste Fila 1),
+criadas por scripts ad-hoc. A conexão PDO **já usa `charset=utf8mb4`**
+(db_conexao.php), então inserções novas não corrompem — não há código a corrigir.
+Regravação proposta (aguardando aprovação, sem mass update):
+`UPDATE lojas SET categoria='Alimentação' WHERE id IN (25,26) AND categoria='Alimenta??o';`

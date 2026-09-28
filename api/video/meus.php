@@ -35,7 +35,7 @@ try {
     /* `publicado`: existe post ATIVO da loja apontando para o arquivo, no
        formato que post_criar.php grava ("video:<arquivo_local>"). */
     $stmt = $pdo->prepare(
-        "SELECT vg.id, vg.modelo, vg.formato, vg.status, vg.arquivo_local, vg.erro, vg.created_at,
+        "SELECT vg.id, vg.modelo, vg.formato, vg.status, vg.arquivo_local, vg.poster, vg.erro, vg.created_at,
                 " . VIDEO_SQL_POSICAO_FILA . " AS posicao_fila,
                 EXISTS(SELECT 1 FROM loja_posts lp
                         WHERE lp.loja_id = vg.loja_id AND lp.ativo = 1
@@ -54,6 +54,7 @@ try {
         "status"     => $v["status"],
         "posicao_fila" => $v["posicao_fila"] === null ? null : (int)$v["posicao_fila"],
         "arquivo"    => $v["status"] === "pronto" ? $v["arquivo_local"] : null,
+        "poster"     => $v["status"] === "pronto" && !empty($v["poster"]) ? $v["poster"] : null,
         "erro"       => $v["status"] === "erro" ? $v["erro"] : null,
         "publicado"  => (bool)$v["publicado"],
         "created_at" => $v["created_at"],
