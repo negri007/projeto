@@ -3830,3 +3830,4 @@ Como cada módulo foi movido (um commit por módulo):
 | `fotos.php` | 12 | 2 | `AI_FOTO_DIR`: `"/../../uploads/ai_fotos"` → `"/../../../uploads/ai_fotos"` (`const` não aceita `dirname()`, então o texto muda; o `realpath` é o mesmo, e todos os usos são de sistema de arquivos). Tratamento testado numa cópia de foto real |
 | `cliente_api.php` | 3 | 0 | nenhum |
 | `memoria.php` | 13 | 7 | nenhum |
+| `criacao_agente.php` | 6 | 9 | `ai_store_agent_avatar()` e `ai_delete_agent_avatar()`: `__DIR__` → `dirname(__DIR__)` (caminho idêntico, caractere por caractere). Upload testado de ponta a ponta com usuário e agente descartáveis: grava, troca e apaga o anterior |
