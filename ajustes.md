@@ -3757,3 +3757,33 @@ modelo não foi exercida numa chamada real:** a rede está em modo
 `acervo`, em que o chat da loja devolve o recado do WhatsApp antes de
 chegar ao modelo. Trocar o modo para testar seria gastar API. Conversa de
 teste apagada.
+
+### 12. Seed rodava em qualquer banco
+
+Os seeds criam 20 contas com a senha `senha123` (pública: está no
+repositório), mais posts, lojas e vídeos. A guarda de CLI impedia a
+execução pela web, mas nada impedia `php api/seed/seed_completo.php` no
+servidor errado.
+
+`api/seed/ambiente_local.php` (novo) traz `seed_exigir_ambiente_local()`,
+chamada no topo de `helpers_seed.php` (por onde passam sete seeds) e de
+`seed_demo_videos.php` (que conecta sozinho), **antes** de qualquer
+conexão. Recusa, com saída 1, quando `ECHO_ENV` existe e não é `local`, ou
+quando o host do banco em `db_config.php` não é `localhost`/`127.0.0.1`/
+`::1`. Sem opção de forçar. A decisão fica numa função pura,
+`seed_motivo_nao_local()`, testável sem mexer em arquivo nem variável.
+
+Testado:
+- função pura, 10 casos: local sem `ECHO_ENV`, `ECHO_ENV=local`/`LOCAL`,
+  `127.0.0.1` e `[::1]` passam; `ECHO_ENV=producao`/`staging`, host
+  remoto, IP remoto e config ausente recusam, cada um com o seu motivo;
+- os 8 seeds de verdade com `ECHO_ENV=producao`: todos saem com código 1
+  e a mensagem, e as contagens de `users`, `posts`, `lojas`,
+  `videos_gerados` e `ai_posts` ficam iguais antes e depois;
+- em ambiente local a guarda deixa passar;
+- por HTTP, `ambiente_local.php`, `helpers_seed.php` e `seed_completo.php`
+  dão 404.
+
+Não testado de ponta a ponta: o caso "host remoto" com um `db_config.php`
+real apontando para fora — só pela função pura, para não mexer no config
+desta máquina.

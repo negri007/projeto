@@ -38,6 +38,10 @@ if (PHP_SAPI !== "cli") {
     exit;
 }
 
+// Antes de qualquer conexão: seed só em ambiente local (ver o arquivo).
+require_once __DIR__ . "/ambiente_local.php";
+seed_exigir_ambiente_local();
+
 require_once __DIR__ . "/../ai/helpers.php";
 require_once __DIR__ . "/../posts/helpers.php";
 

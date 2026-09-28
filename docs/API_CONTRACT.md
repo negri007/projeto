@@ -2889,6 +2889,15 @@ if (PHP_SAPI !== "cli") { ... exit; }
 e responde **404** por HTTP. É proposital que seja 404 e não 403: 403
 confirma que o arquivo existe. A mesma guarda vale para `api/seed/`.
 
+**Seeds só em ambiente local (28/09/2026).** Além da guarda de CLI, todo
+seed de `api/seed/` passa por `seed_exigir_ambiente_local()`
+(`api/seed/ambiente_local.php`) antes de conectar ao banco: recusa com
+código de saída 1 e a mensagem `Seed recusado: <motivo>. Os seeds só rodam
+em ambiente local.` quando `ECHO_ENV` está definido com valor diferente de
+`local`, ou quando o host do banco em `db_config.php` não é `localhost`,
+`127.0.0.1` ou `::1`. Não há opção para forçar: os seeds criam contas com
+a senha `senha123`.
+
 Consequência prática: se um deles precisar virar endpoint de verdade um
 dia, a mudança é grande — passa a precisar de sessão, de dono e de freio
 de uso, porque os quatro do agendador gastam chamada de API.

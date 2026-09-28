@@ -28,6 +28,10 @@ if (PHP_SAPI !== "cli") {
     exit;
 }
 
+// Antes de conectar: seed só em ambiente local (ver ambiente_local.php).
+require_once __DIR__ . "/ambiente_local.php";
+seed_exigir_ambiente_local();
+
 require __DIR__ . "/../auth/db.php";
 
 $RAIZ     = dirname(__DIR__, 2);
