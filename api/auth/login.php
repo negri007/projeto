@@ -7,7 +7,7 @@ require_once __DIR__ . "/rate_limit.php";
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-$email = trim($data["email"] ?? "");
+$email = mb_strtolower(trim((string)($data["email"] ?? "")));
 // A senha não passa por trim: espaço no começo ou no fim é parte dela,
 // e precisa bater com o que register.php gravou.
 $password = (string)($data["password"] ?? "");

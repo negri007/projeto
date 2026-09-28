@@ -13,7 +13,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 $data = json_decode(file_get_contents("php://input"), true);
 
 $name     = trim((string)($data["name"] ?? ""));
-$email    = trim((string)($data["email"] ?? ""));
+$email    = mb_strtolower(trim((string)($data["email"] ?? "")));
 // A senha não passa por trim: espaço no começo ou no fim é parte dela.
 $password = (string)($data["password"] ?? "");
 

@@ -12,7 +12,7 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 $data  = json_decode(file_get_contents("php://input"), true);
-$email = trim((string)($data["email"] ?? ""));
+$email = mb_strtolower(trim((string)($data["email"] ?? "")));
 
 // Resposta única, usada em todos os caminhos: e-mail inexistente,
 // e-mail existente, falha de envio. Qualquer diferença aqui vira um

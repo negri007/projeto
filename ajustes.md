@@ -3706,3 +3706,29 @@ Testado sem gastar API, com uma sessão MySQL segurando a trava no papel do
 | sem sessão | 401 |
 
 Dados de teste (cota simulada, resumo, aluno temporário) apagados.
+
+### 9. E-mail em minúsculas no login, cadastro e recuperação — rebaixada
+
+**A revisão superestimou esta.** Ela dizia que `Alice@x.com` e
+`alice@x.com` contavam separado no freio de 5 tentativas por e-mail. Não
+contam: a coluna `email` (em `users` e em `login_attempts`) é
+`utf8mb4_unicode_ci`, que compara sem diferenciar caixa. Testado antes da
+mudança: 5 senhas erradas com a caixa variando e a 6ª, em minúsculas,
+levou 429. Menção (`@handle`) também não era afetada — o handle já é
+normalizado com `mb_strtolower` e comparado no banco.
+
+O que era real, e a mudança resolve: o dado gravado do jeito que foi
+digitado (as 5 tentativas viravam 5 linhas diferentes; cadastro novo
+gravava `Alice@X.com`) e a proteção dependendo só da collation da coluna.
+`login.php`, `register.php` e `forgot_password.php` aplicam
+`mb_strtolower(trim(...))` antes de qualquer uso. Contrato: o cadastro
+grava e devolve o e-mail em minúsculas.
+
+Não havia nenhum e-mail com maiúscula no banco, então não precisou de
+migração de dados.
+
+Testado: login com `"  GUSTAVO@Echo.Local "` entra; cadastro com
+`Caixa.Nova@Echo.Local` grava e devolve `caixa.nova@echo.local`; o mesmo
+e-mail em outra caixa dá "já está cadastrado"; tentativa errada e chaves
+do freio (`cadastro:`, `recuperacao:`) gravadas em minúsculas. Dados de
+teste apagados.

@@ -26,6 +26,14 @@ Validações: nome até 100 caracteres, e-mail válido até 150, senha entre
 `{ "error": "Este e-mail já está cadastrado." }` (a corrida entre a
 checagem e o INSERT também cai nessa mensagem, pela chave única).
 
+**E-mail em minúsculas (28/09/2026).** `login.php`, `register.php` e
+`forgot_password.php` aplicam `trim` + `mb_strtolower` no e-mail antes de
+qualquer uso. O cadastro grava e devolve o e-mail em minúsculas
+(`"Alice@X.com"` vira `"alice@x.com"` no `user.email` da resposta). A
+comparação no banco já não diferenciava caixa (collation
+`utf8mb4_unicode_ci`); a normalização deixa o dado gravado e as chaves do
+freio (`login_attempts`) iguais, sem depender da collation da coluna.
+
 **POST /api/auth/logout.php**
 Request: `{}`
 Response 200: `{ "ok": true }`
