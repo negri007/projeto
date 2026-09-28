@@ -3671,3 +3671,38 @@ nada no endpoint escreve em `$_SESSION`.
 
 Testado: com o pedido de resumo parado esperando, um `me.php` da mesma
 sessão respondeu 200 em 0,13 s.
+
+### 6. Dois pedidos simultâneos geravam o mesmo resumo duas vezes
+
+Dois alunos abrindo um material novo ao mesmo tempo (ou um duplo clique do
+professor em "regerar") passavam os dois pelo "não há cache" e pagavam duas
+chamadas de API pelo mesmo texto. Agora há uma trava por material,
+`GET_LOCK('echo_turma_resumo_<id>', 90)`:
+
+- quem chega enquanto outro gera **espera**; ao ganhar a trava, relê o
+  material e, se o outro gravou o resumo nesse meio-tempo (ou, em
+  `regerar`, se `resumo_em` mudou), devolve esse resumo com
+  `do_cache:true`, sem API e sem gastar cota;
+- a cota (`ai_exigir_cota`) só é cobrada depois da trava, de quem vai
+  gerar de fato;
+- espera de mais de 90 s: `{"error": "O resumo deste material está sendo
+  gerado. Tente de novo em instantes."}` (contrato atualizado);
+- `set_time_limit(180)`: espera + chamada passam do limite padrão.
+
+A trava é da conexão: nos `exit` (que em PHP não passam pelo `finally`) ela
+cai quando a conexão fecha, no fim da requisição.
+
+Testado sem gastar API, com uma sessão MySQL segurando a trava no papel do
+"outro pedido":
+
+| Caso | Resultado |
+|---|---|
+| outro grava o resumo e solta em ~6 s | esperou ~5 s, `do_cache:true` com o texto do outro, cota intacta |
+| outro solta sem gravar (cota do aluno cheia) | esperou ~3 s, seguiu para gerar e parou no 429, antes da API |
+| duplo clique em regerar (outro troca `resumo_em`) | `do_cache:true` com o resumo do primeiro clique |
+| regerar sem ninguém gerando (cota cheia) | 429 |
+| cache normal | 200 em 10 ms |
+| trava presa por 95 s | desistiu em 90,0 s com a mensagem nova |
+| sem sessão | 401 |
+
+Dados de teste (cota simulada, resumo, aluno temporário) apagados.

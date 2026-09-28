@@ -2992,6 +2992,13 @@ ações de IA por pessoa por hora** e registra a ação em `ai_api_uso` no
 nome de quem pediu. Servir do cache não conta. Estourado:
 Response 429: `{ "error": "Muitos pedidos à IA nesta hora. Tente de novo em 12 minutos." }`
 
+**Um resumo por vez por material (28/09/2026):** dois pedidos que chegam
+juntos sem cache (dois alunos abrindo o material novo, ou um duplo clique
+em regerar) não geram duas vezes. O segundo espera o primeiro terminar (até
+90 s) e recebe o resumo que o primeiro gravou, com `do_cache:true`, sem
+chamar a API nem gastar cota. Se a espera estourar:
+`{ "error": "O resumo deste material está sendo gerado. Tente de novo em instantes." }`
+
 O `resumo` é Markdown (`##` título, `- ` lista, `**negrito**`); a tela
 escapa todo o texto antes de converter esse subconjunto em HTML.
 
