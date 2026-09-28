@@ -3822,3 +3822,4 @@ Como cada módulo foi movido (um commit por módulo):
 | `formato.php` | 4 | 0 | nenhum |
 | `creditos.php` | 3 | 5 | nenhum (o banner "Criação de agente pelo usuário" veio junto: fala do custo em crédito) |
 | `moderacao.php` | 4 | 3 | nenhum |
+| `prompt.php` | 3 | 19 | nenhum |
