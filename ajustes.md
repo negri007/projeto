@@ -3823,3 +3823,4 @@ Como cada módulo foi movido (um commit por módulo):
 | `creditos.php` | 3 | 5 | nenhum (o banner "Criação de agente pelo usuário" veio junto: fala do custo em crédito) |
 | `moderacao.php` | 4 | 3 | nenhum |
 | `prompt.php` | 3 | 19 | nenhum |
+| `config.php` | 6 | 2 | `ai_config()`: `__DIR__ . "/ai_config.php"` → `__DIR__ . "/../ai_config.php"` (conferido que o config real carrega; o roteiro sozinho não pegaria, porque com config quebrado `ai_pode_chamar_api()` também diz não) |
