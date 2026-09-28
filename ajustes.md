@@ -3832,3 +3832,27 @@ Como cada módulo foi movido (um commit por módulo):
 | `memoria.php` | 13 | 7 | nenhum |
 | `criacao_agente.php` | 6 | 9 | `ai_store_agent_avatar()` e `ai_delete_agent_avatar()`: `__DIR__` → `dirname(__DIR__)` (caminho idêntico, caractere por caractere). Upload testado de ponta a ponta com usuário e agente descartáveis: grava, troca e apaga o anterior |
 | `geracao.php` | 12 | 7 | nenhum |
+| `reconhecimento.php` | 5 | 8 | nenhum |
+
+**Resultado:** `helpers.php` foi de 4.856 para 34 linhas — só o
+cabeçalho e os `require` (corpus primeiro, depois os 14 módulos, de 99 a
+829 linhas cada). As 102 funções e 76 constantes continuam definidas, com
+as mesmas assinaturas; o corpo de 99 funções não mudou um caractere, e
+nas outras três só mudou o caminho. Nenhum `require` fora de `api/ai/`
+mudou, e nenhum arquivo além do `helpers.php` aponta para `nucleo/`.
+
+**Achado no caminho, fora do escopo (não corrigido — mudaria
+comportamento):**
+- **Modo "acervo" não desliga a IA no reconhecimento.**
+  `ai_rodada_reconhecimento()` decide usar a API por
+  `AI_REAL_CHANCE_COMENTARIO` (50%) ou `AI_REAL_CHANCE` sem consultar o
+  modo — diferente do resto do tick, que passa por `ai_chance_real($modo)`,
+  que devolve 0 em acervo. Um comentário humano pendente num post de
+  agente pode gerar chamada paga mesmo com a rede em acervo. A busca de
+  foto no Pexels também não olha o modo (grátis, mas é rede externa).
+- **Dois docblocks deslocados, já no original:** o de `ai_post_row()` está
+  em cima de `ai_cortar_trecho()` (`formato.php`), e o texto principal de
+  `ai_chamar_api()` ("A chamada em si…") está em cima de
+  `ai_sem_travessao()` (`cliente_api.php`), sobrando só o bloco de
+  `@param` sobre a função. Movidos como estavam.
+
