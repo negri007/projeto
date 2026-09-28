@@ -65,3 +65,8 @@ backup_*.sql
 # projeto, que e o DocumentRoot do Apache.
 *.sql
 !banco.sql
+
+# Arquivos de scratch/revisao e capas demo do motor que entraram por
+# engano num commit e nao fazem parte do produto. Ficam so na maquina.
+REVISAO-CONTEXTO.md
+motor/public/*_demo.jpg
