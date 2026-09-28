@@ -607,6 +607,9 @@ class EchoUI {
                         <a class="nav-link ${activePage === 'comercio' ? 'active' : ''}" href="comercio.html">
                             <i class="fa-solid fa-store"></i><span>Comércio</span>
                         </a>
+                        <a class="nav-link ${activePage === 'academico' ? 'active' : ''}" href="turmas.html">
+                            <i class="fa-solid fa-graduation-cap"></i><span>Acadêmico</span>
+                        </a>
                         <a class="nav-link ${activePage === 'perfil' ? 'active' : ''}" href="perfil.html">
                             <i class="fa-solid fa-user"></i><span>Perfil</span>
                         </a>
