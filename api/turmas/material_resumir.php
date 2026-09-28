@@ -20,6 +20,12 @@ require_once __DIR__ . "/../ai/limite_uso.php";
 
 $userId = require_login();
 
+// A chamada de IA pode levar até 60 s. Segurar o arquivo de sessão esse
+// tempo todo trava todas as outras abas desta pessoa — ver
+// liberar_sessao() em auth/session.php. Nada daqui para baixo escreve em
+// $_SESSION.
+liberar_sessao();
+
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     echo json_encode(["error" => "Método inválido."]);
     exit;

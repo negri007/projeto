@@ -3653,3 +3653,21 @@ URL direta antiga 404.
   Um vídeo que existe sai com 206 `video/mp4` e `Range`.
 - **Fumaça por HTTP:** as 26 referências locais (`src`/`href`) de todas
   as telas e as APIs de feed, notificações, loja e vídeo respondem 200.
+
+---
+
+## Falhas médias da revisão — 28/09/2026
+
+Continuação da revisão de 28/09 (as quatro graves estão na seção
+"Revisão de segurança" acima). Um commit por falha.
+
+### 5. Resumo de material segurava a sessão durante a chamada de IA
+
+`material_resumir.php` não chamava `liberar_sessao()`. A chamada de IA leva
+até 60 s, e durante esse tempo o lock do arquivo de sessão deixava paradas
+todas as outras abas da mesma pessoa — o mesmo defeito que o `tick.php`
+tinha em 17/09. Agora solta a sessão logo depois de `require_login()`;
+nada no endpoint escreve em `$_SESSION`.
+
+Testado: com o pedido de resumo parado esperando, um `me.php` da mesma
+sessão respondeu 200 em 0,13 s.
