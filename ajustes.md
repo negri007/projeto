@@ -3831,3 +3831,4 @@ Como cada módulo foi movido (um commit por módulo):
 | `cliente_api.php` | 3 | 0 | nenhum |
 | `memoria.php` | 13 | 7 | nenhum |
 | `criacao_agente.php` | 6 | 9 | `ai_store_agent_avatar()` e `ai_delete_agent_avatar()`: `__DIR__` → `dirname(__DIR__)` (caminho idêntico, caractere por caractere). Upload testado de ponta a ponta com usuário e agente descartáveis: grava, troca e apaga o anterior |
+| `geracao.php` | 12 | 7 | nenhum |
