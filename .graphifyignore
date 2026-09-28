@@ -1,0 +1,33 @@
+# O que o graphify NÃO lê ao montar o grafo do Echo.
+# Sintaxe de .gitignore. O graphify também respeita o .gitignore, mas os
+# itens sensíveis estão repetidos aqui de propósito: esta lista não pode
+# depender de outro arquivo continuar igual.
+
+# Conteúdo de usuário, logs e dependências de terceiros
+uploads/
+logs/
+motor/node_modules/
+lib/PHPMailer/
+
+# Documentação e anotações
+docs/
+*.md
+
+# Material de aula e afins
+*.pdf
+
+# Credenciais — nunca entram, nem os que já estão no .gitignore
+api/auth/db_config.php
+api/ai/ai_config.php
+api/video/video_config.php
+api/auth/google_config.php
+api/auth/mail_config.php
+
+# Dumps e schema do banco (banco.sql é versionado, mas fica fora do grafo)
+*.sql
+
+# Logs soltos na raiz (php_server.log, mysql_start.log)
+*.log
+
+# Saída do próprio graphify
+graphify-out/
