@@ -3787,3 +3787,36 @@ Testado:
 Não testado de ponta a ponta: o caso "host remoto" com um `db_config.php`
 real apontando para fora — só pela função pura, para não mexer no config
 desta máquina.
+
+---
+
+## Refactor: `api/ai/helpers.php` dividido em `api/ai/nucleo/` — 28/09/2026
+
+Branch `refactor/ai-helpers`. O `helpers.php` tinha 4.856 linhas, 102
+funções e 76 constantes. Etapas 1 e 2 do plano aprovado: mover cada
+assunto para um arquivo de `api/ai/nucleo/`, **sem mudar contrato nem
+comportamento**. O `helpers.php` vira só um carregador: `corpus.php`
+primeiro, depois os módulos. Nenhum dos 33 arquivos que fazem `require`
+dele mudou. `api/ai/nucleo/` é negada por HTTP no `.htaccess` (404).
+
+Como cada módulo foi movido (um commit por módulo):
+- recorte pelo tokenizer do PHP, com o comentário que vem antes de cada
+  item, na ordem original — o código movido não muda um caractere;
+- **base de comparação**: assinatura (Reflection), md5 do corpo de cada
+  função, md5 do valor de cada constante e ordem dos includes, comparados
+  com a base tirada antes do refactor; só passam diferenças declaradas
+  (ajuste de caminho) e constante-caminho com o mesmo `realpath`;
+- **roteiro de curl** (25 verificações: 16 GETs, validações que param antes
+  da API, `posts/create`, 3 rodadas do `tick.php` e o
+  `validar_corpus.php`), comparando status HTTP e formato do JSON (chaves
+  e tipos, não valores); o do tick compara só status e `ok`, porque o
+  formato dele varia com o sorteio. Rodado com o teto global de chamadas
+  cheio de linhas marcadas, para nada ir à Anthropic; créditos, post,
+  memória e notificações do teste desfeitos no fim. A base foi rodada duas
+  vezes e deu idêntica;
+- levantamento, no arquivo novo, de `__DIR__`, `__FILE__`, `dirname(`,
+  `require`/`include`, `static`, `global` e definições condicionais.
+
+| Módulo | Funções | Constantes | Caminho ajustado |
+|---|---|---|---|
+| `formato.php` | 4 | 0 | nenhum |
