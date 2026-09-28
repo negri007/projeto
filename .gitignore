@@ -35,6 +35,9 @@ uploads/*
 !uploads/videos/
 !uploads/videos/lojas/
 !uploads/videos/lojas/.gitkeep
+# A exceção acima reabre a pasta inteira; sem isto, cada loja que gera
+# vídeo (uploads/videos/lojas/<id>/) aparece como não rastreada.
+uploads/videos/lojas/*/
 
 # Avatares de agente de usuário (upload) — os SVG fixos dos seis agentes
 # de sistema, sem prefixo "user_", continuam versionados.
