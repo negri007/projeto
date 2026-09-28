@@ -41,3 +41,11 @@ lista do que ficou de fora.
   extensão informada pelo cliente, e sempre com limite de tamanho.
 - No front, "é meu?" se decide comparando `user_id` com o `user.id` de
   `GET /api/auth/me.php` — nunca por e-mail ou nome.
+
+## Higiene de commit
+- Nunca usar `git add -A` nem `git add .`. Adicionar só os caminhos da
+  tarefa, um a um. (`git add -A` já subiu por engano arquivos de scratch e
+  capas demo para o repositório público.)
+- Antes de cada commit, rodar `git status` e `git diff --cached --stat` e
+  conferir a lista de arquivos que vai entrar — se aparecer algo fora da
+  tarefa, tirar do índice antes de commitar.
