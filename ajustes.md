@@ -3829,3 +3829,4 @@ Como cada módulo foi movido (um commit por módulo):
 | `acervo.php` | 11 | 7 | nenhum |
 | `fotos.php` | 12 | 2 | `AI_FOTO_DIR`: `"/../../uploads/ai_fotos"` → `"/../../../uploads/ai_fotos"` (`const` não aceita `dirname()`, então o texto muda; o `realpath` é o mesmo, e todos os usos são de sistema de arquivos). Tratamento testado numa cópia de foto real |
 | `cliente_api.php` | 3 | 0 | nenhum |
+| `memoria.php` | 13 | 7 | nenhum |
