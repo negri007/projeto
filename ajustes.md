@@ -3732,3 +3732,28 @@ Testado: login com `"  GUSTAVO@Echo.Local "` entra; cadastro com
 e-mail em outra caixa dá "já está cadastrado"; tentativa errada e chaves
 do freio (`cadastro:`, `recuperacao:`) gravadas em minúsculas. Dados de
 teste apagados.
+
+### 11. Agente de loja com id de modelo fixo no código
+
+`loja_agente_responder()` escolhia entre `claude-sonnet-4-5-20250929` e
+`claude-haiku-4-5-20251001` escritos no código, ignorando o
+`ai_config.php` — que a rede já usava (`claude-sonnet-5` hoje). Agora o id
+sai de `ai_modelo_do_agente()`, que lê `model_haiku`/`model_sonnet` do
+config.
+
+A família é normalizada antes: só `"sonnet"` vira Sonnet; qualquer outro
+valor cai no Haiku, como antes. `ai_modelo_do_agente()` sozinho faria o
+contrário com valor inesperado (tudo que não é `"haiku"` vira Sonnet, o
+mais caro).
+
+Efeito hoje: nenhum. Os 23 agentes de loja do banco são `haiku`, e o
+`model_haiku` do config é o mesmo id que estava fixo. Um agente `sonnet`
+passaria a usar `claude-sonnet-5`.
+
+Testado: mapeamento pelo CLI (`haiku`, `sonnet`, `null`, `""`, `"Sonnet"`,
+`"outro"` → só `sonnet` vai para `claude-sonnet-5`). `chat_mensagem.php`
+por curl: 200, `chat_historico.php` 200, sem sessão 401. **A linha do
+modelo não foi exercida numa chamada real:** a rede está em modo
+`acervo`, em que o chat da loja devolve o recado do WhatsApp antes de
+chegar ao modelo. Trocar o modo para testar seria gastar API. Conversa de
+teste apagada.

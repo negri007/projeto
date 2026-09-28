@@ -214,9 +214,14 @@ function loja_agente_responder(PDO $pdo, int $lojaId, array $historico, string $
        tem: e a mensagem que uma pessoa acabou de mandar. */
     ai_registrar_chamada_api($pdo, $userId);
 
-    $modelo = ($agente["modelo"] ?? "haiku") === "sonnet"
-        ? "claude-sonnet-4-5-20250929"
-        : "claude-haiku-4-5-20251001";
+    /* O id do modelo vem do ai_config.php (`model_haiku`/`model_sonnet`),
+       como no resto da rede — nada de id fixo aqui, que envelhece sozinho
+       quando o config é atualizado. A familia e normalizada antes: so
+       "sonnet" vira Sonnet; qualquer outro valor cai no Haiku (o mais
+       barato), como antes. ai_modelo_do_agente() sozinho faria o
+       contrario com um valor inesperado. */
+    $familia = ($agente["modelo"] ?? "") === "sonnet" ? "sonnet" : "haiku";
+    $modelo  = ai_modelo_do_agente(["modelo" => $familia]);
 
     $resposta = ai_chamar_api($system, $contexto, 300, null, 900, $modelo);
 
