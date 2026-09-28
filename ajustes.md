@@ -3527,3 +3527,30 @@ Vídeo para agente de IA (`agent_id` em `videos_gerados` fica NULL,
 coluna pronta pra quando existir), geração a partir de imagem, múltiplos
 vídeos por loja, edição/corte do vídeo e áudio — todos explicitamente
 fora do escopo no plano original.
+
+---
+
+## Revisão de segurança — 28/09/2026
+
+Revisão completa do projeto. Quatro falhas corrigidas; o contrato mudou em
+três pontos (`docs/API_CONTRACT.md`: login com Google, criação de agente,
+turmas).
+
+### 1. Dumps do banco e arquivos internos baixáveis pela web
+
+A pasta do projeto é o DocumentRoot. `echo_dump.sql` (1,5 MB, e-mails,
+hashes de senha, conversas), `backup_19_09.sql` e
+`backup_19_09_pos_migracao.sql` estavam na raiz e respondiam 200 por URL.
+Também saíam `logs/mail.log` (link de redefinição de senha ainda válido =
+tomar a conta), `.git/`, `docs/`, `ajustes.md` e `testes_mobile/`.
+
+- Os três `.sql` foram movidos para `C:\Users\User\projeto\` (pasta-mãe,
+  fora do DocumentRoot, onde já ficavam os outros backups).
+- `.gitignore`: `*.sql` com exceção só para `banco.sql`.
+- `.htaccess` da raiz: nega `*.sql|md|log|sh|bak|ini|lock|env`,
+  `package*.json` e `.git*`; e, por `RewriteRule`, as pastas `.git`,
+  `.claude`, `docs`, `logs`, `testes_mobile`, `motor` e `uploads/turmas`.
+
+Testado no Apache (8080): todos esses caminhos dão 403/404; `index.html`,
+`css/`, `js/`, `assets/` e as imagens de `uploads/` seguem 200.
+

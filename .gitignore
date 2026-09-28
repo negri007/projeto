@@ -56,3 +56,9 @@ testes_mobile/**/*.png
 # Dumps do banco local feitos antes de migracao. Contem e-mail de usuario
 # real — nunca versionar.
 backup_*.sql
+# Qualquer outro .sql tambem e dump (ex.: echo_dump.sql de 25/09, que
+# ficou na raiz do site com e-mails, hashes de senha e conversas). O
+# unico .sql versionado e o schema. Dump de verdade mora FORA da pasta do
+# projeto, que e o DocumentRoot do Apache.
+*.sql
+!banco.sql

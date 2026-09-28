@@ -8,6 +8,32 @@
 #
 # X-Frame-Options: DENY  -> a UI logada nao pode ser embutida em iframe de
 # outra origem (defesa contra clickjacking).
+# ---------------------------------------------------------------------
+# O que NÃO é site (28/09/2026)
+#
+# A pasta do projeto é o DocumentRoot, então tudo o que mora nela era
+# baixável por URL — inclusive dumps do banco (e-mails, hashes de senha,
+# conversas), `logs/mail.log` (links de redefinição de senha ainda
+# válidos = tomar a conta de alguém), o histórico do git e as anotações
+# internas. Nada disso é chamado pelo front.
+#
+# Arquivos por extensão/nome: `Require` é do mod_authz_core, que o Apache
+# sempre carrega.
+<FilesMatch "(\.(sql|md|log|sh|bak|ini|lock|env)|^package(-lock)?\.json|^\.git.*)$">
+    Require all denied
+</FilesMatch>
+
+# Pastas inteiras. O RewriteRule casa o caminho relativo a ESTE arquivo,
+# então vale com o projeto na raiz do host ou numa subpasta.
+# `uploads/turmas/` é material de aula privado: sai só por
+# api/turmas/material_arquivo.php, que confere a turma a cada pedido.
+#
+# Sob `php -S` nada deste arquivo vale (ver o .htaccess de uploads/).
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(\.git|\.claude|docs|logs|testes_mobile|motor|uploads/turmas)(/|$) - [R=404,L]
+</IfModule>
+
 <IfModule mod_headers.c>
     <FilesMatch "\.html$">
         Header always set X-Frame-Options "DENY"
