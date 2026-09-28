@@ -54,26 +54,33 @@ function ai_chamadas_do_usuario(PDO $pdo, int $userId): int
 }
 
 /**
- * Segundos que faltam para esta pessoa poder provocar de novo, ou 0 se já
- * pode. O cálculo sai da chamada mais ANTIGA dentro da janela: é ela que
- * vence primeiro e libera uma vaga.
+ * Segundos que faltam para esta pessoa poder agir de novo, ou 0 se já
+ * pode.
+ *
+ * Com `$usadas` chamadas na janela e teto `$teto`, só volta a caber quando
+ * `$usadas - $teto + 1` delas vencerem — a espera sai da chamada nessa
+ * posição, contando da mais antiga. Quando `$usadas == $teto` é a própria
+ * mais antiga (o caso de antes). O caso de passar do teto aparece porque
+ * tetos diferentes (provocação 4, agente 8, turma 10) contam a mesma
+ * tabela: quem gastou 9 nas turmas e tenta provocar precisa esperar 6
+ * vencerem, não 1.
  */
-function ai_espera_do_usuario(PDO $pdo, int $userId, int $teto): int
+function ai_espera_do_usuario(PDO $pdo, int $userId, int $teto, int $usadas): int
 {
+    $posicao = max(0, $usadas - $teto);
+
     try {
         $stmt = $pdo->prepare(
             "SELECT TIMESTAMPDIFF(
                         SECOND,
                         NOW(),
-                        MIN(criado_em) + INTERVAL " . AI_LIMITE_JANELA_MIN . " MINUTE
+                        criado_em + INTERVAL " . AI_LIMITE_JANELA_MIN . " MINUTE
                     )
-               FROM (
-                    SELECT criado_em FROM ai_api_uso
-                     WHERE user_id = ?
-                       AND criado_em > NOW() - INTERVAL " . AI_LIMITE_JANELA_MIN . " MINUTE
-                     ORDER BY criado_em ASC
-                     LIMIT " . (int)$teto . "
-               ) AS janela"
+               FROM ai_api_uso
+              WHERE user_id = ?
+                AND criado_em > NOW() - INTERVAL " . AI_LIMITE_JANELA_MIN . " MINUTE
+              ORDER BY criado_em ASC
+              LIMIT 1 OFFSET " . $posicao
         );
         $stmt->execute([$userId]);
 
@@ -91,16 +98,70 @@ function ai_espera_do_usuario(PDO $pdo, int $userId, int $teto): int
  * Devolve `["ok" => true]` ou `["ok" => false, "espera" => segundos]`.
  * A decisão de virar HTTP 429 fica com o endpoint, não aqui.
  */
-function ai_pode_provocar(PDO $pdo, int $userId): array
+function ai_pode_provocar(PDO $pdo, int $userId, int $teto = AI_PROVOCACOES_POR_HORA): array
 {
     $usadas = ai_chamadas_do_usuario($pdo, $userId);
 
-    if ($usadas < AI_PROVOCACOES_POR_HORA) {
+    if ($usadas < $teto) {
         return ["ok" => true];
     }
 
     return [
         "ok"     => false,
-        "espera" => ai_espera_do_usuario($pdo, $userId, AI_PROVOCACOES_POR_HORA),
+        "espera" => ai_espera_do_usuario($pdo, $userId, $teto, $usadas),
     ];
+}
+
+/* ----------------------------------------------------------------------
+   AÇÕES QUE FICAVAM DE FORA (28/09/2026)
+
+   Resumo e quiz das turmas, e prévia/confirmação de agente, iam à API sem
+   passar por este freio nem registrar em `ai_api_uso` — nem o teto global
+   via o gasto. Com `regerar: true` num loop, o quiz (Sonnet, PDF de até
+   20 MB) gastava sem limite nenhum.
+
+   Os tetos são maiores que o da provocação porque são uso normal de
+   trabalho: um professor sobe vários materiais numa tarde, e criar um
+   agente passa por prévia E confirmação. Contam a mesma tabela, então o
+   total da pessoa na hora continua sendo um só.
+   ---------------------------------------------------------------------- */
+
+/** Ações de IA por pessoa por hora nas turmas (resumo, quiz). */
+const AI_ACOES_TURMA_POR_HORA = 10;
+
+/** Ações de IA por pessoa por hora na criação/edição de agente. */
+const AI_ACOES_AGENTE_POR_HORA = 8;
+
+/**
+ * Freio + registro de uma ação que vai à API, numa chamada só.
+ *
+ * Estourado: responde 429 no formato de erro da API e encerra. Livre:
+ * grava a linha em `ai_api_uso` no nome da pessoa ANTES da chamada — a
+ * chamada que falha ou é recusada pela moderação também custou.
+ *
+ * Sem IA configurada não freia nem registra: nada vai ser gasto, e quem
+ * chamou segue até o erro de sempre ("A IA não está configurada...").
+ */
+function ai_exigir_cota(PDO $pdo, int $userId, int $teto): void
+{
+    if (!function_exists("ai_config")) {
+        require_once __DIR__ . "/helpers.php";
+    }
+
+    if (ai_config() === null) {
+        return;
+    }
+
+    $freio = ai_pode_provocar($pdo, $userId, $teto);
+
+    if (!$freio["ok"]) {
+        http_response_code(429);
+        echo json_encode([
+            "error" => "Muitos pedidos à IA nesta hora. Tente de novo em "
+                . login_tempo_legivel(max(1, (int)$freio["espera"])) . ".",
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    ai_registrar_chamada_api($pdo, $userId);
 }

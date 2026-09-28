@@ -1875,6 +1875,19 @@ Qualquer outro valor de `reason` já é a frase pronta, em português,
 escrita pela própria IA explicando a recusa — o front mostra direto, sem
 mapear.
 
+**Freio por pessoa (28/09/2026).** Os quatro endpoints chamam a API a cada
+pedido (a prévia é grátis para o usuário, mas não para a instalação).
+Antes de compilar, com IA configurada, cada um confere o freio de
+`api/ai/limite_uso.php` com teto de **8 ações de IA por pessoa por hora**
+(a conta soma tudo o que a pessoa disparou na IA na janela: provocação,
+chat de loja, agente pessoal, turmas) e registra a ação em `ai_api_uso`
+com o `user_id`. Estourado:
+
+Response 429: `{ "error": "Muitos pedidos à IA nesta hora. Tente de novo em 12 minutos." }`
+
+Na confirmação o freio vem **depois** da checagem de saldo — quem não tem
+crédito recebe `saldo_insuficiente` sem gastar vaga.
+
 ### Segurança do prompt
 
 Os quatro campos são conteúdo de terceiro dentro do prompt de compilação,
@@ -2949,6 +2962,12 @@ erro amigável, sem chamar a API.
 
 Resposta: `{ ok:true, resumo:"...", do_cache:bool }`.
 
+**Freio por pessoa (28/09/2026):** quando vai de fato à API (sem cache, ou
+`regerar`), confere o freio de `api/ai/limite_uso.php` com teto de **10
+ações de IA por pessoa por hora** e registra a ação em `ai_api_uso` no
+nome de quem pediu. Servir do cache não conta. Estourado:
+Response 429: `{ "error": "Muitos pedidos à IA nesta hora. Tente de novo em 12 minutos." }`
+
 O `resumo` é Markdown (`##` título, `- ` lista, `**negrito**`); a tela
 escapa todo o texto antes de converter esse subconjunto em HTML.
 
@@ -2983,6 +3002,11 @@ e exige ao menos 3 válidas. Material só de imagem: erro amigável, sem API.
 
 Resposta: `{ ok:true, quiz:{ id, material_id, created_at, total,
 questoes:[completas] }, do_cache:bool }`.
+
+**Freio por pessoa (28/09/2026):** mesmo freio de `material_resumir.php`
+(10 ações de IA por pessoa por hora, registro em `ai_api_uso`); devolver o
+quiz existente (`do_cache:true`) não conta. Estourado: 429 com o mesmo
+`{ "error": "Muitos pedidos à IA nesta hora. Tente de novo em ..." }`.
 
 #### `GET /api/turmas/quiz_ver.php?material_id=<id>`
 

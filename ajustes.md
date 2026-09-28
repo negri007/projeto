@@ -3565,3 +3565,23 @@ anteriores caem). A dona que quiser senha usa a recuperação por e-mail.
 Não testado ao vivo (exige o fluxo OAuth real); conferido por leitura e
 `php -l`.
 
+### 3. IA sem freio por pessoa nas turmas e na criação de agente
+
+`quiz_gerar.php` (Sonnet, PDF até 20 MB, `regerar` ilimitado),
+`material_resumir.php` e os quatro `agent_*preview/confirm.php` iam à API
+sem `ai_pode_provocar()` e sem registrar em `ai_api_uso`. Novo
+`ai_exigir_cota()` em `api/ai/limite_uso.php`: freio + registro numa
+chamada, 429 no formato padrão. Tetos: turmas 10/h, agente 8/h (a
+provocação continua 4/h); todos contam a mesma tabela. Cache não conta.
+Sem IA configurada, não freia nem registra.
+
+Junto, corrigido `ai_espera_do_usuario()`: a espera saía sempre da
+chamada mais antiga, o que só está certo quando o uso é igual ao teto. Com
+tetos diferentes na mesma tabela, quem passou do teto recebia uma espera
+curta demais. Agora sai da chamada na posição `usadas - teto`.
+
+Testado com uso simulado no banco (sem gastar crédito): 10 usos → quiz e
+resumo 429 "10 minutos", prévia de agente 429 "30 minutos", provocação 429
+"52 minutos"; nenhuma linha nova gravada nos pedidos barrados. Linhas de
+teste apagadas.
+

@@ -15,6 +15,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require_once __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/quiz_helpers.php";
+require_once __DIR__ . "/../ai/limite_uso.php";
 
 $userId = require_login();
 liberar_sessao();
@@ -53,6 +54,12 @@ try {
             "do_cache" => true,
         ], JSON_UNESCAPED_UNICODE);
         exit;
+    }
+
+    // Daqui em diante é chamada de verdade ao Sonnet. Material só de
+    // imagem sai com erro amigável sem API, então não gasta vaga.
+    if (turma_material_resumivel($material)) {
+        ai_exigir_cota($pdo, $userId, AI_ACOES_TURMA_POR_HORA);
     }
 
     $resultado = turma_quiz_gerar($material);

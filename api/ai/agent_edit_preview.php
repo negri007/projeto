@@ -15,6 +15,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
+require_once __DIR__ . "/limite_uso.php";
 
 $userId = require_login();
 
@@ -60,6 +61,10 @@ try {
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
+
+    // A compilação vai à API mesmo na prévia: é grátis para a pessoa, não
+    // para a instalação. Ver api/ai/limite_uso.php.
+    ai_exigir_cota($pdo, $userId, AI_ACOES_AGENTE_POR_HORA);
 
     $resultado = ai_compilar_agente_usuario($lidos["campos"]);
 

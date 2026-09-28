@@ -16,6 +16,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require_once __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
+require_once __DIR__ . "/../ai/limite_uso.php";
 
 $userId = require_login();
 
@@ -51,6 +52,13 @@ try {
     if ($regerar && !$material["is_owner"]) {
         echo json_encode(["error" => "Só o professor pode gerar o resumo de novo."]);
         exit;
+    }
+
+    // Daqui em diante é chamada de verdade à API (o cache já saiu acima).
+    // Paga a vaga quem pediu — aluno abrindo o primeiro resumo ou
+    // professor regerando. Material só de imagem não vai à API.
+    if (turma_material_resumivel($material)) {
+        ai_exigir_cota($pdo, $userId, AI_ACOES_TURMA_POR_HORA);
     }
 
     $resultado = turma_resumir_material($material);

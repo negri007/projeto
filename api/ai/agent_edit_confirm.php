@@ -12,6 +12,7 @@ header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../auth/session.php";
 require __DIR__ . "/../auth/db.php";
 require_once __DIR__ . "/helpers.php";
+require_once __DIR__ . "/limite_uso.php";
 
 $userId = require_login();
 
@@ -69,6 +70,9 @@ try {
         ], JSON_UNESCAPED_UNICODE);
         exit;
     }
+
+    // Depois do saldo: quem não pode pagar não gasta vaga do freio.
+    ai_exigir_cota($pdo, $userId, AI_ACOES_AGENTE_POR_HORA);
 
     $resultado = ai_compilar_agente_usuario($lidos["campos"]);
 
