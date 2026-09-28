@@ -3804,10 +3804,24 @@ O `<video>` sem poster mostrava caixa preta. Agora:
 - Vídeos já existentes no banco local foram backfillados (script pontual no
   scratchpad, fora do git) só para a demo — não é necessário para o sistema.
 
-**"Alimenta??o" nas categorias do Comércio — diagnosticado, sem bug vivo.**
+**"Alimenta??o" nas categorias do Comércio — corrigido (dado), sem bug vivo.**
 HEX confirmou dado corrompido no banco (os acentos viraram `3F3F` = dois `?`),
 mas só em 2 linhas de teste: loja 25 (Loja do Gabriel) e 26 (Loja Teste Fila 1),
-criadas por scripts ad-hoc. A conexão PDO **já usa `charset=utf8mb4`**
-(db_conexao.php), então inserções novas não corrompem — não há código a corrigir.
-Regravação proposta (aguardando aprovação, sem mass update):
-`UPDATE lojas SET categoria='Alimentação' WHERE id IN (25,26) AND categoria='Alimenta??o';`
+criadas por scripts ad-hoc **fora do repositório** (nenhum script commitado insere
+esses nomes). A conexão PDO **já usa `charset=utf8mb4`** (db_conexao.php), então
+inserções novas do app não corrompem — não há código de aplicação a corrigir.
+
+Regravação aplicada no banco local de teste (alvo fixo, 2 linhas, aprovada):
+`UPDATE lojas SET categoria=CONVERT(UNHEX('416C696D656E7461C3A7C3A36F') USING utf8mb4)
+WHERE id IN (25,26) AND categoria='Alimenta??o';` — 2 linhas afetadas, confirmado por
+SELECT (HEX agora `...C3A7C3A3...` = `ção`). Usei `UNHEX` porque o literal acentuado
+na linha de comando do Windows chegava mangled (SET virava `??` e o UPDATE não mudava
+nada); com `UNHEX` o valor é byte-exato.
+
+Varredura read-only por `3F3F` em todas as colunas de texto do banco: fora das
+lojas 25/26, só `ai_posts.content` id 344, que é `???` legítimo (pontuação do
+agente), não acento corrompido. Nenhuma outra linha para corrigir.
+
+Causa raiz do padrão: importar/inserir pelo cliente `mysql` **sem**
+`--default-character-set=utf8mb4` no Windows mangla acentos. As linhas de import do
+README.md e do SETUP.md que estavam sem a flag foram corrigidas para incluí-la.

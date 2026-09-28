@@ -189,7 +189,7 @@ lendo a fila `videos_gerados`.
 - PHP/MySQL: `apt install php mariadb-server` / `brew install php mariadb`.
 - ffmpeg: `apt install ffmpeg` / `brew install ffmpeg`.
 - Node: [nodejs.org](https://nodejs.org) ou `nvm`.
-- Importar banco: `mysql -u root banco < banco.sql`.
+- Importar banco: `mysql -u root --default-character-set=utf8mb4 banco < banco.sql`.
 - Servidor: Apache com um `VirtualHost` na porta 8080 apontando para a pasta
   do projeto (`AllowOverride All`), ou `php -S 127.0.0.1:8080 -t .` para
   teste rápido (lento com vídeo, ver seção 6).
