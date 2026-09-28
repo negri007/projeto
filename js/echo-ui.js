@@ -25,6 +25,32 @@ function toggleSenhaVisibilidade(btn) {
     btn.setAttribute("aria-label", vaiMostrar ? "Ocultar senha" : "Mostrar senha");
 }
 
+/**
+ * Fonte única do menu. A ordem é a do desktop; cada item tem `key` (a mesma
+ * string passada para initHeader), `href`, `icon` (classe FontAwesome) e
+ * `label`. Antes esse menu era escrito à mão em cada página; agora vem daqui,
+ * então muda num lugar só e nunca diverge entre telas.
+ */
+const ECHO_NAV = [
+    { key: "explorar", href: "explorar.html", icon: "fa-solid fa-magnifying-glass", label: "Explorar" },
+    { key: "meu_echo", href: "meu_echo.html", icon: "fa-solid fa-robot", label: "Criar seu Echo" },
+    { key: "canvas",   href: "canvas.html",   icon: "fa-solid fa-wand-magic-sparkles", label: "Canvas" },
+    { key: "comercio", href: "comercio.html", icon: "fa-solid fa-store", label: "Comércio" },
+    { key: "academico", href: "turmas.html",  icon: "fa-solid fa-graduation-cap", label: "Acadêmico" },
+    { key: "inicio",   href: "inicio.html",   icon: "fa-solid fa-house", label: "Início" },
+    { key: "perfil",   href: "perfil.html",   icon: "fa-solid fa-user", label: "Perfil" },
+    { key: "rede_ia",  href: "rede_ia.html",  icon: "fa-solid fa-robot", label: "Rede IA" },
+    { key: "salvos",   href: "salvos.html",   icon: "fa-regular fa-bookmark", label: "Salvos" },
+    { key: "circulos", href: "circulos.html", icon: "fa-regular fa-circle", label: "Círculos" },
+    { key: "amigos",   href: "amigos.html",   icon: "fa-solid fa-user-group", label: "Amigos" },
+    { key: "chat",     href: "chat.html",     icon: "fa-solid fa-comments", label: "Mensagens" },
+];
+
+// Barra inferior do mobile: subconjunto do menu, com ordem própria (Início
+// primeiro). Referencia os itens de ECHO_NAV por key, então label/ícone/href
+// continuam vindo de um lugar só.
+const ECHO_BOTTOM = ["inicio", "explorar", "rede_ia", "salvos", "circulos", "amigos", "chat"];
+
 class EchoUI {
     constructor() {
         this.notifications = [];
@@ -148,6 +174,9 @@ class EchoUI {
     }
 
     initHeader(currentPage) {
+        // Primeiro de tudo: preenche a barra lateral, o mais cedo possível,
+        // para a navegação aparecer antes do resto ligar.
+        this.buildSidebar(currentPage);
         this.injectMobileOffcanvas(currentPage);
         this.setupNotificationDropdown();
         this.renderNotifications();
@@ -159,6 +188,57 @@ class EchoUI {
         // menu. Vale em todas as páginas, porque a barra é a mesma.
         this.carregarContadoresDoMenu();
         this.tornarCartoesDobraveis();
+    }
+
+    /**
+     * Preenche a barra lateral do desktop (#echoSidebar) a partir de ECHO_NAV.
+     * Marca o item ativo por `key` (com aria-current="page"), preenche o
+     * mini-perfil e mantém o botão de logout.
+     *
+     * Se a página não tem #echoSidebar (fora do shell do app), não faz nada.
+     * Se a montagem quebrar por algum motivo, cai num menu mínimo só com os
+     * links, para a pessoa nunca ficar sem navegação.
+     */
+    buildSidebar(activeKey) {
+        const aside = document.getElementById("echoSidebar");
+        if (!aside) return;
+
+        try {
+            const itens = ECHO_NAV.map(it => {
+                const ativo = it.key === activeKey;
+                return `<a class="nav-link${ativo ? " active" : ""}" href="${it.href}"${ativo ? ' aria-current="page"' : ""}>
+                    <i class="${it.icon}"></i><span>${it.label}</span>
+                </a>`;
+            }).join("");
+
+            aside.innerHTML = `
+                <div class="logo d-flex align-items-center gap-2">
+                    <div class="logo-mark"><i class="fa-solid fa-hashtag"></i></div>
+                    <span class="logo-text">ECHO</span>
+                </div>
+
+                <nav class="nav flex-column mb-3" aria-label="Principal">
+                    ${itens}
+                </nav>
+
+                <div class="sidebar-profile d-flex align-items-center gap-2">
+                    <div class="prof-avatar"><i class="fa-solid fa-user"></i></div>
+                    <div class="prof-info flex-grow-1">
+                        <div class="prof-name" id="sidebarName">Usuário</div>
+                        <div class="prof-handle" id="sidebarHandle">@usuario</div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill" onclick="logout()" title="Sair">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>`;
+
+            if (this.currentUser) this.updateUserProfileUI(this.currentUser);
+        } catch (e) {
+            // Menu mínimo de emergência: só os links, sem ícones nem perfil.
+            aside.innerHTML = '<nav class="nav flex-column mb-3" aria-label="Principal">' +
+                ECHO_NAV.map(it => `<a class="nav-link" href="${it.href}"><span>${it.label}</span></a>`).join("") +
+                '</nav>';
+        }
     }
 
     /**
@@ -579,6 +659,23 @@ class EchoUI {
     injectMobileOffcanvas(activePage) {
         if (document.getElementById('mobileSidebarOffcanvas')) return;
 
+        // Menu do drawer: mesma lista e mesma ordem do desktop (ECHO_NAV).
+        const navItens = ECHO_NAV.map(it => {
+            const ativo = it.key === activePage;
+            return `<a class="nav-link${ativo ? " active" : ""}" href="${it.href}"${ativo ? ' aria-current="page"' : ""}>
+                            <i class="${it.icon}"></i><span>${it.label}</span>
+                        </a>`;
+        }).join("");
+
+        // Barra inferior: subconjunto com ordem própria (ECHO_BOTTOM), só ícone.
+        const porKey = k => ECHO_NAV.find(it => it.key === k);
+        const bottomItens = ECHO_BOTTOM.map(k => {
+            const it = porKey(k);
+            if (!it) return "";
+            const ativo = it.key === activePage;
+            return `<a href="${it.href}" class="${ativo ? "active" : ""}"${ativo ? ' aria-current="page"' : ""}><i class="${it.icon}"></i></a>`;
+        }).join("");
+
         const offcanvasHTML = `
             <div class="offcanvas offcanvas-start offcanvas-dark" tabindex="-1" id="mobileSidebarOffcanvas" aria-labelledby="mobileSidebarLabel">
                 <div class="offcanvas-header border-bottom border-secondary">
@@ -591,43 +688,8 @@ class EchoUI {
                     <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
                 </div>
                 <div class="offcanvas-body d-flex flex-column justify-content-between">
-                    <nav class="nav flex-column gap-1">
-                        <a class="nav-link ${activePage === 'explorar' ? 'active' : ''}" href="explorar.html">
-                            <i class="fa-solid fa-magnifying-glass"></i><span>Explorar</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'inicio' ? 'active' : ''}" href="inicio.html">
-                            <i class="fa-solid fa-house"></i><span>Início</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'canvas' ? 'active' : ''}" href="canvas.html">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i><span>Canvas</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'meu_echo' ? 'active' : ''}" href="meu_echo.html">
-                            <i class="fa-solid fa-robot"></i><span>Criar seu Echo</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'comercio' ? 'active' : ''}" href="comercio.html">
-                            <i class="fa-solid fa-store"></i><span>Comércio</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'academico' ? 'active' : ''}" href="turmas.html">
-                            <i class="fa-solid fa-graduation-cap"></i><span>Acadêmico</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'perfil' ? 'active' : ''}" href="perfil.html">
-                            <i class="fa-solid fa-user"></i><span>Perfil</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'rede_ia' ? 'active' : ''}" href="rede_ia.html">
-                            <i class="fa-solid fa-robot"></i><span>Rede IA</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'salvos' ? 'active' : ''}" href="salvos.html">
-                            <i class="fa-regular fa-bookmark"></i><span>Salvos</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'circulos' ? 'active' : ''}" href="circulos.html">
-                            <i class="fa-regular fa-circle"></i><span>Círculos</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'amigos' ? 'active' : ''}" href="amigos.html">
-                            <i class="fa-solid fa-user-group"></i><span>Amigos</span>
-                        </a>
-                        <a class="nav-link ${activePage === 'chat' ? 'active' : ''}" href="chat.html">
-                            <i class="fa-solid fa-comments"></i><span>Mensagens</span>
-                        </a>
+                    <nav class="nav flex-column gap-1" aria-label="Principal">
+                        ${navItens}
                     </nav>
 
                     <div class="sidebar-profile d-flex align-items-center gap-2 mt-4">
@@ -647,13 +709,7 @@ class EchoUI {
 
             <!-- Mobile Bottom Bar -->
             <div class="mobile-bottom-nav">
-                <a href="inicio.html" class="${activePage === 'inicio' ? 'active' : ''}"><i class="fa-solid fa-house"></i></a>
-                <a href="explorar.html" class="${activePage === 'explorar' ? 'active' : ''}"><i class="fa-solid fa-magnifying-glass"></i></a>
-                <a href="rede_ia.html" class="${activePage === 'rede_ia' ? 'active' : ''}"><i class="fa-solid fa-robot"></i></a>
-                <a href="salvos.html" class="${activePage === 'salvos' ? 'active' : ''}"><i class="fa-regular fa-bookmark"></i></a>
-                <a href="circulos.html" class="${activePage === 'circulos' ? 'active' : ''}"><i class="fa-regular fa-circle"></i></a>
-                <a href="amigos.html" class="${activePage === 'amigos' ? 'active' : ''}"><i class="fa-solid fa-user-group"></i></a>
-                <a href="chat.html" class="${activePage === 'chat' ? 'active' : ''}"><i class="fa-solid fa-comments"></i></a>
+                ${bottomItens}
             </div>
         `;
 
