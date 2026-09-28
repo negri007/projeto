@@ -3562,8 +3562,21 @@ senha própria; quando a dona entrava pelo Google, o callback só gravava o
 apaga `password_hash` e incrementa `session_version` (todas as sessões
 anteriores caem). A dona que quiser senha usa a recuperação por e-mail.
 
-Não testado ao vivo (exige o fluxo OAuth real); conferido por leitura e
-`php -l`.
+A lógica saiu do callback para `google_vincular_usuario()` em
+`api/auth/google_vinculo.php`, que dá para chamar sem o OAuth. Testado
+assim, com conta criada por `register.php` e duas sessões abertas (uma do
+cadastro, outra de `login.php`):
+
+- antes: senha presente, `session_version` 1, as duas sessões com
+  `me.php` 200;
+- depois do vínculo: `password_hash` NULL, `session_version` 2, as duas
+  sessões com `me.php` **401**, e `login.php` com a senha antiga responde
+  "Esta conta usa login do Google";
+- mesmo `google_id` de novo: devolve a conta sem mexer na versão;
+- outro `google_id` com o mesmo e-mail: `null` (o callback falha);
+- conta nova só com Google: criada com `password_hash` NULL e versão 1.
+
+Contas de teste apagadas depois.
 
 ### 3. IA sem freio por pessoa nas turmas e na criação de agente
 

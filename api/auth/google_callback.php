@@ -12,6 +12,7 @@
 
 require_once __DIR__ . "/session.php";
 require __DIR__ . "/db.php";
+require_once __DIR__ . "/google_vinculo.php";
 
 function google_falhar(string $motivo): void
 {
@@ -108,63 +109,13 @@ $email    = (string)$info["email"];
 $name     = (string)($info["name"] ?? explode("@", $email)[0]);
 
 try {
-    // Já logou com o Google antes?
-    $stmt = $pdo->prepare("SELECT id, name, session_version FROM users WHERE google_id = ?");
-    $stmt->execute([$googleId]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $user = google_vincular_usuario($pdo, $googleId, $email, $name);
 
-    if (!$user) {
-        // Conta local com o mesmo e-mail já existe — vincula em vez de
-        // criar uma segunda conta para a mesma pessoa.
-        $stmt = $pdo->prepare("SELECT id, name, session_version, google_id FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $existente = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($existente) {
-            // google_id já é UNIQUE no banco; isto só evita o erro de
-            // constraint virar um 500 genérico.
-            if ($existente["google_id"] !== null && $existente["google_id"] !== $googleId) {
-                google_falhar("e-mail já vinculado a outra conta Google: " . $email);
-            }
-
-            // O vínculo APAGA a senha e derruba as sessões abertas.
-            //
-            // O cadastro não confirma e-mail: qualquer um cria a conta
-            // "vitima@gmail.com" com uma senha sua. Se o vínculo só
-            // gravasse o google_id, a dona do e-mail entraria pelo Google
-            // numa conta cuja senha outra pessoa conhece — e essa pessoa
-            // continuaria entrando por login.php e lendo tudo. O Google
-            // acabou de provar a posse do e-mail; a senha antiga não prova
-            // nada. Quem é dona de verdade e quer senha de novo usa a
-            // recuperação por e-mail, que também prova posse.
-            //
-            // `session_version + 1` expulsa quem já estava logado com a
-            // senha velha (session_validate_version, em db.php).
-            $pdo->prepare(
-                "UPDATE users
-                    SET google_id = ?, password_hash = NULL, session_version = session_version + 1
-                  WHERE id = ?"
-            )->execute([$googleId, $existente["id"]]);
-
-            $stmt = $pdo->prepare("SELECT session_version FROM users WHERE id = ?");
-            $stmt->execute([$existente["id"]]);
-
-            $user = $existente;
-            $user["session_version"] = (int)$stmt->fetchColumn();
-        } else {
-            $pdo->prepare(
-                "INSERT INTO users (name, email, google_id, password_hash) VALUES (?, ?, ?, NULL)"
-            )->execute([$name, $email, $googleId]);
-
-            $user = [
-                "id"              => (int)$pdo->lastInsertId(),
-                "name"            => $name,
-                "session_version" => 1,
-            ];
-        }
+    if ($user === null) {
+        google_falhar("e-mail já vinculado a outra conta Google: " . $email);
     }
 
-    start_user_session((int)$user["id"], $user["name"], (int)($user["session_version"] ?? 1));
+    start_user_session($user["id"], $user["name"], $user["session_version"]);
 
     header("Location: /inicio.html");
     exit;
