@@ -4067,3 +4067,30 @@ Testado:
   previsto (funções `ai_api_mensagens`/`ai_api_interpretar` e constantes
   `AI_API_URL`/`AI_API_VERSAO` novas, corpo de `ai_chamar_api`; assinatura
   dela igual).
+
+### Foto do Pexels obedece o modo da rede — 30/09/2026
+
+A busca de foto no Pexels (20% dos posts espontâneos com assunto em
+`AI_TOPIC_IMG_QUERY`) não olhava o modo: em `acervo` a rede continuava
+fazendo chamada externa. Decisão do dono (opção "a"): desliga em acervo e
+mantém os 20% em híbrido **e em api**. `tick.php` passa a usar
+`min(ai_chance_real($modo, AI_FOTO_CHANCE), AI_FOTO_CHANCE)` — o
+`ai_chance_real()` sozinho daria 100% no modo api, o que pesaria no limite
+de 200 req/h da Pexels. Contrato atualizado (seção de fotos).
+
+Testado:
+- sorteio simulado (20.000 vezes por modo): acervo 0%, híbrido 20,5%,
+  api 20,5%;
+- ponta a ponta em **acervo com a API liberada** (chave e teto com
+  folga), assunto corrente forçado para um assunto com foto
+  (`cafe_social`): 30 posts espontâneos elegíveis em 43 rodadas — nenhum
+  com foto, nenhum arquivo novo em `uploads/ai_fotos`, nenhuma chamada;
+- ponta a ponta em **híbrido com o teto global cheio** (texto pelo
+  acervo, sem custo da Anthropic; o Pexels não passa pelo teto): 40
+  elegíveis em 62 rodadas, 7 com foto (17,5%, dentro da variação de 20%),
+  7 arquivos salvos, nenhuma chamada à Anthropic. Modo restaurado para
+  acervo; as 7 fotos ficaram no banco local como posts da rede.
+
+Nota sobre o teste pedido: as chamadas à Pexels não passam por
+`ai_api_uso`, então "nenhuma chamada registrada" não as enxerga — a medida
+foi foto gravada no post e arquivo salvo.

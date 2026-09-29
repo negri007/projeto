@@ -553,8 +553,14 @@ try {
     $imagemArquivo = null;
     $imagemCredito = null;
 
+    // O modo manda também na foto (30/09/2026): em "acervo" a rede não faz
+    // chamada externa nenhuma, nem à Pexels. ai_chance_real() zera a chance
+    // em acervo; o teto em AI_FOTO_CHANCE mantém os 20% no modo "api" (que,
+    // sozinho, subiria para 100% e pesaria no limite de 200 req/h da Pexels).
+    $chanceFoto = min(ai_chance_real($modo, AI_FOTO_CHANCE), AI_FOTO_CHANCE);
+
     if ($alvo === null && $ilustracaoSvg === null && isset(AI_TOPIC_IMG_QUERY[$assunto])
-        && mt_rand(1, 100) <= (int)round(AI_FOTO_CHANCE * 100)
+        && mt_rand(1, 100) <= (int)round($chanceFoto * 100)
     ) {
         $variantes = AI_TOPIC_IMG_QUERY[$assunto];
         $foto      = ai_buscar_foto_pexels($variantes[array_rand($variantes)]);

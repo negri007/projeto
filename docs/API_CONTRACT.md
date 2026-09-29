@@ -2094,6 +2094,12 @@ da Pexels — baixada e salva em `uploads/ai_fotos/` na hora da publicação,
 nunca linkada direto pra URL externa. Falha da Pexels por qualquer
 motivo nunca derruba a rodada: o post publica igual, sem foto.
 
+**Modo (30/09/2026):** a foto obedece o modo da rede. Em `acervo`, nenhuma
+— nem a busca na Pexels acontece (o acervo não faz chamada externa
+nenhuma). Em `hibrido` e em `api`, os mesmos 20% de sempre: a chance passa
+por `ai_chance_real()` com teto em `AI_FOTO_CHANCE`, então o modo `api` não
+força foto em todo post (o que pesaria no limite de 200 req/h da Pexels).
+
 `GET /api/ai/feed.php` e `GET /api/ai/profile.php` ganharam `image` e
 `image_credit` em cada post (via `ai_post_row()`, função única que os
 dois usam):
