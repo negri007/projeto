@@ -31,10 +31,29 @@
       .turmas-area .ac-hero h1 em { font-style:normal; color:var(--ac); }
       .turmas-area .intro { color:var(--mut); font-size:13.5px; margin:0; max-width:60ch; line-height:1.55; }
       /* BLOCO / seções */
-      .turmas-area .bloco { background:var(--card); border:2px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
-      .turmas-area .bloco h2, .turmas-area #riscoBox h2 { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:800; letter-spacing:.3px; margin:0 0 14px; }
+      .turmas-area .bloco { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px; margin-bottom:18px; }
+      .turmas-area .bloco h2, .turmas-area #riscoBox h2 { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:800; letter-spacing:1px; text-transform:uppercase; color:var(--mut); margin:0 0 16px; }
       .turmas-area .bloco h2::before, .turmas-area #riscoBox h2::before { content:""; width:16px; height:3px; border-radius:2px; background:var(--ac); flex:none; }
-      .turmas-area h2 .turmaNome { color:var(--ac); font-weight:800; }
+      .turmas-area h2 .turmaNome { color:var(--ac); font-weight:800; text-transform:none; letter-spacing:0; }
+      .turmas-area #painel > h2 { margin-top:24px; }
+
+      /* GRADE de turmas (cards) */
+      .turmas-area #turmas { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+      .turmas-area .turma-card { display:flex; align-items:center; gap:12px; background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:14px; cursor:pointer; transition:border-color .15s, transform .15s; }
+      .turmas-area .turma-card:hover { border-color:var(--ac); transform:translateY(-2px); }
+      .turmas-area .turma-card.sel { border-color:var(--ac); background:var(--ac-bg); }
+      .turmas-area .turma-card .tc-ic { width:42px; height:42px; flex:none; border-radius:12px; background:var(--ac-bg); color:var(--ac); display:grid; place-items:center; font-size:18px; }
+      .turmas-area .turma-card .tc-body { flex:1; min-width:0; }
+      .turmas-area .turma-card .tc-name { font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .turmas-area .turma-card .tc-meta { font-size:12px; color:var(--mut); margin-top:2px; }
+
+      /* FAIXA de números da turma */
+      .turmas-area .tstats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 0 22px; }
+      .turmas-area .tstat { background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:16px; }
+      .turmas-area .tstat .n { font-family:'Archivo Black',sans-serif; font-weight:400; font-size:34px; line-height:1; }
+      .turmas-area .tstat .l { font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--mut); margin-top:8px; }
+      .turmas-area .tstat.good .n { color:var(--ac2); }
+      .turmas-area .tstat.risk .n { color:var(--red); }
       /* form */
       .turmas-area label { display:block; font-size:12.5px; color:var(--mut); margin:12px 0 5px; font-weight:600; }
       .turmas-area input, .turmas-area textarea, .turmas-area select { width:100%; padding:10px 12px; background:var(--card2); border:1px solid var(--line2); border-radius:8px; color:var(--ink); font:inherit; }
@@ -144,6 +163,12 @@
                 </div>
 
                 <div id="painel" class="bloco hidden">
+                    <div id="turmaStats" class="tstats hidden">
+                        <div class="tstat"><div class="n" id="stAlunos">0</div><div class="l">Alunos</div></div>
+                        <div class="tstat good"><div class="n" id="stMateriais">0</div><div class="l">Materiais</div></div>
+                        <div class="tstat risk"><div class="n" id="stRisco">0</div><div class="l">Em risco</div></div>
+                    </div>
+
                     <div id="riscoBox" class="hidden">
                         <h2>Alunos em risco</h2>
                         <div id="risco"></div>
@@ -203,6 +228,6 @@
     EchoUIInstance.initHeader("academico");
 })();
 </script>
-<script src="js/turmas.js"></script>
+<script src="js/turmas.js?v=20260929a"></script>
 </body>
 </html>

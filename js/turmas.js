@@ -7,6 +7,8 @@ function msg(txt, tipo='info') {
   if (tipo === 'info') setTimeout(() => { el.className = 'msg'; }, 4000);
 }
 
+function setStat(id, val) { const e = document.getElementById(id); if (e) e.textContent = val; }
+
 async function api(url, opts) {
   const r = await fetch(url, opts);
   const j = await r.json().catch(() => ({ error: 'Resposta inválida.' }));
@@ -22,8 +24,10 @@ async function carregarTurmas() {
   box.innerHTML = '';
   turmas.forEach(c => {
     const d = document.createElement('div');
-    d.className = 'turma' + (turmaSel === c.id ? ' sel' : '');
-    d.innerHTML = `<span>${esc(c.name)} <span class="tag">${c.is_owner ? 'professor' : 'aluno'}</span></span><span class="spin">${c.member_count} aluno(s)</span>`;
+    d.className = 'turma-card' + (turmaSel === c.id ? ' sel' : '');
+    d.innerHTML = `<div class="tc-ic"><i class="fa-solid fa-graduation-cap"></i></div>
+      <div class="tc-body"><div class="tc-name">${esc(c.name)}</div><div class="tc-meta">${c.member_count} aluno(s)</div></div>
+      <span class="tag">${c.is_owner ? 'professor' : 'aluno'}</span>`;
     d.onclick = () => abrirTurma(c);
     box.appendChild(d);
   });
@@ -52,6 +56,8 @@ async function abrirTurma(c) {
   $('#subir').classList.toggle('hidden', !ehDono);
   $('#addAluno').classList.toggle('hidden', !ehDono);
   $('#riscoBox').classList.toggle('hidden', !ehDono);
+  // Faixa de números da turma: só o professor (o aluno não vê "em risco").
+  $('#turmaStats').classList.toggle('hidden', !ehDono);
   if (!ehDono) $('#risco').innerHTML = '';
   carregarTurmas();
   carregarAlunos();
@@ -66,6 +72,7 @@ async function carregarRisco() {
   box.innerHTML = '<span class="spin">calculando…</span>';
   const j = await api('/api/turmas/alunos_risco.php?circle_id=' + turmaSel);
   if (j.error) { box.innerHTML = ''; return msg(j.error, 'err'); }
+  setStat('stRisco', j.em_risco);
   const cls = j.em_risco > 0 ? 'alto' : 'ok';
   const assuntos = j.assuntos.map(a =>
     `<div class="rs-assunto">${a.alunos_em_risco} aluno(s) em risco em ${esc(a.assunto)} (de ${a.responderam} que responderam)</div>`).join('');
@@ -83,6 +90,7 @@ async function carregarAlunos() {
   const j = await api('/api/circles/list_members.php?circle_id=' + turmaSel);
   if (j.error) { box.innerHTML = ''; return msg(j.error, 'err'); }
   const alunos = j.members || [];
+  setStat('stAlunos', alunos.length);
   if (!alunos.length) { box.innerHTML = '<span class="spin">nenhum aluno ainda.</span>'; return; }
   box.innerHTML = '';
   alunos.forEach(u => {
@@ -140,6 +148,7 @@ async function carregarMateriais() {
   box.innerHTML = '<span class="spin">carregando materiais…</span>';
   const j = await api('/api/turmas/material_listar.php?circle_id=' + turmaSel);
   if (j.error) { box.innerHTML = ''; return msg(j.error, 'err'); }
+  setStat('stMateriais', (j.materiais || []).length);
   if (!j.materiais.length) { box.innerHTML = '<span class="spin">nenhum material ainda.</span>'; return; }
   box.innerHTML = '';
   j.materiais.forEach(m => box.appendChild(cardMaterial(m)));
