@@ -122,6 +122,45 @@
       .turmas-area .msg.info { background:var(--ac-bg); color:#a9cdf6; display:block; }
       .turmas-area .hidden { display:none; }
       .turmas-area .spin { color:var(--mut); font-size:13px; }
+
+      /* ----- vida: micro-animações (com propósito, e desligáveis) ----- */
+      @keyframes ac-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+      @keyframes ac-hero { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+      .turmas-area .ac-hero { animation:ac-hero .4s ease both; }
+      .turmas-area .turma-card,
+      .turmas-area .tstat,
+      .turmas-area .mat,
+      .turmas-area .rs-aluno,
+      .turmas-area #alunos .turma { animation:ac-in .34s cubic-bezier(.2,.7,.2,1) both; }
+      /* escalonado leve (≤ ~150ms no total) */
+      .turmas-area .tstat:nth-child(2) { animation-delay:.05s; }
+      .turmas-area .tstat:nth-child(3) { animation-delay:.1s; }
+      .turmas-area #turmas .turma-card:nth-child(2) { animation-delay:.04s; }
+      .turmas-area #turmas .turma-card:nth-child(3) { animation-delay:.08s; }
+      .turmas-area #turmas .turma-card:nth-child(4) { animation-delay:.12s; }
+      /* hover / press */
+      .turmas-area .mat { transition:border-color .15s, transform .15s; }
+      .turmas-area .mat:hover { border-color:var(--line2); transform:translateY(-2px); }
+      .turmas-area .tstat { transition:transform .15s, border-color .15s; }
+      .turmas-area .tstat:hover { transform:translateY(-2px); border-color:var(--line2); }
+      .turmas-area button { transition:transform .12s ease, filter .15s ease; }
+      .turmas-area button:hover { filter:brightness(1.08); }
+      .turmas-area button:active { transform:scale(.97); }
+      /* números da faixa: leve realce ao entrar */
+      .turmas-area .tstat .n { transition:color .2s ease; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .turmas-area .ac-hero,
+        .turmas-area .turma-card,
+        .turmas-area .tstat,
+        .turmas-area .mat,
+        .turmas-area .rs-aluno,
+        .turmas-area #alunos .turma { animation:none; }
+        .turmas-area .mat:hover,
+        .turmas-area .tstat:hover,
+        .turmas-area .turma-card:hover { transform:none; }
+        .turmas-area button:active { transform:none; }
+      }
     </style>
 </head>
 <body>
@@ -230,6 +269,6 @@
     EchoUIInstance.initHeader("academico");
 })();
 </script>
-<script src="js/turmas.js?v=20260929a"></script>
+<script src="js/turmas.js?v=20260929c"></script>
 </body>
 </html>

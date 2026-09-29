@@ -7,7 +7,25 @@ function msg(txt, tipo='info') {
   if (tipo === 'info') setTimeout(() => { el.className = 'msg'; }, 4000);
 }
 
-function setStat(id, val) { const e = document.getElementById(id); if (e) e.textContent = val; }
+// Número da faixa com contagem animada (0..valor). Instantâneo se a pessoa
+// pediu menos movimento.
+function setStat(id, val) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  const alvo = Number(val) || 0;
+  const menos = (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) || document.hidden;
+  const ini = Number(e.textContent) || 0;
+  if (menos || ini === alvo) { e.textContent = alvo; return; }
+  const t0 = performance.now(), dur = 500;
+  const passo = now => {
+    const p = Math.min(1, (now - t0) / dur);
+    e.textContent = Math.round(ini + (alvo - ini) * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(passo);
+  };
+  requestAnimationFrame(passo);
+  // Garante o valor final mesmo se o rAF for pausado (aba em segundo plano).
+  setTimeout(() => { e.textContent = alvo; }, dur + 80);
+}
 
 async function api(url, opts) {
   const r = await fetch(url, opts);
