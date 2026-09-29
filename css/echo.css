@@ -4583,10 +4583,28 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 
 .right-card-dobrado .right-card-seta { transform: rotate(180deg); }
 
-/* Esconde tudo menos o título. `:not(h5)` em vez de marcar cada filho:
-   o conteúdo destes cartões varia de página para página. */
-.right-card-dobrado > *:not(h5) { display: none; }
+/* Foco visível pelo teclado no título-botão. */
+.right-card-titulo-dobravel:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+/* Corpo dobrável: a grade 1fr->0fr anima a altura sem depender de um
+   max-height fixo, já que o conteúdo do cartão varia de página para
+   página. O filho interno recorta o transbordo enquanto fecha. */
+.right-card-corpo {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--transition-fast);
+}
+.right-card-corpo-in { overflow: hidden; min-height: 0; }
+.right-card-dobrado .right-card-corpo { grid-template-rows: 0fr; }
 .right-card-dobrado > h5 { margin-bottom: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+    .right-card-corpo { transition: none; }
+}
 
 /* ==========================================================================
    CRIAR SEU ECHO — agente pessoal e agente da loja (19/09/2026)
@@ -5321,6 +5339,12 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     height: auto;
     object-fit: contain;
     display: block;
+}
+
+/* Vídeo do feed um pouco mais baixo que a imagem: o retrato 9:16 do motor
+   fica alto demais a 560px na coluna. */
+.loja-post-foto video {
+    max-height: 420px;
 }
 
 .loja-post-texto { margin-bottom: 8px; line-height: 1.5; }

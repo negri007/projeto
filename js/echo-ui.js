@@ -139,17 +139,45 @@ class EchoUI {
      * não dobra de novo, e quem nunca mexeu continua vendo tudo.
      */
     tornarCartoesDobraveis() {
-        document.querySelectorAll(".right-card[data-dobravel]").forEach(card => {
-            const chave = "echo_card_" + card.dataset.dobravel;
+        // Todo cartão da direita vira dobrável: título com seta, clique ou
+        // teclado (Enter/Espaço) recolhe, e o app lembra por cartão. Abre por
+        // padrão — esconder tudo no carregamento deixaria a coluna "vazia".
+        // Um cartão sai da regra com data-dobravel="nao".
+        document.querySelectorAll(".right-card").forEach((card, i) => {
+            if (card.dataset.dobravel === "nao") return;
+
             const titulo = card.querySelector("h5");
             if (!titulo || titulo.dataset.ligado) return;
+
+            // Chave estável: o data-dobravel quando existe, senão um slug do
+            // título (com o índice de reserva, para dois títulos iguais).
+            const slug = (card.dataset.dobravel
+                || titulo.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+                || ("card-" + i));
+            const chave = "echo_card_" + slug;
 
             titulo.dataset.ligado = "1";
             titulo.classList.add("right-card-titulo-dobravel");
 
+            // Envolve o conteúdo depois do título num corpo animável (grade
+            // 1fr->0fr no CSS), para a altura fechar sem max-height fixo.
+            const corpo = document.createElement("div");
+            corpo.className = "right-card-corpo";
+            corpo.id = "rc-" + slug + "-" + i;
+            const dentro = document.createElement("div");
+            dentro.className = "right-card-corpo-in";
+            while (titulo.nextSibling) dentro.appendChild(titulo.nextSibling);
+            corpo.appendChild(dentro);
+            card.appendChild(corpo);
+
             const seta = document.createElement("i");
             seta.className = "fa-solid fa-chevron-up right-card-seta";
             titulo.appendChild(seta);
+
+            // O título é o botão de expandir/recolher (padrão disclosure).
+            titulo.setAttribute("role", "button");
+            titulo.setAttribute("tabindex", "0");
+            titulo.setAttribute("aria-controls", corpo.id);
 
             let dobrado = false;
 
@@ -159,16 +187,27 @@ class EchoUI {
                 dobrado = localStorage.getItem(chave) === "1";
             } catch (e) { /* segue aberto */ }
 
-            const aplicar = () => card.classList.toggle("right-card-dobrado", dobrado);
+            const aplicar = () => {
+                card.classList.toggle("right-card-dobrado", dobrado);
+                // aria-expanded = aberto; a seta girada é só reforço visual.
+                titulo.setAttribute("aria-expanded", String(!dobrado));
+            };
             aplicar();
 
-            titulo.addEventListener("click", () => {
+            const alterna = () => {
                 dobrado = !dobrado;
                 aplicar();
-
                 try {
                     localStorage.setItem(chave, dobrado ? "1" : "0");
                 } catch (e) { /* a sessão atual já respeitou o clique */ }
+            };
+
+            titulo.addEventListener("click", alterna);
+            titulo.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
+                    e.preventDefault();
+                    alterna();
+                }
             });
         });
     }
