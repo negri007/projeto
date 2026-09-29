@@ -3788,6 +3788,163 @@ Não testado de ponta a ponta: o caso "host remoto" com um `db_config.php`
 real apontando para fora — só pela função pura, para não mexer no config
 desta máquina.
 
+## 28/09/2026 — poster de vídeo do motor (capa) + diagnóstico do "Alimenta??o"
+
+**Capa preta dos vídeos ("Meus vídeos" e feed do Comércio) — corrigido.**
+O `<video>` sem poster mostrava caixa preta. Agora:
+- `video_gerar_poster()` (api/video/helpers.php) extrai um quadro do MP4 com o
+  ffmpeg (`ffmpeg -ss 0.5 -i x.mp4 -frames:v 1 -q:v 3 x.jpg`), sem shell (lista
+  de argumentos). Binário: `ffmpeg_bin` do video_config.php ou `ffmpeg` do PATH.
+- `video_motor_render()` gera o poster ao fim de um render bem-sucedido e o
+  devolve; `processar.php` grava em `videos_gerados.poster` (coluna nova, migração
+  em banco.sql). `meus.php` devolve `poster`.
+- Front: `comercio.js` usa `poster="uploads/<poster>"` quando há; `loja-feed.js`
+  ganhou `posterSrc()`. Vídeo antigo sem poster (poster NULL) cai no fallback
+  `src=...#t=0.1`, que mostra um quadro em vez de preto. Versão dos JS subida.
+- Vídeos já existentes no banco local foram backfillados (script pontual no
+  scratchpad, fora do git) só para a demo — não é necessário para o sistema.
+
+**"Alimenta??o" nas categorias do Comércio — corrigido (dado), sem bug vivo.**
+HEX confirmou dado corrompido no banco (os acentos viraram `3F3F` = dois `?`),
+mas só em 2 linhas de teste: loja 25 (Loja do Gabriel) e 26 (Loja Teste Fila 1),
+criadas por scripts ad-hoc **fora do repositório** (nenhum script commitado insere
+esses nomes). A conexão PDO **já usa `charset=utf8mb4`** (db_conexao.php), então
+inserções novas do app não corrompem — não há código de aplicação a corrigir.
+
+Regravação aplicada no banco local de teste (alvo fixo, 2 linhas, aprovada):
+`UPDATE lojas SET categoria=CONVERT(UNHEX('416C696D656E7461C3A7C3A36F') USING utf8mb4)
+WHERE id IN (25,26) AND categoria='Alimenta??o';` — 2 linhas afetadas, confirmado por
+SELECT (HEX agora `...C3A7C3A3...` = `ção`). Usei `UNHEX` porque o literal acentuado
+na linha de comando do Windows chegava mangled (SET virava `??` e o UPDATE não mudava
+nada); com `UNHEX` o valor é byte-exato.
+
+Varredura read-only por `3F3F` em todas as colunas de texto do banco: fora das
+lojas 25/26, só `ai_posts.content` id 344, que é `???` legítimo (pontuação do
+agente), não acento corrompido. Nenhuma outra linha para corrigir.
+
+Causa raiz do padrão: importar/inserir pelo cliente `mysql` **sem**
+`--default-character-set=utf8mb4` no Windows mangla acentos. As linhas de import do
+README.md e do SETUP.md que estavam sem a flag foram corrigidas para incluí-la.
+
+### Modo acervo ainda chamava a API no reconhecimento — 29/09/2026
+
+Achado durante o refactor do `helpers.php` (branch `refactor/ai-helpers`).
+`ai_rodada_reconhecimento()` decidia usar a API pela chance crua
+(`AI_REAL_CHANCE_COMENTARIO`, 50%, ou `AI_REAL_CHANCE`) sem consultar o
+modo — diferente do resto do tick, que passa por `ai_chance_real($modo)`.
+Em modo acervo, um comentário humano pendente num post de agente ainda
+podia gerar chamada paga, contra o contrato ("`acervo`: nunca chama a
+API").
+
+A rodada passa a receber `$modo` (o `tick.php`, único chamador, já o tinha)
+e a chance sai de `ai_chance_real()`: acervo 0, híbrido igual a antes
+(0,50 comentário / 0,60 curtida), api 1 — "api" agora cumpre também aqui o
+"sempre chama a API" do contrato. Contrato inalterado: é o código que
+passou a cumpri-lo.
+
+Testado com a API **liberada** (chave presente, teto global com folga —
+só o modo podia barrar): 11 comentários humanos envelhecidos para virar
+sinal vencido (sem sorteio), todos reconhecidos pelo acervo, **zero**
+linhas novas em `ai_api_uso`. Com o defeito, a chance de 11 rodadas
+seguidas sem chamada seria 0,5¹¹ (0,05%). Os comentários de teste e as
+reações ficaram no banco local, como atividade normal da rede.
+
+A busca de foto no Pexels continua sem olhar o modo (grátis, mas é rede
+externa) — fora desta correção.
+
+### Scripts de verificação versionados em `tools/verificacao/` — 29/09/2026
+
+Os scripts que verificaram a divisão do `helpers.php` (branch
+`refactor/ai-helpers`) saíram do rascunho para o repositório:
+`base_helpers.php`, `compara_base.php`, `chaves.php`, `roteiro.sh`,
+`verifica_helpers.sh` e um `README.md` com o uso. Diferenças para a versão
+de rascunho: caminhos relativos à raiz (nada de `C:/Users/...`), ids
+descobertos no banco em vez de fixos, conta de teste e binários por
+variável de ambiente (padrão: conta de seed `gustavo@echo.local`, senha
+pública do seed), teto global lido de `AI_TETO_CHAMADAS_HORA`. Os
+scripts de mover código (`mover.php`, `etapa.sh`) ficaram de fora — não
+são verificação.
+
+Sem segredo: nenhuma chave; o `ai_config.php` só é lido pelo próprio app.
+`tools/` negada por HTTP no `.htaccess` (404; `.sh`/`.md` já davam 403 pela
+regra de extensão) e cada `.php` com trava de CLI — simulado como
+requisição web pelo `php-cgi`, os três respondem `Status: 404`. Saída em
+`tools/verificacao/saida/`, no `.gitignore`.
+
+Testado nesta branch: retrato + roteiro de referência gravados, e uma
+verificação completa em seguida deu "TUDO OK" (102 funções, 84 constantes,
+25 verificações do roteiro iguais).
+
+### Modo acervo ainda chamava a API no quiz diário e no ciúme — 29/09/2026
+
+Mesmo defeito do reconhecimento (acima), em `api/ai/reproducao.php`:
+`repro_fala_hibrida()` — usada pelas respostas ao quiz diário e pelas falas
+de ciúme — chamava a API sempre que `ai_pode_chamar_api()` deixava, sem
+olhar o modo. Agora lê o modo (`ai_estado()`) e passa por
+`ai_chance_real($modo, 1.0)`: acervo 0, híbrido e api 1 (igual a antes —
+essas falas sempre tentaram a API quando ela estava disponível).
+
+Testado com a API liberada (chave presente, teto global com folga):
+- unidade: `repro_fala_hibrida()` com um gerador falso, que só anota se
+  foi chamado (nenhuma chamada real) — em acervo não foi chamado e nada
+  foi registrado; em híbrido e api foi chamado, como antes. Modo restaurado
+  e registros do teste apagados;
+- ponta a ponta: `quiz_diario.php --agendado` + `processar_quiz_respostas.php`
+  em acervo — 11 respostas, todas `source=acervo`, zero linhas novas em
+  `ai_api_uso`. O quiz #2 e as respostas ficaram no banco local.
+
+Ainda ignoram o modo, fora desta correção (não pedido): a **estreia de
+agente** (`agent_estreia.php`, chama a API ao criar agente mesmo em
+acervo — é ação disparada pela pessoa, com contrato próprio) e a busca de
+foto no Pexels.
+
+### Verificações de 29/09/2026 (sem mudança de código)
+
+**Scripts de linha de comando da reprodução.** `reproducao.php`,
+`check_maturacao.php` e `processar_quiz_respostas.php` rodados em modo
+acervo, com o teto global cheio de linhas marcadas (nenhuma chamada paga
+possível): os três saem com código 0, sem erro de PHP e sem nenhuma
+chamada nova. Nessa rodada `check_maturacao` não tinha filhote a
+amadurecer e `processar_quiz_respostas` não tinha quiz pendente — só a
+carga e a consulta foram exercitadas. (O quiz foi exercitado de ponta a
+ponta depois, no teste da correção do modo — ver acima.)
+
+**Falha 12 testada de ponta a ponta, e não só analisada.** Antes, o caso
+"banco em outro servidor" só tinha sido verificado pela função pura
+`seed_motivo_nao_local()`. Agora: numa cópia temporária do projeto
+(`git worktree`, fora da pasta servida pelo Apache) com um `db_config.php`
+de teste apontando para `192.0.2.10`, `seed_usuarios.php` e
+`seed_demo_videos.php` — os dois caminhos de entrada — recusaram com
+código 1 e "o banco configurado (host "192.0.2.10") não está nesta
+máquina"; o banco local não mudou. Controle: a mesma cópia com `localhost`
+deixa passar. Cópia removida; o `db_config.php` real nunca foi tocado.
+
+**`.gitattributes` aplicado (`* text=auto eol=lf`).** O índice já estava
+todo em LF (`git add --renormalize` não mudou nenhum arquivo). A cópia de
+trabalho desta máquina tinha 265 arquivos em CRLF (efeito do
+`core.autocrlf=true` do Git para Windows), convertidos para LF; conteúdo
+idêntico ao índice (mesmo hash). Consequência real, pega pelos scripts de
+`tools/verificacao/`: quatro constantes de prompt com quebra de linha
+literal (`AI_SAFETY_COMMON`, `AI_LIBERDADE`, `AI_GIRIA_BASE`,
+`AI_COMO_ESCREVER`) e os delimitadores da mensagem em
+`user_agent/helpers.php` deixam de levar `\r` **nesta máquina** —
+passam a ter o mesmo valor que o repositório e qualquer instalação em
+Linux sempre tiveram. Confirmado que a única diferença é o `\r` (recolocar
+`\r\n` devolve o valor antigo). Os outros 201 textos de várias linhas em
+`api/` são SQL. Depois de regerar a referência, a verificação completa deu
+"TUDO OK".
+
+**`feature/videos-ia` x `feature/grupos-academia`.** A `videos-ia`
+remota tem um único commit fora da `grupos-academia` (`cfdeff5`, roadmap
+v2), e ele é cópia exata do `2e62113` que já está aqui (mesmo
+`patch-id`); a local está 11 commits atrás da remota e não tem nada
+próprio. O que `git diff main...feature/videos-ia` mostra em
+`agent_estreia.php`, `agent_confirm.php`, `reproducao.php` e
+`validar_corpus.php` veio de commits de 21 a 25/09 (`014cde9`, `e57bde3`,
+`5984dd6`) que já estão no histórico da `grupos-academia`. Ela não mexe no
+`helpers.php` e não conflita com a correção do modo nem com a divisão em
+`nucleo/`: é uma branch atrasada, sem trabalho próprio.
+
 ---
 
 ## Refactor: `api/ai/helpers.php` dividido em `api/ai/nucleo/` — 28/09/2026
@@ -3841,15 +3998,17 @@ as mesmas assinaturas; o corpo de 99 funções não mudou um caractere, e
 nas outras três só mudou o caminho. Nenhum `require` fora de `api/ai/`
 mudou, e nenhum arquivo além do `helpers.php` aponta para `nucleo/`.
 
-**Achado no caminho, fora do escopo (não corrigido — mudaria
+**Achados no caminho, fora do escopo destas etapas (que não mudam
 comportamento):**
-- **Modo "acervo" não desliga a IA no reconhecimento.**
-  `ai_rodada_reconhecimento()` decide usar a API por
-  `AI_REAL_CHANCE_COMENTARIO` (50%) ou `AI_REAL_CHANCE` sem consultar o
-  modo — diferente do resto do tick, que passa por `ai_chance_real($modo)`,
-  que devolve 0 em acervo. Um comentário humano pendente num post de
-  agente pode gerar chamada paga mesmo com a rede em acervo. A busca de
-  foto no Pexels também não olha o modo (grátis, mas é rede externa).
+- **Modo "acervo" não desligava a IA no reconhecimento.**
+  `ai_rodada_reconhecimento()` decidia usar a API pela chance crua, sem
+  consultar o modo. **Corrigido depois** na `feature/grupos-academia`
+  (`36b888e`, e o mesmo defeito na reprodução em `f3dca6d` — ver as
+  seções de 29/09 acima). No merge da `grupos-academia` para esta branch,
+  a correção do reconhecimento foi reaplicada em `nucleo/reconhecimento.php`
+  (a função não mora mais no `helpers.php`, então o git não a levaria
+  sozinho); o trecho reaplicado é idêntico ao do `36b888e`. A busca de
+  foto no Pexels continua sem olhar o modo (grátis, mas é rede externa).
 - **Dois docblocks deslocados, já no original:** o de `ai_post_row()` está
   em cima de `ai_cortar_trecho()` (`formato.php`), e o texto principal de
   `ai_chamar_api()` ("A chamada em si…") está em cima de

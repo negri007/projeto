@@ -29,11 +29,12 @@
 # api/turmas/material_arquivo.php, que confere a turma a cada pedido.
 # `api/ai/nucleo/` são as partes do helpers da rede de IA: só definem
 # funções, nunca são endpoint, e só entram via api/ai/helpers.php.
+# `tools/` são scripts de linha de comando (verificação), nunca site.
 #
 # Sob `php -S` nada deste arquivo vale (ver o .htaccess de uploads/).
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteRule ^(\.git|\.claude|docs|logs|testes_mobile|motor|uploads/turmas|api/ai/nucleo)(/|$) - [R=404,L]
+    RewriteRule ^(\.git|\.claude|docs|logs|testes_mobile|motor|uploads/turmas|api/ai/nucleo|tools)(/|$) - [R=404,L]
 </IfModule>
 
 <IfModule mod_headers.c>

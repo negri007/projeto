@@ -229,11 +229,12 @@ function meuVideoHTML(v) {
     }
 
     const src = LojaFeed.videoSrc(v.arquivo);
+    const poster = v.poster ? ` poster="${LojaFeed.posterSrc(v.poster)}"` : "";
 
     return `
     <article class="meu-video" data-id="${v.id}">
         <div class="meu-video-midia">
-            <video src="${src}" controls muted playsinline preload="metadata"></video>
+            <video src="${src}#t=0.1"${poster} controls muted playsinline preload="metadata"></video>
         </div>
         <div class="meu-video-info"><strong>${nome}</strong><small>${quando}</small></div>
         <div class="meu-video-acoes">

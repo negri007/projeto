@@ -51,7 +51,7 @@ no usuário `root`.
 ```bash
 # 1. Banco
 C:\xampp\mysql\bin\mysqld.exe --defaults-file=C:\xampp\mysql\bin\my.ini
-C:\xampp\mysql\bin\mysql.exe -u root < banco.sql
+C:\xampp\mysql\bin\mysql.exe -u root --default-character-set=utf8mb4 < banco.sql
 
 # 2. Servidor de aplicação, na raiz do projeto
 C:\xampp\php\php.exe -S 127.0.0.1:8123

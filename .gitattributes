@@ -1,0 +1,23 @@
+# Fim de linha do repositório: LF, no índice E na cópia de trabalho,
+# qualquer que seja o core.autocrlf da máquina (no Windows do XAMPP ele vem
+# `true` no nível do sistema, e cada commit de arquivo com LF avisava
+# "LF will be replaced by CRLF"). O índice já estava todo em LF; isto só
+# fixa a regra para toda máquina que clonar. PHP, HTML, JS, CSS, SQL e .sh
+# rodam iguais com LF — e .sh com CRLF quebra no bash de Linux/Docker.
+* text=auto eol=lf
+
+# Binários: nunca converter. Os tipos que existem hoje no repositório, mais
+# os que o app gera ou aceita (uploads ficam fora do git, mas o motor e os
+# assets versionam alguns).
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.gif   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.mp3   binary
+*.mp4   binary
+*.pdf   binary

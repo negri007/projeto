@@ -129,7 +129,14 @@ function repro_agente(PDO $pdo, int $id): ?array
  */
 function repro_fala_hibrida(PDO $pdo, callable $gerar, callable $doAcervo): array
 {
-    if (ai_pode_chamar_api($pdo)) {
+    // O modo manda, como no tick: em "acervo" a rede nunca chama a API
+    // (contrato de mode.php). Quiz e ciúme sempre tentaram a API quando
+    // ela estava disponível — chance base 1.0, que ai_chance_real() mantém
+    // em "hibrido" e "api" e zera em "acervo". Antes o modo era ignorado
+    // aqui e a resposta ao quiz diário gastava API mesmo em acervo.
+    $modo = ai_estado($pdo)["mode"] ?? "hibrido";
+
+    if (ai_chance_real($modo, 1.0) > 0 && ai_pode_chamar_api($pdo)) {
         ai_registrar_chamada_api($pdo);
         $texto = $gerar();
 

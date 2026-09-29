@@ -176,6 +176,12 @@ class LojaFeed {
         return "uploads/" + arquivo.split("/").map(encodeURIComponent).join("/");
     }
 
+    /** Caminho do poster (capa) do vídeo, ou "" se não houver. */
+    static posterSrc(poster) {
+        if (!poster) return "";
+        return "uploads/" + poster.split("/").map(encodeURIComponent).join("/");
+    }
+
     /** `imagem` com prefixo "video:" é vídeo gerado por IA, não foto —
         mesmo card, troca só a mídia e acrescenta o selo. */
     static midiaHTML(imagem) {
@@ -187,7 +193,7 @@ class LojaFeed {
                `muted` + `playsinline` são o que o navegador exige para
                tocar sem gesto (e sem abrir tela cheia no iPhone). */
             return `<div class="loja-post-foto">
-                <video src="${LojaFeed.videoSrc(arquivo)}" muted loop playsinline preload="metadata"></video>
+                <video src="${LojaFeed.videoSrc(arquivo)}#t=0.1" muted loop playsinline preload="metadata"></video>
                 <span class="loja-post-video-badge"><i class="fa-solid fa-clapperboard"></i> Vídeo</span>
                 <button type="button" class="loja-post-som" aria-label="Ativar som" title="Ativar som">
                     <i class="fa-solid fa-volume-xmark"></i>

@@ -739,6 +739,43 @@ function motor_img_corrige_exif($img, string $src)
  * @param array $registro linha de videos_gerados (modelo, formato, params, loja_id)
  * @return array{ok:bool, arquivo:?string, erro:?string}
  */
+/** Binário do ffmpeg: `ffmpeg_bin` do video_config.php, ou "ffmpeg" (PATH). */
+function video_ffmpeg_bin(): string
+{
+    $c = trim((string)(video_config()["ffmpeg_bin"] ?? ""));
+    return $c !== "" ? $c : "ffmpeg";
+}
+
+/**
+ * Extrai um quadro do MP4 como poster (capa), ao lado do arquivo, com a mesma
+ * base de nome e extensão .jpg. Devolve o caminho absoluto do .jpg, ou null se
+ * o ffmpeg não estiver disponível/falhar. Sem shell (lista de argumentos).
+ *
+ * -ss 0.5: pega um quadro logo depois do início, evitando o preto de um
+ * fade-in. Nunca lança: poster é enfeite, não pode derrubar um render que deu
+ * certo.
+ */
+function video_gerar_poster(string $mp4Abs): ?string
+{
+    if (!is_file($mp4Abs)) {
+        return null;
+    }
+
+    $posterAbs = preg_replace('/\.mp4$/i', '', $mp4Abs) . ".jpg";
+    $ff = video_ffmpeg_bin();
+
+    $proc = @proc_open(
+        [$ff, "-y", "-ss", "0.5", "-i", $mp4Abs, "-frames:v", "1", "-q:v", "3", $posterAbs],
+        [0 => ["file", video_nulo(), "r"], 1 => ["file", video_nulo(), "w"], 2 => ["file", video_nulo(), "w"]],
+        $pipes
+    );
+    if (is_resource($proc)) {
+        proc_close($proc);
+    }
+
+    return is_file($posterAbs) ? $posterAbs : null;
+}
+
 function video_motor_render(array $registro): array
 {
     $modelo  = (string)($registro["modelo"] ?? "");
@@ -833,7 +870,16 @@ function video_motor_render(array $registro): array
 
     if (is_array($res) && !empty($res["ok"]) && is_file($outAbs)) {
         @unlink($logFile);
-        return ["ok" => true, "arquivo" => $pastaRelativa . "/" . $nome, "erro" => null];
+
+        // Poster: um quadro do vídeo, salvo ao lado do .mp4. Enfeite — se o
+        // ffmpeg falhar, o vídeo vai sem capa e o front usa o fallback.
+        $posterRel = null;
+        $posterAbs = video_gerar_poster($outAbs);
+        if ($posterAbs !== null) {
+            $posterRel = $pastaRelativa . "/" . basename($posterAbs);
+        }
+
+        return ["ok" => true, "arquivo" => $pastaRelativa . "/" . $nome, "poster" => $posterRel, "erro" => null];
     }
 
     $erro = is_array($res) ? ($res["erro"] ?? "render falhou") : "motor sem resposta (node no PATH?)";

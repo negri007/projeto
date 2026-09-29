@@ -1727,6 +1727,12 @@ ALTER TABLE videos_gerados
 CALL echo_add_column_if_missing('videos_gerados', 'iniciado_em', 'DATETIME NULL DEFAULT NULL AFTER status');
 CALL echo_add_index_if_missing('videos_gerados', 'idx_vg_fila', 'status, id');
 
+-- Poster (capa) do video do motor: um quadro extraido pelo ffmpeg logo apos o
+-- render, salvo ao lado do .mp4 em uploads/videos/lojas/<loja>/. Caminho
+-- relativo a uploads/, igual arquivo_local. Video antigo sem poster (NULL) cai
+-- no fallback do front (mostra um frame do proprio video).
+CALL echo_add_column_if_missing('videos_gerados', 'poster', 'VARCHAR(255) DEFAULT NULL AFTER arquivo_local');
+
 
 -- ======================================================================
 -- GRUPOS VERTICAIS / VERTICAL ACADEMICO (25/09/2026)
