@@ -4161,3 +4161,33 @@ vazio; o `echo_sistema` inativo. Agentes de usuário, posts e o resto não
 são tocados. O banco de teste (vazio) foi apagado. Lição: testar
 migração em banco separado exige tirar o `USE banco` (ou usar uma cópia
 do arquivo sem ele).
+
+### API: `api/layout/` (obter, salvar, restaurar)
+
+Contrato em `docs/API_CONTRACT.md`, "Layout por blocos do perfil".
+`helpers.php` concentra a validação: listas fixas de tela, tipos,
+tamanhos e formas (com as formas aceitas e a padrão de cada tipo); cada
+tipo exatamente uma vez (é o máximo de blocos); `ordem` de 1 a 5 sem
+repetir; nenhuma chave fora de `versao`/`blocos` e
+`tipo`/`ordem`/`tamanho`/`forma`. O layout gravado é **remontado** a
+partir das listas — nada do cliente é copiado sem bater com uma delas. O
+nome de uma chave recusada volta limpo na mensagem (só `[A-Za-z0-9_]`).
+Identidade sempre pela sessão: um `user_id` no corpo do salvar é erro 400,
+não ignorado em silêncio. Ler o layout de outra pessoa é permitido (o
+perfil dela já é visível) e vem com `editavel: false`. Limite: 30
+salvamentos por pessoa por hora, pelo freio genérico de `rate_limit.php`;
+layout inválido não gasta vaga. Corpo acima de 4 KB é recusado antes do
+`json_decode`, com profundidade máxima 8.
+
+Testado por curl, 37 casos, todos passando: sem sessão nos três (401);
+corpo que não é JSON, lista em vez de objeto, tela desconhecida, versão 2,
+bloco faltando, bloco repetido, ordem repetida e em texto, tamanho fora da
+lista, chave livre no layout e num bloco, nome de chave com HTML (volta
+limpo), corpo acima de 4 KB (400); tipo desconhecido (400); `circulo` em
+`sobre` (400); forma desconhecida, ausente ou não-texto viram a padrão do
+tipo (200); caminho feliz com blocos fora de ordem (normaliza e ordena),
+leitura do próprio (`editavel: true`); "não é seu" — outra pessoa
+mandando `user_id` do dono (400), lendo o layout do dono
+(`editavel: false`, intacto), e restaurando só o dela; 31º salvamento na
+hora (429) e layout inválido não gastando vaga; restaurar (com e sem
+layout salvo), tela desconhecida, salvar por GET.
