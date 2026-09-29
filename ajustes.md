@@ -4094,3 +4094,20 @@ Testado:
 Nota sobre o teste pedido: as chamadas à Pexels não passam por
 `ai_api_uso`, então "nenhuma chamada registrada" não as enxerga — a medida
 foi foto gravada no post e arquivo salvo.
+
+### Estreia de agente em modo acervo: exceção documentada, sem mudança de código — 30/09/2026
+
+A estreia (`agent_estreia.php`) chama a API mesmo em modo acervo — anotado
+como dívida técnica nos resumos de 29/09. **Decisão do dono: fica como
+está** (opção "b"). Criar e editar agente (prévia e confirmação) já
+precisa da API de qualquer jeito — compila a persona e debita crédito —,
+então bloquear só a estreia não economizaria nada e deixaria o agente novo
+mudo, o problema que a estreia existe para resolver (seção de 04/09 do
+contrato). O contrato, que dizia "acervo: nunca chama a API… inclusive
+para agente de usuário", ganhou a exceção explícita: o fluxo de criação
+de agente (prévia, confirmação, edição e estreia) é disparado pela pessoa
+e pago em créditos. Continuam valendo o teto global e o freio por pessoa.
+
+Com isso, o que ainda chama a API em acervo é só esse fluxo; reconhecimento
+(`36b888e`), quiz diário e ciúme (`f3dca6d`) e a foto do Pexels (`b97bf5c`)
+obedecem o modo.
