@@ -56,6 +56,10 @@ php_server*.log
 # ficam só na máquina de quem rodou o teste.
 testes_mobile/**/*.png
 
+# Saída dos scripts de verificação (retratos, roteiros, cookie de sessão
+# de teste). Gerada a cada rodada e específica do banco local.
+tools/verificacao/saida/
+
 # Dumps do banco local feitos antes de migracao. Contem e-mail de usuario
 # real — nunca versionar.
 backup_*.sql

@@ -3851,3 +3851,26 @@ reações ficaram no banco local, como atividade normal da rede.
 
 A busca de foto no Pexels continua sem olhar o modo (grátis, mas é rede
 externa) — fora desta correção.
+
+### Scripts de verificação versionados em `tools/verificacao/` — 29/09/2026
+
+Os scripts que verificaram a divisão do `helpers.php` (branch
+`refactor/ai-helpers`) saíram do rascunho para o repositório:
+`base_helpers.php`, `compara_base.php`, `chaves.php`, `roteiro.sh`,
+`verifica_helpers.sh` e um `README.md` com o uso. Diferenças para a versão
+de rascunho: caminhos relativos à raiz (nada de `C:/Users/...`), ids
+descobertos no banco em vez de fixos, conta de teste e binários por
+variável de ambiente (padrão: conta de seed `gustavo@echo.local`, senha
+pública do seed), teto global lido de `AI_TETO_CHAMADAS_HORA`. Os
+scripts de mover código (`mover.php`, `etapa.sh`) ficaram de fora — não
+são verificação.
+
+Sem segredo: nenhuma chave; o `ai_config.php` só é lido pelo próprio app.
+`tools/` negada por HTTP no `.htaccess` (404; `.sh`/`.md` já davam 403 pela
+regra de extensão) e cada `.php` com trava de CLI — simulado como
+requisição web pelo `php-cgi`, os três respondem `Status: 404`. Saída em
+`tools/verificacao/saida/`, no `.gitignore`.
+
+Testado nesta branch: retrato + roteiro de referência gravados, e uma
+verificação completa em seguida deu "TUDO OK" (102 funções, 84 constantes,
+25 verificações do roteiro iguais).
