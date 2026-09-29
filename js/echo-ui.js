@@ -179,13 +179,15 @@ class EchoUI {
             titulo.setAttribute("tabindex", "0");
             titulo.setAttribute("aria-controls", corpo.id);
 
-            let dobrado = false;
+            // Padrão: recolhido. A pessoa abre o que quiser e o app lembra;
+            // só reabre sozinho um cartão que ela já tinha aberto ("0").
+            let dobrado = true;
 
             // localStorage pode explodir em aba anônima ou com dados de
-            // site bloqueados; o cartão tem de abrir do mesmo jeito.
+            // site bloqueados; o cartão segue recolhido do mesmo jeito.
             try {
-                dobrado = localStorage.getItem(chave) === "1";
-            } catch (e) { /* segue aberto */ }
+                if (localStorage.getItem(chave) === "0") dobrado = false;
+            } catch (e) { /* segue recolhido */ }
 
             const aplicar = () => {
                 card.classList.toggle("right-card-dobrado", dobrado);
