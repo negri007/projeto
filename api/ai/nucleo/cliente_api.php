@@ -115,68 +115,29 @@ function ai_chamar_api(string $system, string $contexto, int $maxTokens = 300, ?
         return null;
     }
 
-    $corpo = json_encode([
+    /* A chamada em si é do cliente único, ai_api_mensagens(). A cota é
+       "chamador": quem chama ai_chamar_api() já conferiu e registrou —
+       a rede com ai_pode_chamar_api() + ai_registrar_chamada_api(), os
+       endpoints de agente com ai_exigir_cota(), loja e agente pessoal com
+       o próprio freio. É o contrato desta função desde antes da etapa 3. */
+    $r = ai_api_mensagens([
         "model"      => $modelo ?? $config["model"],
         "max_tokens" => $maxTokens,
         "system"     => $system,
         "messages"   => [
             ["role" => "user", "content" => $contexto],
         ],
-    ], JSON_UNESCAPED_UNICODE);
-
-    $ch = curl_init("https://api.anthropic.com/v1/messages");
-    curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $corpo,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => $timeout ?? $config["timeout"],
-        CURLOPT_HTTPHEADER     => [
-            "content-type: application/json",
-            "x-api-key: " . $config["api_key"],
-            "anthropic-version: 2023-06-01",
-        ],
+    ], [
+        "cota"    => ["tipo" => "chamador", "motivo" => "ai_chamar_api: quem chama confere e registra a cota"],
+        "timeout" => $timeout ?? (int)$config["timeout"],
+        "rotulo"  => "ai_chamar_api",
     ]);
 
-    $resposta = curl_exec($ch);
-    $status   = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $erroCurl = curl_error($ch);
-    curl_close($ch);
-
-    // BUG ENCONTRADO NO TESTE (03/09): com CURLOPT_RETURNTRANSFER, um
-    // timeout que estoura DEPOIS dos headers chegarem (HTTP 200 já lido)
-    // mas ANTES do corpo inteiro pode devolver o buffer parcial em vez de
-    // `false` — o status continua 200, e o JSON simplesmente corta no
-    // meio. A checagem antiga só olhava `$resposta === false`, então uma
-    // resposta truncada passava disso e quebrava só lá na frente, no
-    // parse do JSON, com uma mensagem que não apontava pra causa real.
-    // `curl_error()` não fica vazio nesse caso mesmo com corpo presente
-    // — é o sinal que faltava checar.
-    if ($resposta === false || $status !== 200 || $erroCurl !== "") {
-        // A chave nunca vai para o log; só o status e o erro de rede.
-        error_log("ai_chamar_api: HTTP $status " . ($erroCurl ?: substr((string)$resposta, 0, 200)));
+    if (!$r["ok"]) {
         return null;
     }
 
-    $dados = json_decode($resposta, true);
-
-    // `stop_reason: "max_tokens"` é o modelo confirmando que cortou a
-    // própria resposta por falta de espaço — diferente do caso acima
-    // (rede), aqui vale aumentar `$maxTokens` no chamador, não confiar
-    // no texto parcial.
-    if (($dados["stop_reason"] ?? null) === "max_tokens") {
-        error_log("ai_chamar_api: resposta cortada por max_tokens ($maxTokens)");
-        return null;
-    }
-
-    $texto = "";
-
-    foreach ($dados["content"] ?? [] as $bloco) {
-        if (($bloco["type"] ?? "") === "text") {
-            $texto .= $bloco["text"];
-        }
-    }
-
-    $texto = trim($texto);
+    $texto = trim($r["texto"]);
 
     if ($texto === "") {
         error_log("ai_chamar_api: resposta sem texto");
@@ -196,6 +157,173 @@ function ai_chamar_api(string $system, string $contexto, int $maxTokens = 300, ?
     }
 
     return mb_substr($texto, 0, $maxChars);
+}
+
+/* ======================================================================
+   CLIENTE ÚNICO DA API DA ANTHROPIC (etapa 3, 29/09/2026)
+
+   Até aqui havia três cópias do mesmo cURL — ai_chamar_api(), o resumo de
+   PDF das turmas e o quiz — cada uma tratando falha de um jeito (o resumo
+   de PDF aceitava resposta cortada por max_tokens; só o quiz tratava
+   recusa do modelo). Agora há uma: ai_api_mensagens(). Toda chamada à
+   Anthropic do projeto passa por ela.
+   ====================================================================== */
+
+/** Endpoint e versão da Messages API. */
+const AI_API_URL    = "https://api.anthropic.com/v1/messages";
+const AI_API_VERSAO = "2023-06-01";
+
+/**
+ * Chama a Messages API com um corpo pronto — texto, bloco `document`,
+ * `tools`/`tool_choice`, o que o chamador montar.
+ *
+ * `$corpo` precisa trazer `model` e `max_tokens` explícitos.
+ *
+ * `$opcoes`:
+ * - `cota` (OBRIGATÓRIA — sem ela, ou com tipo desconhecido, lança
+ *   InvalidArgumentException e nada é chamado). Declara quem responde pelo
+ *   gasto desta chamada:
+ *     ["tipo" => "pessoa", "pdo" => PDO, "user_id" => int, "teto" => int]
+ *        o cliente confere o freio da pessoa e registra a chamada em
+ *        ai_api_uso no nome dela (ai_cota_reservar);
+ *     ["tipo" => "chamador", "motivo" => string]
+ *        quem chama já conferiu e registrou (rede, ai_exigir_cota, freio
+ *        próprio). O motivo é obrigatório: diz no código POR QUE esta
+ *        chamada não é cobrada aqui.
+ * - `timeout` (OBRIGATÓRIO, segundos).
+ * - `rotulo` (opcional): prefixo das linhas de log.
+ *
+ * Nunca encerra o script (sem exit/echo): com a cota da pessoa estourada
+ * devolve `["ok" => false, "erro" => "cota", "espera" => segundos]` — o
+ * endpoint transforma em 429, a linha de comando decide o que fazer.
+ *
+ * Devolve sempre:
+ *   ok, erro (null | "sem_config" | "cota" | "http" | "max_tokens" |
+ *   "recusa" | "json"), espera, texto, tool_uses (nome => input), stop,
+ *   modelo, tokens_in, tokens_out.
+ */
+function ai_api_mensagens(array $corpo, array $opcoes): array
+{
+    $cota = $opcoes["cota"] ?? null;
+
+    if (!is_array($cota) || !in_array($cota["tipo"] ?? null, ["pessoa", "chamador"], true)) {
+        throw new InvalidArgumentException("ai_api_mensagens: opção 'cota' ausente ou inválida — declare tipo pessoa ou chamador");
+    }
+    if ($cota["tipo"] === "pessoa"
+        && (!($cota["pdo"] ?? null) instanceof PDO || !is_int($cota["user_id"] ?? null) || !is_int($cota["teto"] ?? null))) {
+        throw new InvalidArgumentException("ai_api_mensagens: cota 'pessoa' precisa de pdo, user_id e teto");
+    }
+    if ($cota["tipo"] === "chamador" && trim((string)($cota["motivo"] ?? "")) === "") {
+        throw new InvalidArgumentException("ai_api_mensagens: cota 'chamador' precisa de motivo");
+    }
+    if (!is_int($opcoes["timeout"] ?? null) || $opcoes["timeout"] <= 0) {
+        throw new InvalidArgumentException("ai_api_mensagens: opção 'timeout' (segundos) é obrigatória");
+    }
+    if (empty($corpo["model"]) || !is_int($corpo["max_tokens"] ?? null)) {
+        throw new InvalidArgumentException("ai_api_mensagens: o corpo precisa de model e max_tokens explícitos");
+    }
+
+    $rotulo = (string)($opcoes["rotulo"] ?? "ai_api_mensagens");
+    $vazio  = ["ok" => false, "erro" => null, "espera" => null, "texto" => "", "tool_uses" => [],
+               "stop" => null, "modelo" => null, "tokens_in" => null, "tokens_out" => null];
+
+    $config = ai_config();
+
+    // Sem IA configurada nada é gasto: nem cota, nem chamada.
+    if ($config === null) {
+        return ["erro" => "sem_config"] + $vazio;
+    }
+
+    if ($cota["tipo"] === "pessoa") {
+        require_once dirname(__DIR__) . "/limite_uso.php";
+
+        $espera = ai_cota_reservar($cota["pdo"], $cota["user_id"], $cota["teto"]);
+
+        if ($espera !== null) {
+            return ["erro" => "cota", "espera" => $espera] + $vazio;
+        }
+    }
+
+    $ch = curl_init(AI_API_URL);
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => json_encode($corpo, JSON_UNESCAPED_UNICODE),
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => $opcoes["timeout"],
+        CURLOPT_HTTPHEADER     => [
+            "content-type: application/json",
+            "x-api-key: " . $config["api_key"],
+            "anthropic-version: " . AI_API_VERSAO,
+        ],
+    ]);
+
+    $resposta = curl_exec($ch);
+    $status   = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $erroCurl = curl_error($ch);
+    curl_close($ch);
+
+    return ai_api_interpretar($status, $resposta, $erroCurl, $rotulo, (int)$corpo["max_tokens"]);
+}
+
+/**
+ * Lê a resposta crua da Messages API. Função pura (só lê e registra log),
+ * separada do cURL para ser testada com respostas gravadas.
+ */
+function ai_api_interpretar(int $status, string|false $resposta, string $erroCurl, string $rotulo, int $maxTokens): array
+{
+    $r = ["ok" => false, "erro" => null, "espera" => null, "texto" => "", "tool_uses" => [],
+          "stop" => null, "modelo" => null, "tokens_in" => null, "tokens_out" => null];
+
+    // BUG ENCONTRADO NO TESTE (03/09): com CURLOPT_RETURNTRANSFER, um
+    // timeout que estoura DEPOIS dos headers chegarem (HTTP 200 já lido)
+    // mas ANTES do corpo inteiro pode devolver o buffer parcial em vez de
+    // `false` — o status continua 200, e o JSON simplesmente corta no
+    // meio. `curl_error()` não fica vazio nesse caso mesmo com corpo
+    // presente — é o sinal que faltava checar.
+    if ($resposta === false || $status !== 200 || $erroCurl !== "") {
+        // A chave nunca vai para o log; só o status e o erro de rede.
+        error_log("$rotulo: HTTP $status " . ($erroCurl ?: substr((string)$resposta, 0, 300)));
+        return ["erro" => "http"] + $r;
+    }
+
+    $dados = json_decode($resposta, true);
+
+    if (!is_array($dados)) {
+        error_log("$rotulo: resposta não é JSON");
+        return ["erro" => "json"] + $r;
+    }
+
+    $r["stop"]       = $dados["stop_reason"] ?? null;
+    $r["modelo"]     = $dados["model"] ?? null;
+    $r["tokens_in"]  = isset($dados["usage"]["input_tokens"]) ? (int)$dados["usage"]["input_tokens"] : null;
+    $r["tokens_out"] = isset($dados["usage"]["output_tokens"]) ? (int)$dados["usage"]["output_tokens"] : null;
+
+    // `max_tokens`: o modelo confirmando que cortou a própria resposta por
+    // falta de espaço — vale aumentar o max_tokens do chamador, não confiar
+    // no texto parcial. `refusal`: o modelo recusou; o texto que vier não é
+    // a resposta pedida.
+    if ($r["stop"] === "max_tokens") {
+        error_log("$rotulo: resposta cortada por max_tokens ($maxTokens)");
+        return ["erro" => "max_tokens"] + $r;
+    }
+    if ($r["stop"] === "refusal") {
+        error_log("$rotulo: o modelo recusou (stop_reason refusal)");
+        return ["erro" => "recusa"] + $r;
+    }
+
+    foreach ($dados["content"] ?? [] as $bloco) {
+        $tipo = $bloco["type"] ?? "";
+
+        if ($tipo === "text") {
+            $r["texto"] .= (string)($bloco["text"] ?? "");
+        } elseif ($tipo === "tool_use" && isset($bloco["name"])) {
+            $r["tool_uses"][(string)$bloco["name"]] = $bloco["input"] ?? null;
+        }
+    }
+
+    $r["ok"] = true;
+
+    return $r;
 }
 
 /**

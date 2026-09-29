@@ -133,11 +133,44 @@ const AI_ACOES_TURMA_POR_HORA = 10;
 const AI_ACOES_AGENTE_POR_HORA = 8;
 
 /**
- * Freio + registro de uma ação que vai à API, numa chamada só.
+ * Reserva uma vaga de IA para esta pessoa: confere o freio e, se couber,
+ * grava a linha em `ai_api_uso` no nome dela ANTES da chamada (a chamada
+ * que falha ou é recusada pela moderação também custou).
  *
- * Estourado: responde 429 no formato de erro da API e encerra. Livre:
- * grava a linha em `ai_api_uso` no nome da pessoa ANTES da chamada — a
- * chamada que falha ou é recusada pela moderação também custou.
+ * Devolve null quando reservou, ou os segundos de espera quando o freio
+ * fechou — e aí nada é gravado. Nunca encerra o script: serve igual para
+ * endpoint (que responde 429) e para linha de comando (que decide o que
+ * fazer com a espera). É o que o cliente da API usa (ai_api_mensagens).
+ */
+function ai_cota_reservar(PDO $pdo, int $userId, int $teto): ?int
+{
+    if (!function_exists("ai_registrar_chamada_api")) {
+        require_once __DIR__ . "/helpers.php";
+    }
+
+    $freio = ai_pode_provocar($pdo, $userId, $teto);
+
+    if (!$freio["ok"]) {
+        return max(1, (int)$freio["espera"]);
+    }
+
+    ai_registrar_chamada_api($pdo, $userId);
+
+    return null;
+}
+
+/** A mensagem do 429 de cota, igual em todo lugar que a mostra. */
+function ai_cota_mensagem(int $espera): string
+{
+    return "Muitos pedidos à IA nesta hora. Tente de novo em "
+        . login_tempo_legivel(max(1, $espera)) . ".";
+}
+
+/**
+ * Freio + registro de uma ação que vai à API, para endpoint: estourado,
+ * responde 429 no formato de erro da API e encerra. Livre, reserva a vaga
+ * (ver ai_cota_reservar). Usado pelos endpoints de criação/edição de agente,
+ * que cobram por AÇÃO antes de chamar ai_compilar_agente_usuario().
  *
  * Sem IA configurada não freia nem registra: nada vai ser gasto, e quem
  * chamou segue até o erro de sempre ("A IA não está configurada...").
@@ -152,16 +185,11 @@ function ai_exigir_cota(PDO $pdo, int $userId, int $teto): void
         return;
     }
 
-    $freio = ai_pode_provocar($pdo, $userId, $teto);
+    $espera = ai_cota_reservar($pdo, $userId, $teto);
 
-    if (!$freio["ok"]) {
+    if ($espera !== null) {
         http_response_code(429);
-        echo json_encode([
-            "error" => "Muitos pedidos à IA nesta hora. Tente de novo em "
-                . login_tempo_legivel(max(1, (int)$freio["espera"])) . ".",
-        ], JSON_UNESCAPED_UNICODE);
+        echo json_encode(["error" => ai_cota_mensagem($espera)], JSON_UNESCAPED_UNICODE);
         exit;
     }
-
-    ai_registrar_chamada_api($pdo, $userId);
 }
