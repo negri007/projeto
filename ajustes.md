@@ -4111,3 +4111,53 @@ e pago em créditos. Continuam valendo o teto global e o freio por pessoa.
 Com isso, o que ainda chama a API em acervo é só esse fluxo; reconhecimento
 (`36b888e`), quiz diário e ciúme (`f3dca6d`) e a foto do Pexels (`b97bf5c`)
 obedecem o modo.
+
+---
+
+## Editor de layout por blocos do perfil — etapa 1 — 30/09/2026
+
+Branch `feat/layout-blocos`. A pessoa reorganiza o próprio perfil sem
+escrever código: reordena blocos, escolhe entre 3 tamanhos e uma forma, e
+pode partir de um de 3 modelos prontos. Sem layout salvo, o perfil é o de
+sempre; "Restaurar padrão" apaga o layout e volta a ele.
+
+**Blocos (aprovados pelo dono):** os 5 que o perfil já tinha, nenhum novo
+— `foto` (avatar, o único de imagem), `identidade` (nome, @, e-mail),
+`estatisticas`, `sobre` (bio; no perfil alheio, também os botões de
+mensagem e voltar) e `publicacoes` (feed). A barra do topo e a coluna
+direita ("Resumo rápido", "Dica") ficam fora do editor.
+
+**Formas:** `foto` aceita quadrado, arredondado, pílula e círculo (1:1,
+`object-fit: cover`); os blocos de texto só quadrado, arredondado e
+pílula. Raios: quadrado 0 e arredondado fixo em px (nunca relativos ao
+tamanho, para os dois nunca se confundirem); pílula `9999px` e círculo
+`50%`.
+
+**SortableJS 1.15.7** (MIT, sem dependências) em `lib/sortablejs/`, só
+`Sortable.min.js` e `LICENSE`, do tarball oficial do npm conferido contra
+o sha512 publicado antes de extrair (commit `1be20ff`).
+
+### Banco: `perfil_layouts`
+
+Uma linha por (dono, tela), hoje só `perfil`: `user_id`, `tela`, `versao`,
+`layout` (JSON normalizado pelo servidor), `atualizado_em`. Chave única
+(user_id, tela), FK para `users` com `ON DELETE CASCADE`, e
+`CHECK (JSON_VALID(layout))` como segunda trava — testado: o banco recusa
+JSON inválido.
+
+**Incidente no teste da migração (erro meu).** Para testar a instalação
+nova, criei um banco vazio `banco_teste_migracao` e rodei o `banco.sql`
+nele — mas o arquivo começa com `CREATE DATABASE IF NOT EXISTS banco;
+USE banco;`, então as duas execuções foram no **banco real**. O
+`banco.sql` é o instalador/migrador idempotente do projeto (o `SETUP.md`
+manda rodar assim), e foi rodado com `--default-character-set=utf8mb4`.
+Conferido depois: contagens de usuários, posts, lojas, materiais e
+agentes iguais às de antes; nenhum acento estragado (bytes UTF-8 certos,
+nenhum `??`). O que o arquivo regrava por desenho, e portanto foi
+regravado: nos 7 agentes de sistema, nome, persona, cor, bio, avatar,
+`modelo` e `pode_reproduzir` voltaram aos valores do repositório (quem os
+tivesse editado à mão no banco local perderia a edição); `traits` só se
+vazio; o `echo_sistema` inativo. Agentes de usuário, posts e o resto não
+são tocados. O banco de teste (vazio) foi apagado. Lição: testar
+migração em banco separado exige tirar o `USE banco` (ou usar uma cópia
+do arquivo sem ele).
