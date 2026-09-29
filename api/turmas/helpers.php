@@ -206,21 +206,30 @@ function turma_resumo_system(): string
         . "Seja claro e direto. Responda só o resumo, sem preâmbulo.";
 }
 
+/** Resumo: teto de tokens da resposta, e de caracteres do texto guardado. */
+const TURMA_RESUMO_MAX_TOKENS = 1200;
+const TURMA_RESUMO_MAX_CHARS  = 6000;
+
 /**
  * Gera o resumo de um material. Devolve ["ok"=>true,"resumo"=>..] ou
- * ["ok"=>false,"erro"=>..]. Nao grava nada — quem chama decide cachear.
+ * ["ok"=>false,"erro"=>..] — com a cota da pessoa estourada, também
+ * "espera" (segundos), para o endpoint responder 429. Nao grava nada —
+ * quem chama decide cachear.
  *
- * Dois caminhos, os dois pela chave do ai_config.php (mesma da rede de IA):
- * - texto colado -> ai_chamar_api (fluxo de texto ja provado).
- * - PDF          -> bloco `document` (base64) na Messages API, que le PDF
+ * Dois conteúdos, uma chamada só, pelo cliente único ai_api_mensagens():
+ * - texto colado -> bloco de texto (cortado em 40000 caracteres);
+ * - PDF          -> bloco `document` (base64), que a Messages API lê
  *                   nativamente.
- * Sem chave configurada: erro amigavel, nada quebra.
+ * A cota é da PESSOA que pediu (aluno abrindo o primeiro resumo ou
+ * professor regerando): o cliente confere e registra — o endpoint não
+ * cobra mais à parte. Sem chave configurada: erro amigavel, nada gasto.
  */
-function turma_resumir_material(array $material): array
+function turma_resumir_material(array $material, PDO $pdo, int $userId): array
 {
     if (!function_exists("ai_config")) {
         require_once __DIR__ . "/../ai/helpers.php";
     }
+    require_once __DIR__ . "/../ai/limite_uso.php";
 
     $config = ai_config();
 
@@ -232,108 +241,54 @@ function turma_resumir_material(array $material): array
         return ["ok" => false, "erro" => "Esse material ainda não pode ser resumido. Cole o texto ou envie um PDF."];
     }
 
+    $texto = trim((string)($material["conteudo_texto"] ?? ""));
+    $doPdf = $texto === "";
+
+    if ($doPdf) {
+        $caminho = __DIR__ . "/../../uploads/" . $material["arquivo"];
+        $bytes   = is_file($caminho) ? @file_get_contents($caminho) : false;
+
+        if ($bytes === false || $bytes === "") {
+            return ["ok" => false, "erro" => "Arquivo do material não encontrado."];
+        }
+
+        $conteudo = [
+            ["type" => "document", "source" => ["type" => "base64", "media_type" => "application/pdf", "data" => base64_encode($bytes)]],
+            ["type" => "text", "text" => "Resuma este material de aula seguindo o formato pedido."],
+        ];
+    } else {
+        // Corta um texto absurdo antes de mandar (teto de custo/token).
+        $conteudo = mb_substr($texto, 0, 40000);
+    }
+
     // Modelo Haiku (o `model` padrao do config) da conta de um resumo e e o
     // mais barato — mesma escolha das acoes de rotina da rede.
-    $model   = $config["model"];
-    $system  = turma_resumo_system();
-    $timeout = max(60, (int)($config["timeout"] ?? 15)); // resumo demora mais que uma fala
-
-    $texto = trim((string)($material["conteudo_texto"] ?? ""));
-
-    if ($texto !== "") {
-        // Corta um texto absurdo antes de mandar (teto de custo/token).
-        $texto  = mb_substr($texto, 0, 40000);
-        // false: o resumo e Markdown com bullets ("- "), que o filtro de
-        // travessao da rede transformaria em virgulas.
-        $resumo = ai_chamar_api($system, $texto, 1200, $timeout, 6000, $model, false);
-
-        return $resumo !== null
-            ? ["ok" => true, "resumo" => $resumo]
-            : ["ok" => false, "erro" => "Não consegui gerar o resumo agora. Tente de novo."];
-    }
-
-    // PDF -> bloco document base64.
-    $caminho = __DIR__ . "/../../uploads/" . $material["arquivo"];
-
-    if (!is_file($caminho)) {
-        return ["ok" => false, "erro" => "Arquivo do material não encontrado."];
-    }
-
-    $resumo = turma_resumir_pdf($caminho, $config, $system, $model, $timeout);
-
-    return $resumo !== null
-        ? ["ok" => true, "resumo" => $resumo]
-        : ["ok" => false, "erro" => "Não consegui ler esse PDF. Tente colar o texto do material."];
-}
-
-/**
- * Chama a Messages API com o PDF como bloco `document` (base64). Devolve o
- * texto do resumo ou null. Espelha o cURL de ai_chamar_api(): mesma URL,
- * mesmos headers, a chave nunca vai para o log.
- */
-function turma_resumir_pdf(string $caminho, array $config, string $system, string $model, int $timeout): ?string
-{
-    $bytes = @file_get_contents($caminho);
-
-    if ($bytes === false || $bytes === "") {
-        return null;
-    }
-
-    $corpo = json_encode([
-        "model"      => $model,
-        "max_tokens" => 1200,
-        "system"     => $system,
-        "messages"   => [[
-            "role"    => "user",
-            "content" => [
-                [
-                    "type"   => "document",
-                    "source" => [
-                        "type"       => "base64",
-                        "media_type" => "application/pdf",
-                        "data"       => base64_encode($bytes),
-                    ],
-                ],
-                ["type" => "text", "text" => "Resuma este material de aula seguindo o formato pedido."],
-            ],
-        ]],
-    ], JSON_UNESCAPED_UNICODE);
-
-    $ch = curl_init("https://api.anthropic.com/v1/messages");
-    curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $corpo,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => $timeout,
-        CURLOPT_HTTPHEADER     => [
-            "content-type: application/json",
-            "x-api-key: " . $config["api_key"],
-            "anthropic-version: 2023-06-01",
-        ],
+    $r = ai_api_mensagens([
+        "model"      => $config["model"],
+        "max_tokens" => TURMA_RESUMO_MAX_TOKENS,
+        "system"     => turma_resumo_system(),
+        "messages"   => [["role" => "user", "content" => $conteudo]],
+    ], [
+        "cota"    => ["tipo" => "pessoa", "pdo" => $pdo, "user_id" => $userId, "teto" => AI_ACOES_TURMA_POR_HORA],
+        "timeout" => max(60, (int)($config["timeout"] ?? 15)), // resumo demora mais que uma fala
+        "rotulo"  => $doPdf ? "turma_resumir_material(pdf)" : "turma_resumir_material(texto)",
     ]);
 
-    $resposta = curl_exec($ch);
-    $status   = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $erroCurl = curl_error($ch);
-    curl_close($ch);
-
-    if ($resposta === false || $status !== 200 || $erroCurl !== "") {
-        error_log("turma_resumir_pdf: HTTP $status " . ($erroCurl ?: substr((string)$resposta, 0, 200)));
-        return null;
+    if ($r["erro"] === "cota") {
+        return ["ok" => false, "erro" => ai_cota_mensagem($r["espera"]), "espera" => $r["espera"]];
     }
 
-    $dados = json_decode($resposta, true);
-    $texto = "";
+    // O texto colado tirava aspas em volta (como toda fala); o PDF, não —
+    // mantido como era em cada caminho.
+    $resumo = $r["ok"] ? trim($r["texto"], $doPdf ? " \n\r\t" : "\"\u{201C}\u{201D} \n\r\t") : "";
 
-    foreach ($dados["content"] ?? [] as $bloco) {
-        if (($bloco["type"] ?? "") === "text") {
-            $texto .= $bloco["text"];
-        }
+    if ($resumo === "") {
+        return ["ok" => false, "erro" => $doPdf
+            ? "Não consegui ler esse PDF. Tente colar o texto do material."
+            : "Não consegui gerar o resumo agora. Tente de novo."];
     }
 
-    $texto = trim($texto);
-
-    return $texto !== "" ? mb_substr($texto, 0, 6000) : null;
+    return ["ok" => true, "resumo" => mb_substr($resumo, 0, TURMA_RESUMO_MAX_CHARS)];
 }
 
 /** Formata um material para a resposta JSON (sem despejar o texto inteiro

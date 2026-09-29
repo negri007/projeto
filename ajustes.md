@@ -3944,3 +3944,126 @@ próprio. O que `git diff main...feature/videos-ia` mostra em
 `5984dd6`) que já estão no histórico da `grupos-academia`. Ela não mexe no
 `helpers.php` e não conflita com a correção do modo nem com a divisão em
 `nucleo/`: é uma branch atrasada, sem trabalho próprio.
+
+---
+
+## Refactor: `api/ai/helpers.php` dividido em `api/ai/nucleo/` — 28/09/2026
+
+Branch `refactor/ai-helpers`. O `helpers.php` tinha 4.856 linhas, 102
+funções e 76 constantes. Etapas 1 e 2 do plano aprovado: mover cada
+assunto para um arquivo de `api/ai/nucleo/`, **sem mudar contrato nem
+comportamento**. O `helpers.php` vira só um carregador: `corpus.php`
+primeiro, depois os módulos. Nenhum dos 33 arquivos que fazem `require`
+dele mudou. `api/ai/nucleo/` é negada por HTTP no `.htaccess` (404).
+
+Como cada módulo foi movido (um commit por módulo):
+- recorte pelo tokenizer do PHP, com o comentário que vem antes de cada
+  item, na ordem original — o código movido não muda um caractere;
+- **base de comparação**: assinatura (Reflection), md5 do corpo de cada
+  função, md5 do valor de cada constante e ordem dos includes, comparados
+  com a base tirada antes do refactor; só passam diferenças declaradas
+  (ajuste de caminho) e constante-caminho com o mesmo `realpath`;
+- **roteiro de curl** (25 verificações: 16 GETs, validações que param antes
+  da API, `posts/create`, 3 rodadas do `tick.php` e o
+  `validar_corpus.php`), comparando status HTTP e formato do JSON (chaves
+  e tipos, não valores); o do tick compara só status e `ok`, porque o
+  formato dele varia com o sorteio. Rodado com o teto global de chamadas
+  cheio de linhas marcadas, para nada ir à Anthropic; créditos, post,
+  memória e notificações do teste desfeitos no fim. A base foi rodada duas
+  vezes e deu idêntica;
+- levantamento, no arquivo novo, de `__DIR__`, `__FILE__`, `dirname(`,
+  `require`/`include`, `static`, `global` e definições condicionais.
+
+| Módulo | Funções | Constantes | Caminho ajustado |
+|---|---|---|---|
+| `formato.php` | 4 | 0 | nenhum |
+| `creditos.php` | 3 | 5 | nenhum (o banner "Criação de agente pelo usuário" veio junto: fala do custo em crédito) |
+| `moderacao.php` | 4 | 3 | nenhum |
+| `prompt.php` | 3 | 19 | nenhum |
+| `config.php` | 6 | 2 | `ai_config()`: `__DIR__ . "/ai_config.php"` → `__DIR__ . "/../ai_config.php"` (conferido que o config real carrega; o roteiro sozinho não pegaria, porque com config quebrado `ai_pode_chamar_api()` também diz não) |
+| `estado.php` | 9 | 5 | nenhum |
+| `assuntos.php` | 11 | 2 | nenhum |
+| `acervo.php` | 11 | 7 | nenhum |
+| `fotos.php` | 12 | 2 | `AI_FOTO_DIR`: `"/../../uploads/ai_fotos"` → `"/../../../uploads/ai_fotos"` (`const` não aceita `dirname()`, então o texto muda; o `realpath` é o mesmo, e todos os usos são de sistema de arquivos). Tratamento testado numa cópia de foto real |
+| `cliente_api.php` | 3 | 0 | nenhum |
+| `memoria.php` | 13 | 7 | nenhum |
+| `criacao_agente.php` | 6 | 9 | `ai_store_agent_avatar()` e `ai_delete_agent_avatar()`: `__DIR__` → `dirname(__DIR__)` (caminho idêntico, caractere por caractere). Upload testado de ponta a ponta com usuário e agente descartáveis: grava, troca e apaga o anterior |
+| `geracao.php` | 12 | 7 | nenhum |
+| `reconhecimento.php` | 5 | 8 | nenhum |
+
+**Resultado:** `helpers.php` foi de 4.856 para 34 linhas — só o
+cabeçalho e os `require` (corpus primeiro, depois os 14 módulos, de 99 a
+829 linhas cada). As 102 funções e 76 constantes continuam definidas, com
+as mesmas assinaturas; o corpo de 99 funções não mudou um caractere, e
+nas outras três só mudou o caminho. Nenhum `require` fora de `api/ai/`
+mudou, e nenhum arquivo além do `helpers.php` aponta para `nucleo/`.
+
+**Achados no caminho, fora do escopo destas etapas (que não mudam
+comportamento):**
+- **Modo "acervo" não desligava a IA no reconhecimento.**
+  `ai_rodada_reconhecimento()` decidia usar a API pela chance crua, sem
+  consultar o modo. **Corrigido depois** na `feature/grupos-academia`
+  (`36b888e`, e o mesmo defeito na reprodução em `f3dca6d` — ver as
+  seções de 29/09 acima). No merge da `grupos-academia` para esta branch,
+  a correção do reconhecimento foi reaplicada em `nucleo/reconhecimento.php`
+  (a função não mora mais no `helpers.php`, então o git não a levaria
+  sozinho); o trecho reaplicado é idêntico ao do `36b888e`. A busca de
+  foto no Pexels continua sem olhar o modo (grátis, mas é rede externa).
+- **Dois docblocks deslocados, já no original:** o de `ai_post_row()` está
+  em cima de `ai_cortar_trecho()` (`formato.php`), e o texto principal de
+  `ai_chamar_api()` ("A chamada em si…") está em cima de
+  `ai_sem_travessao()` (`cliente_api.php`), sobrando só o bloco de
+  `@param` sobre a função. Movidos como estavam.
+
+
+### Etapa 3: cliente único da API da Anthropic — 29/09/2026
+
+Havia três cópias do cURL da Anthropic, cada uma tratando falha de um
+jeito: `ai_chamar_api()` (rede), `turma_resumir_pdf()` (resumo de PDF) e
+`turma_quiz_gerar()` (quiz). Agora há um só, `ai_api_mensagens()` em
+`nucleo/cliente_api.php` — nenhuma outra chamada a `api.anthropic.com` no
+projeto.
+
+- **Cota obrigatória.** A opção `cota` precisa ser declarada: `pessoa`
+  (`pdo`, `user_id`, `teto` — o cliente confere o freio e registra em
+  `ai_api_uso`) ou `chamador` com `motivo` (quem chama já cuidou: rede,
+  `ai_exigir_cota`, freio próprio). Sem ela, com tipo desconhecido, ou sem
+  `timeout` e `max_tokens` explícitos: `InvalidArgumentException`, nada é
+  chamado.
+- **Sem `exit`.** Cota estourada devolve `erro: "cota"` e `espera` em
+  segundos — em CLI ou web; quem responde 429 é o endpoint. Base nova em
+  `limite_uso.php`: `ai_cota_reservar()` e `ai_cota_mensagem()`;
+  `ai_exigir_cota()` (endpoints de agente) usa as duas e segue igual por
+  fora.
+- **Falha tratada igual para todos.** HTTP falho (inclusive o 200 com
+  corpo cortado, defeito de 03/09), `max_tokens` e `refusal` viram erro. A
+  leitura da resposta é função pura, `ai_api_interpretar()`.
+- **`ai_chamar_api()`** mantém assinatura e pós-processamento de fala e
+  usa o cliente com cota `chamador` — os 22 pontos que a chamam não mudam.
+- **Turmas.** Resumo (texto ou PDF) e quiz passam pelo cliente com a cota
+  da pessoa; a cobrança à parte saiu de `material_resumir.php` e
+  `quiz_gerar.php` (não conta dobrado). Mesmo 429, mesma mensagem.
+  `turma_resumir_pdf()` deixou de existir. O quiz declara
+  `TURMA_QUIZ_MAX_TOKENS = 16000` e `TURMA_QUIZ_TIMEOUT_S = 150`; o resumo,
+  `TURMA_RESUMO_MAX_TOKENS = 1200` (igual a antes).
+- **Mudança de comportamento (contrato atualizado):** resumo de PDF
+  cortado por `max_tokens` agora é erro — antes gravava o texto pela
+  metade como completo. Recusa do modelo vira erro em todos os caminhos.
+
+Testado:
+- 24 testes sem API: as 6 formas de chamar sem cota/limites lançam antes
+  de chamar; cota estourada em CLI devolve a espera (2.760 s) sem exit e
+  sem registrar; a leitura da resposta com 8 respostas gravadas (texto,
+  tool_use, max_tokens, refusal, 529, 200 cortado com erro do curl, não-JSON,
+  sem rede); limites do quiz (16000/150) e do resumo;
+- `quiz_gerar.php` e `material_resumir.php` por curl com a cota cheia: 429
+  com a mesma mensagem de antes, nenhuma linha registrada;
+- **duas chamadas reais ao Haiku** pelo cliente, com cota `pessoa`: com
+  `max_tokens` 30 o modelo foi cortado e o cliente devolveu
+  `erro: max_tokens` descartando o texto parcial (o tratamento novo, ao
+  vivo); com 80, `ok`, `end_turn`, 18 tokens de saída. Cada uma registrou
+  1 linha em `ai_api_uso` no nome da pessoa;
+- `tools/verificacao/`: roteiro de curl igual à base; o retrato mudou só no
+  previsto (funções `ai_api_mensagens`/`ai_api_interpretar` e constantes
+  `AI_API_URL`/`AI_API_VERSAO` novas, corpo de `ai_chamar_api`; assinatura
+  dela igual).

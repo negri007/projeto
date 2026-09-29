@@ -3009,6 +3009,17 @@ ações de IA por pessoa por hora** e registra a ação em `ai_api_uso` no
 nome de quem pediu. Servir do cache não conta. Estourado:
 Response 429: `{ "error": "Muitos pedidos à IA nesta hora. Tente de novo em 12 minutos." }`
 
+**Cliente único da API (29/09/2026):** resumo (texto ou PDF) e quiz
+passam por `ai_api_mensagens()` (`api/ai/nucleo/cliente_api.php`), o único
+ponto do projeto que chama a Anthropic. A cota da pessoa é conferida e
+registrada pelo próprio cliente — mesma regra, mesmo 429 e mesma mensagem
+de antes; o endpoint só não cobra mais à parte. Mudança de comportamento:
+resposta do modelo **cortada por `max_tokens`** ou **recusada**
+(`stop_reason: refusal`) agora vira o erro de sempre em todos os caminhos
+(`"Não consegui ler esse PDF..."` / `"Não consegui gerar o resumo
+agora..."` / `"Não consegui gerar o quiz agora..."`). Antes, o resumo de
+PDF gravava o texto cortado pela metade como se estivesse completo.
+
 **Um resumo por vez por material (28/09/2026):** dois pedidos que chegam
 juntos sem cache (dois alunos abrindo o material novo, ou um duplo clique
 em regerar) não geram duas vezes. O segundo espera o primeiro terminar (até

@@ -21,6 +21,13 @@ const TURMA_QUIZ_MIN_VALIDAS = 3;
 /** Nome da ferramenta que o modelo e obrigado a chamar. */
 const TURMA_QUIZ_TOOL = "registrar_quiz";
 
+/** Limites explícitos da chamada do quiz (Sonnet, PDF de até 20 MB e cinco
+ *  questões com fonte citada): teto de tokens da resposta e tempo máximo.
+ *  Declarados aqui, e não herdados do padrão do cliente, de propósito —
+ *  o quiz é a chamada mais longa e mais cara do projeto. */
+const TURMA_QUIZ_MAX_TOKENS = 16000;
+const TURMA_QUIZ_TIMEOUT_S  = 150;
+
 /**
  * O quiz ativo de um material, com as questoes (linhas do banco, com o
  * gabarito — quem chama decide o que expor). null se nao ha quiz ativo.
@@ -260,7 +267,7 @@ function turma_quiz_corpo(array $material, array $config): ?array
 
     return [
         "model"       => $config["model_sonnet"],
-        "max_tokens"  => 16000,
+        "max_tokens"  => TURMA_QUIZ_MAX_TOKENS,
         "system"      => turma_quiz_system(),
         "tools"       => [turma_quiz_tool()],
         "tool_choice" => ["type" => "tool", "name" => TURMA_QUIZ_TOOL],
@@ -335,13 +342,20 @@ function turma_quiz_validar(array $questoes, array $material): array
 /**
  * Gera o quiz de um material pela API. Devolve
  * ["ok"=>true,"questoes"=>[...],"modelo"=>..,"tokens_in"=>..,"tokens_out"=>..]
- * ou ["ok"=>false,"erro"=>..]. Nao grava nada.
+ * ou ["ok"=>false,"erro"=>..] — com a cota da pessoa estourada, também
+ * "espera" (segundos), para o endpoint responder 429. Nao grava nada.
+ *
+ * A chamada passa pelo cliente único ai_api_mensagens(), com a cota do
+ * professor que pediu (o cliente confere e registra) e os limites
+ * explícitos TURMA_QUIZ_MAX_TOKENS / TURMA_QUIZ_TIMEOUT_S. HTTP falho,
+ * resposta cortada (max_tokens) e recusa do modelo viram o mesmo erro.
  */
-function turma_quiz_gerar(array $material): array
+function turma_quiz_gerar(array $material, PDO $pdo, int $userId): array
 {
     if (!function_exists("ai_config")) {
         require_once __DIR__ . "/../ai/helpers.php";
     }
+    require_once __DIR__ . "/../ai/limite_uso.php";
 
     $config = ai_config();
 
@@ -355,46 +369,21 @@ function turma_quiz_gerar(array $material): array
         return ["ok" => false, "erro" => "Esse material não serve para quiz. Cole o texto ou envie um PDF."];
     }
 
-    $ch = curl_init("https://api.anthropic.com/v1/messages");
-    curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => json_encode($corpo, JSON_UNESCAPED_UNICODE),
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 150,
-        CURLOPT_HTTPHEADER     => [
-            "content-type: application/json",
-            "x-api-key: " . $config["api_key"],
-            "anthropic-version: 2023-06-01",
-        ],
+    $r = ai_api_mensagens($corpo, [
+        "cota"    => ["tipo" => "pessoa", "pdo" => $pdo, "user_id" => $userId, "teto" => AI_ACOES_TURMA_POR_HORA],
+        "timeout" => TURMA_QUIZ_TIMEOUT_S,
+        "rotulo"  => "turma_quiz_gerar",
     ]);
 
-    $resposta = curl_exec($ch);
-    $status   = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $erroCurl = curl_error($ch);
-    curl_close($ch);
+    if ($r["erro"] === "cota") {
+        return ["ok" => false, "erro" => ai_cota_mensagem($r["espera"]), "espera" => $r["espera"]];
+    }
 
-    // A chave nunca vai para o log; so o status e o comeco do erro.
-    if ($resposta === false || $status !== 200 || $erroCurl !== "") {
-        error_log("turma_quiz_gerar: HTTP $status " . ($erroCurl ?: substr((string)$resposta, 0, 300)));
+    if (!$r["ok"]) {
         return ["ok" => false, "erro" => "Não consegui gerar o quiz agora. Tente de novo."];
     }
 
-    $dados = json_decode($resposta, true);
-    $stop  = $dados["stop_reason"] ?? null;
-
-    if ($stop === "max_tokens" || $stop === "refusal") {
-        error_log("turma_quiz_gerar: stop_reason $stop");
-        return ["ok" => false, "erro" => "Não consegui gerar o quiz agora. Tente de novo."];
-    }
-
-    $input = null;
-
-    foreach ($dados["content"] ?? [] as $bloco) {
-        if (($bloco["type"] ?? "") === "tool_use" && ($bloco["name"] ?? "") === TURMA_QUIZ_TOOL) {
-            $input = $bloco["input"] ?? null;
-            break;
-        }
-    }
+    $input = $r["tool_uses"][TURMA_QUIZ_TOOL] ?? null;
 
     if (!is_array($input) || !is_array($input["questoes"] ?? null)) {
         error_log("turma_quiz_gerar: resposta sem tool_use " . TURMA_QUIZ_TOOL);
@@ -411,8 +400,8 @@ function turma_quiz_gerar(array $material): array
     return [
         "ok"         => true,
         "questoes"   => $questoes,
-        "modelo"     => (string)($dados["model"] ?? $corpo["model"]),
-        "tokens_in"  => isset($dados["usage"]["input_tokens"]) ? (int)$dados["usage"]["input_tokens"] : null,
-        "tokens_out" => isset($dados["usage"]["output_tokens"]) ? (int)$dados["usage"]["output_tokens"] : null,
+        "modelo"     => (string)($r["modelo"] ?? $corpo["model"]),
+        "tokens_in"  => $r["tokens_in"],
+        "tokens_out" => $r["tokens_out"],
     ];
 }
