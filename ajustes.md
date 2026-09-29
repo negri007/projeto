@@ -4128,8 +4128,9 @@ mensagem e voltar) e `publicacoes` (feed). A barra do topo e a coluna
 direita ("Resumo rápido", "Dica") ficam fora do editor.
 
 **Formas:** `foto` aceita quadrado, arredondado, pílula e círculo (1:1,
-`object-fit: cover`); os blocos de texto só quadrado, arredondado e
-pílula. Raios: quadrado 0 e arredondado fixo em px (nunca relativos ao
+`object-fit: cover`); `identidade`, `estatisticas` e `sobre` só quadrado,
+arredondado e pílula; `publicacoes` só quadrado e arredondado (ver
+abaixo). Raios: quadrado 0 e arredondado fixo em px (nunca relativos ao
 tamanho, para os dois nunca se confundirem); pílula `9999px` e círculo
 `50%`.
 
@@ -4160,7 +4161,8 @@ tivesse editado à mão no banco local perderia a edição); `traits` só se
 vazio; o `echo_sistema` inativo. Agentes de usuário, posts e o resto não
 são tocados. O banco de teste (vazio) foi apagado. Lição: testar
 migração em banco separado exige tirar o `USE banco` (ou usar uma cópia
-do arquivo sem ele).
+do arquivo sem ele). Conferência completa contra o dump de 25/09 no fim
+desta seção.
 
 ### API: `api/layout/` (obter, salvar, restaurar)
 
@@ -4239,9 +4241,53 @@ teste: o `mt-3` das estatísticas virava vão dentro do bloco; e, no
 celular, o botão "Organizar" com texto fazia "Editar" quebrar em duas
 linhas (agora só ícone abaixo de 576px, com `aria-label`).
 
-**Pílula no bloco de publicações (decisão pendente do dono).** Com
-`9999px` o navegador limita o raio à metade do lado menor — no feed, a
-largura (~360px de raio): o bloco vira uma oval grande. O texto não é
-cortado (sem `overflow: hidden`), mas as linhas separadoras e o fundo dos
-posts passam para fora da curva nos cantos. Print:
-`05_pilula_publicacoes.png`.
+**Pílula no bloco de publicações: decidido — não vale.** No primeiro
+teste ao vivo, com `9999px` o navegador limitou o raio à metade do lado
+menor — no feed, a largura (~360px de raio): o bloco virou uma oval
+grande, e as linhas separadoras e o fundo dos posts passavam para fora da
+curva nos cantos. Decisão do dono: `publicacoes` aceita só **quadrado e
+arredondado**, no servidor (`LAYOUT_BLOCOS` em `api/layout/helpers.php`;
+pílula ou círculo nesse bloco é erro 400, como qualquer forma conhecida
+fora da lista do tipo) e no front (o seletor só oferece as duas). A regra
+de CSS da pílula no feed saiu junto. Nenhum dos 3 modelos usava pílula no
+feed, então nada mudou neles. Contrato atualizado.
+
+**Outros dois ajustes pedidos depois do primeiro teste:**
+- **Teto da foto:** o bloco de imagem (`.perfil-bloco-imagem`) tem
+  `max-width`/`max-height` de **320px**, centrado na célula. Sem isso, a
+  foto grande em círculo ocupava toda a largura da coluna (~725px no
+  desktop) — um círculo enorme. 320px é pouco mais que o dobro do avatar
+  de sempre e cabe inteiro na tela do celular (366px de célula).
+- **Painel de modelos:** `max-height: 220px` com `overflow-y: auto` (e
+  `overscroll-behavior: contain`, para a rolagem do painel não arrastar a
+  página). No celular os 3 modelos ficam empilhados (~940px de conteúdo);
+  sem o limite, o painel empurrava os blocos para fora da tela.
+
+**Conferência do banco depois do `banco.sql` rodado duas vezes.**
+Contagens hoje: `users` 32, `posts` 211, `ai_agents` 15 (12 de sistema,
+3 de usuário) — iguais às anotadas antes das execuções. Comparado também
+coluna a coluna com o dump de 25/09 (restaurado num banco à parte, já
+apagado): as únicas diferenças são persona e bio (e, no `mare_mansa`,
+o nome) dos 7 agentes de sistema que o `banco.sql` regrava. Checado byte
+a byte: no dump esses 7 textos estavam com acentuação estragada (UTF-8
+lido como cp850); desfazendo essa troca, o texto do dump fica
+**idêntico** ao atual. Ou seja, a reexecução só consertou a codificação
+— nenhum conteúdo mudou. Filhotes, `echo_sistema` e os 3 agentes de
+usuário estão iguais ao dump. (Uma contagem anterior de "15 agentes
+diferentes" estava errada — usava `LIKE`, que ignora acento; a checagem
+byte a byte é a que vale.)
+
+**Teste completo refeito do zero depois dos ajustes** (o roteiro
+inteiro, prints novos em `prints-layout-blocos/`):
+- curl: **39 casos, todos passando** — os 37 anteriores (com o layout
+  base agora usando arredondado no feed) mais "pílula em publicações" e
+  "círculo em publicações", ambos 400. `perfil_layouts` termina vazia.
+- navegador (os 11 passos): seletor de forma de `publicacoes` com só
+  `quadrado`/`arredondado`, de `sobre` com as 3 de texto, da foto com as
+  4; foto grande em círculo com 320×320, raio 50%, centrada numa célula
+  de 725px; pílula em "sobre" (`9999px`) e feed quadrado; painel de
+  modelos com 220px de altura (378px de conteúdo no desktop, 943px no
+  celular, rolando); salvar/recarregar igual; celular sem rolagem
+  horizontal; visitante; restaurar. Nenhum erro no console. Prints
+  principais: `05_foto_grande_circulo.png`, `07_modelos_miniaturas.png`,
+  `07_modelos_celular.png`.

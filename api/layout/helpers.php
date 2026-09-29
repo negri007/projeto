@@ -31,7 +31,9 @@ const LAYOUT_BLOCOS = [
         "identidade"   => ["formas" => LAYOUT_FORMAS_TEXTO, "padrao" => "arredondado"],
         "estatisticas" => ["formas" => LAYOUT_FORMAS_TEXTO, "padrao" => "arredondado"],
         "sobre"        => ["formas" => LAYOUT_FORMAS_TEXTO, "padrao" => "arredondado"],
-        "publicacoes"  => ["formas" => LAYOUT_FORMAS_TEXTO, "padrao" => "arredondado"],
+        // Lista alta: a pílula vira uma oval e o fundo dos posts escapa
+        // pela curva (visto no teste ao vivo). Só formas de canto reto.
+        "publicacoes"  => ["formas" => ["quadrado", "arredondado"], "padrao" => "arredondado"],
     ],
 ];
 

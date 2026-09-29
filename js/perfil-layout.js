@@ -29,7 +29,8 @@ const PerfilLayout = (() => {
         identidade:   { rotulo: "Nome",          alvo: () => document.getElementById("perfilIdentidade"),  formas: FORMAS_TEXTO, padrao: "arredondado" },
         estatisticas: { rotulo: "Estatísticas",  alvo: () => document.getElementById("perfilEstatisticas"), formas: FORMAS_TEXTO, padrao: "arredondado" },
         sobre:        { rotulo: "Sobre",         alvo: () => document.getElementById("perfilSobre"),        formas: FORMAS_TEXTO, padrao: "arredondado" },
-        publicacoes:  { rotulo: "Publicações",   alvo: () => document.getElementById("myPostsContainer"),   formas: FORMAS_TEXTO, padrao: "arredondado" },
+        // Sem pílula: numa lista alta ela vira uma oval (ver o servidor).
+        publicacoes:  { rotulo: "Publicações",   alvo: () => document.getElementById("myPostsContainer"),   formas: ["quadrado", "arredondado"], padrao: "arredondado" },
     };
     const TAMANHOS = { pequeno: "Pequeno", medio: "Médio", grande: "Grande" };
     const FORMAS   = { quadrado: "Quadrado", arredondado: "Arredondado", pilula: "Pílula", circulo: "Círculo" };

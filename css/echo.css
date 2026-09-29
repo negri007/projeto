@@ -6169,11 +6169,19 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
    a curva é mais funda. O texto não é cortado (sem overflow: hidden). */
 .perfil-bloco-forma.perfil-forma-pilula:not(.perfil-bloco-imagem) { padding-left: 28px; padding-right: 28px; }
 
-/* Foto: sempre 1:1, a forma recorta a imagem (overflow só aqui). */
+/* Foto: sempre 1:1, a forma recorta a imagem (overflow só aqui). Teto de
+   320px em qualquer tamanho e forma, centralizada no bloco: sem ele, a
+   foto "grande" seguia a largura da coluna e virava um círculo de ~720px
+   na tela larga. 320px fica acima da foto pequena (~234px) e cabe na
+   coluna do celular. */
 .perfil-bloco-imagem {
     aspect-ratio: 1 / 1;
     padding: 0;
     overflow: hidden;
+    width: 100%;
+    max-width: 320px;
+    max-height: 320px;
+    margin-inline: auto;
 }
 .perfil-bloco-imagem > .echo-avatar {
     width: 100%;
@@ -6190,7 +6198,6 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
 .perfil-bloco-forma > .profile-card { background: transparent; border-bottom: 0; padding: 0; }
 .perfil-bloco-forma > .profile-stats { margin-top: 0 !important; }
 .perfil-bloco-forma > #myPostsContainer { margin: -14px -16px; }
-.perfil-bloco-forma.perfil-forma-pilula > #myPostsContainer { margin: -14px -28px; }
 
 /* Com blocos, o cabeçalho do perfil (que ficou vazio) some; a barra do
    topo com título e botões continua. */
@@ -6230,11 +6237,17 @@ body.perfil-com-blocos .main-header .profile-header { display: none; }
 .sortable-ghost { opacity: 0.4; }
 
 /* ---- modelos ---- */
+/* O painel fica dentro do cabeçalho fixo: altura limitada e rolagem
+   própria, para não tomar a tela enquanto está aberto. */
 .perfil-modelos {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
     margin-top: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px 4px 2px 2px; /* o contorno de foco não é cortado pela rolagem */
 }
 .perfil-modelo {
     display: flex;

@@ -3179,11 +3179,13 @@ Regras (o servidor valida tudo; o front só desenha tipos conhecidos):
 | `forma` | `quadrado`, `arredondado`, `pilula`, `circulo` — ver abaixo | ver abaixo |
 
 Formas por tipo: `foto` aceita as quatro (padrão `circulo`; sempre 1:1 com
-`object-fit: cover`); `identidade`, `estatisticas`, `sobre` e
-`publicacoes` aceitam `quadrado`, `arredondado` e `pilula` (padrão
-`arredondado`). Forma **ausente ou desconhecida** cai na padrão do tipo,
-sem erro. Forma **conhecida mas não permitida para o tipo** (ex.:
-`circulo` em `sobre`) é erro.
+`object-fit: cover`); `identidade`, `estatisticas` e `sobre` aceitam
+`quadrado`, `arredondado` e `pilula`; `publicacoes` aceita só `quadrado`
+e `arredondado` (numa lista alta, a pílula vira uma oval e o fundo dos
+posts escapa pela curva — decisão de 30/09/2026). Padrão dos blocos de
+texto: `arredondado`. Forma **ausente ou desconhecida** cai na padrão do
+tipo, sem erro. Forma **conhecida mas não permitida para o tipo** (ex.:
+`circulo` em `sobre`, `pilula` em `publicacoes`) é erro.
 
 Nenhum texto livre: qualquer chave fora de `versao`/`blocos` no layout, ou
 fora de `tipo`/`ordem`/`tamanho`/`forma` num bloco, é erro. O servidor
