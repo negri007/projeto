@@ -4291,3 +4291,17 @@ inteiro, prints novos em `prints-layout-blocos/`):
   horizontal; visitante; restaurar. Nenhum erro no console. Prints
   principais: `05_foto_grande_circulo.png`, `07_modelos_miniaturas.png`,
   `07_modelos_celular.png`.
+
+### Fica para depois (sem pressa)
+
+A etapa 1 fecha o Task 3. Registrado pelo dono, em 29/09/2026, para mais
+tarde:
+- **Etapa 2: grade livre com redimensionamento.** Hoje são 3 tamanhos fixos
+  numa grade de 6 colunas; a etapa 2 troca isso por posição e tamanho
+  livres. Vai precisar de `versao` 2 no formato do layout (o servidor hoje
+  só aceita 1 e, na leitura, um layout que não valida mais cai no
+  automático) e de mudança no contrato antes do código.
+- **O mesmo editor em `loja_perfil.html`**, que é onde ele mais serve à
+  tese. A tabela já tem a coluna `tela` e `LAYOUT_BLOCOS` é indexado por
+  tela, então a loja entra como uma tela nova com os blocos dela; falta
+  decidir quais blocos a loja tem e quem pode editar (o dono da loja).
