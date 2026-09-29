@@ -9,60 +9,96 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="css/echo.css?v=20260930d" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
     <style>
-      /* Estilos dos componentes do Acadêmico, escopados em .turmas-area para
-         não vazar nos botões/inputs do restante do app (sidebar, header). */
-      .turmas-area { --ac:#5b8cff; --ac2:#3fb27f; --line:#2a2f3a; --mut:#9aa0aa; }
-      .turmas-area .intro { color:var(--mut); font-size:13px; margin:0 0 20px; }
-      .turmas-area .bloco { background:var(--surface-1,#1a1d24); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:16px; }
-      .turmas-area .bloco h2 { font-size:15px; margin:0 0 12px; }
-      .turmas-area label { display:block; font-size:13px; color:var(--mut); margin:10px 0 4px; }
-      .turmas-area input, .turmas-area textarea, .turmas-area select { width:100%; padding:9px 11px; background:#0f1218; border:1px solid var(--line); border-radius:8px; color:#e8eaed; font:inherit; }
-      .turmas-area textarea { min-height:80px; resize:vertical; }
-      .turmas-area button { cursor:pointer; border:0; border-radius:8px; padding:9px 14px; font:inherit; font-weight:600; color:#fff; background:var(--ac); margin-top:12px; }
-      .turmas-area button.ghost { background:transparent; border:1px solid var(--line); color:#e8eaed; font-weight:500; }
-      .turmas-area button.ok { background:var(--ac2); }
+      /* Acadêmico — linguagem visual "brutalista suave" mesclada ao Echo
+         (cores do app: azul #1d9bf0 = marca/ação, verde #00ba7c = positivo,
+         vermelho/âmbar só em estado). Tudo escopado em .turmas-area para não
+         vazar no restante do app. Archivo Black só nos títulos grandes. */
+      .turmas-area {
+        --ac:#1d9bf0; --ac-bg:rgba(29,155,240,.13);
+        --ac2:#00ba7c; --ac2-bg:rgba(0,186,124,.14);
+        --red:#f4212e; --red-bg:rgba(244,33,46,.14);
+        --amber:#ffd400; --amber-bg:rgba(255,212,0,.14);
+        --card:#0f1419; --card2:#16181c; --line:#2f3336; --line2:#3e4144;
+        --ink:#fff; --mut:#71767b;
+      }
+      /* HERO */
+      .turmas-area .ac-hero { margin:4px 0 22px; }
+      .turmas-area .ac-chip { display:inline-flex; align-items:center; gap:7px; background:var(--ac-bg); color:var(--ac); font-weight:700; font-size:11px; letter-spacing:1px; text-transform:uppercase; padding:6px 12px; border-radius:999px; }
+      .turmas-area .ac-hero h1 { font-family:'Archivo Black',sans-serif; font-weight:400; font-size:38px; line-height:1; letter-spacing:-1px; margin:14px 0 8px; }
+      .turmas-area .ac-hero h1 em { font-style:normal; color:var(--ac); }
+      .turmas-area .intro { color:var(--mut); font-size:13.5px; margin:0; max-width:60ch; line-height:1.55; }
+      /* BLOCO / seções */
+      .turmas-area .bloco { background:var(--card); border:2px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+      .turmas-area .bloco h2, .turmas-area #riscoBox h2 { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:800; letter-spacing:.3px; margin:0 0 14px; }
+      .turmas-area .bloco h2::before, .turmas-area #riscoBox h2::before { content:""; width:16px; height:3px; border-radius:2px; background:var(--ac); flex:none; }
+      .turmas-area h2 .turmaNome { color:var(--ac); font-weight:800; }
+      /* form */
+      .turmas-area label { display:block; font-size:12.5px; color:var(--mut); margin:12px 0 5px; font-weight:600; }
+      .turmas-area input, .turmas-area textarea, .turmas-area select { width:100%; padding:10px 12px; background:var(--card2); border:1px solid var(--line2); border-radius:8px; color:var(--ink); font:inherit; }
+      .turmas-area input:focus, .turmas-area textarea:focus, .turmas-area select:focus { outline:0; border-color:var(--ac); box-shadow:0 0 0 3px var(--ac-bg); }
+      .turmas-area textarea { min-height:88px; resize:vertical; }
+      /* botões */
+      .turmas-area button { cursor:pointer; border:2px solid var(--ac); border-radius:8px; padding:9px 15px; font:inherit; font-weight:700; color:#001325; background:var(--ac); margin-top:12px; }
+      .turmas-area button.ghost { background:transparent; border:2px solid var(--line2); color:var(--ink); font-weight:600; }
+      .turmas-area button.ghost:hover { border-color:var(--mut); }
+      .turmas-area button.ok { background:var(--ac2); border-color:var(--ac2); color:#00120c; }
       .turmas-area button:disabled { opacity:.5; cursor:default; }
-      .turmas-area .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-      .turmas-area .turma { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px; cursor:pointer; }
-      .turmas-area .turma.sel { border-color:var(--ac); background:#141b2e; }
-      .turmas-area .tag { font-size:11px; padding:2px 7px; border-radius:20px; background:#243; color:#8fd; }
-      .turmas-area .mat { border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; }
-      .turmas-area .mat .t { font-weight:600; }
-      .turmas-area .mat .meta { font-size:12px; color:var(--mut); margin:2px 0 8px; }
-      .turmas-area .resumo { background:#0f1218; border:1px solid var(--line); border-radius:8px; padding:4px 14px; margin-top:8px; font-size:14px; }
+      .turmas-area .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:0; }
+      /* .row colide com o grid do Bootstrap (.row > * vira width:100%); aqui
+         os filhos voltam a ter largura de conteúdo, então os botões ficam
+         lado a lado em vez de empilhados. */
+      .turmas-area .row > * { width:auto; max-width:none; padding-left:0; padding-right:0; margin-top:0; }
+      .turmas-area .row > button { margin-top:0; }
+      /* turma / aluno */
+      .turmas-area .turma { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; background:var(--card2); border:1px solid var(--line); border-left:4px solid var(--line2); border-radius:10px; margin-bottom:8px; cursor:pointer; }
+      .turmas-area .turma:hover { border-left-color:var(--ac); }
+      .turmas-area .turma.sel { border-color:var(--ac); border-left-color:var(--ac); background:var(--ac-bg); }
+      .turmas-area .tag { font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; background:var(--ac-bg); color:var(--ac); }
+      /* material */
+      .turmas-area .mat { background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:10px; }
+      .turmas-area .mat .t { font-weight:700; font-size:15px; }
+      .turmas-area .mat .meta { font-size:12px; color:var(--mut); margin:3px 0 10px; }
+      /* resumo */
+      .turmas-area .resumo { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:4px 14px; margin-top:10px; font-size:14px; }
       .turmas-area .resumo h3 { font-size:14px; margin:12px 0 4px; color:var(--ac); }
       .turmas-area .resumo p { margin:8px 0; }
       .turmas-area .resumo ul { margin:4px 0 8px; padding-left:20px; }
       .turmas-area .resumo li { margin:3px 0; }
-      .turmas-area .quiz { background:#0f1218; border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-top:8px; font-size:14px; }
+      /* quiz */
+      .turmas-area .quiz { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:14px; }
       .turmas-area .qz-cab { color:var(--mut); font-size:13px; margin-bottom:8px; }
       .turmas-area .qz-q { border-top:1px solid var(--line); padding:10px 0; }
-      .turmas-area .qz-enun { font-weight:600; margin-bottom:6px; }
+      .turmas-area .qz-enun { font-weight:700; margin-bottom:6px; }
       .turmas-area .qz-alts { list-style:none; margin:0; padding:0; }
-      .turmas-area .qz-alts li { padding:3px 8px; border-radius:6px; margin:2px 0; }
-      .turmas-area .qz-alts li.certa { background:#173a2a; color:#8fe0b5; }
-      .turmas-area .qz-alts li.errada { background:#3a1d1d; color:#f6b1b1; }
-      .turmas-area .qz-opt { display:block; color:#e8eaed; font-size:14px; margin:4px 0; cursor:pointer; }
-      .turmas-area .qz-opt input { width:auto; margin-right:4px; }
+      .turmas-area .qz-alts li { padding:4px 9px; border-radius:6px; margin:2px 0; }
+      .turmas-area .qz-alts li.certa { background:var(--ac2-bg); color:#8fe0b5; }
+      .turmas-area .qz-alts li.errada { background:var(--red-bg); color:#f6b1b1; }
+      .turmas-area .qz-opt { display:block; color:var(--ink); font-size:14px; margin:4px 0; cursor:pointer; }
+      .turmas-area .qz-opt input { width:auto; margin-right:6px; }
       .turmas-area .qz-fonte { font-size:12px; color:var(--mut); margin-top:6px; }
-      .turmas-area .qz-res { font-size:12px; font-weight:600; margin-top:4px; }
+      .turmas-area .qz-res { font-size:12px; font-weight:700; margin-top:4px; }
       .turmas-area .qz-res.ok { color:var(--ac2); } .turmas-area .qz-res.no { color:#f6b1b1; }
       .turmas-area .qz-painel { border-top:1px solid var(--line); margin-top:10px; padding-top:10px; }
       .turmas-area .qz-painel ul { margin:4px 0 8px; padding-left:20px; }
-      .turmas-area .qz-destaque { background:#3a2a14; color:#f6d38f; border-radius:6px; padding:6px 10px; margin:8px 0; font-weight:600; }
+      .turmas-area .qz-destaque { background:var(--amber-bg); color:#f6d38f; border-radius:6px; padding:6px 10px; margin:8px 0; font-weight:700; }
       .turmas-area .qz-sub { font-size:12px; color:var(--mut); margin-top:8px; }
+      /* risco */
       .turmas-area #riscoBox { margin-bottom:20px; }
-      .turmas-area .rs-num { font-size:22px; font-weight:700; }
-      .turmas-area .rs-num.alto { color:#f6b1b1; } .turmas-area .rs-num.ok { color:var(--ac2); }
-      .turmas-area .rs-assunto { background:#3a2a14; color:#f6d38f; border-radius:6px; padding:5px 10px; margin:4px 0; font-size:13px; font-weight:600; }
-      .turmas-area .rs-aluno { border:1px solid var(--line); border-radius:8px; padding:8px 12px; margin:6px 0; }
+      .turmas-area .rs-num { font-family:'Archivo Black',sans-serif; font-weight:400; font-size:26px; }
+      .turmas-area .rs-num.alto { color:var(--red); } .turmas-area .rs-num.ok { color:var(--ac2); }
+      .turmas-area .rs-assunto { background:var(--amber-bg); color:#f6d38f; border-radius:8px; padding:6px 11px; margin:6px 0; font-size:13px; font-weight:600; }
+      .turmas-area .rs-aluno { background:var(--card2); border:1px solid var(--line); border-left:4px solid var(--red); border-radius:8px; padding:10px 12px; margin:8px 0; }
       .turmas-area .rs-aluno ul { margin:4px 0 0; padding-left:18px; font-size:13px; color:var(--mut); }
-      .turmas-area .mat-texto { white-space:pre-wrap; background:#0f1218; border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-top:8px; font-size:14px; }
+      /* material texto */
+      .turmas-area .mat-texto { white-space:pre-wrap; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 14px; margin-top:10px; font-size:14px; }
       .turmas-area .mat-texto a { color:var(--ac); }
-      .turmas-area .msg { font-size:13px; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:none; }
-      .turmas-area .msg.err { background:#3a1d1d; color:#f6b1b1; display:block; }
-      .turmas-area .msg.info { background:#1d2a3a; color:#a9cdf6; display:block; }
+      /* msg / util */
+      .turmas-area .msg { font-size:13px; padding:9px 13px; border-radius:8px; margin-bottom:12px; display:none; }
+      .turmas-area .msg.err { background:var(--red-bg); color:#f6b1b1; display:block; }
+      .turmas-area .msg.info { background:var(--ac-bg); color:#a9cdf6; display:block; }
       .turmas-area .hidden { display:none; }
       .turmas-area .spin { color:var(--mut); font-size:13px; }
     </style>
@@ -90,7 +126,11 @@
             </div>
 
             <div class="turmas-area">
-                <p class="intro">Cada turma é um círculo do tipo acadêmico. O professor sobe o material; o agente resume, gera quiz e aponta alunos em risco.</p>
+                <header class="ac-hero" data-poleiro>
+                    <span class="ac-chip"><i class="fa-solid fa-graduation-cap"></i> Acadêmico</span>
+                    <h1>Suas <em>turmas</em></h1>
+                    <p class="intro">Cada turma é um círculo do tipo acadêmico. O professor sobe o material; o agente resume, gera quiz e aponta alunos em risco.</p>
+                </header>
 
                 <div id="msg" class="msg"></div>
 
