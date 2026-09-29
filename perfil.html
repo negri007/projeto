@@ -8,7 +8,7 @@
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="css/echo.css?v=20260924i" rel="stylesheet">
+    <link href="css/echo.css?v=20260930b" rel="stylesheet">
 
     <style>
         .profile-avatar-lg {
@@ -99,28 +99,48 @@
                         <button class="btn btn-outline-light btn-edit-profile" id="btnEditProfile" data-bs-toggle="modal" data-bs-target="#editProfileModal">
                             <i class="fa-solid fa-pen me-1"></i> Editar
                         </button>
+                        <!-- Layout por blocos (js/perfil-layout.js): só aparece
+                             no próprio perfil, depois que o servidor confirma. -->
+                        <!-- No celular só o ícone: com o texto, o cabeçalho
+                             não cabia e "Editar" quebrava em duas linhas. -->
+                        <button class="btn btn-outline-light btn-edit-profile d-none" id="btnOrganizarPerfil" type="button"
+                                aria-label="Organizar o layout do perfil" title="Organizar o layout do perfil">
+                            <i class="fa-solid fa-table-cells-large"></i><span class="d-none d-sm-inline ms-1">Organizar</span>
+                        </button>
                     </div>
                 </div>
 
                 <div class="profile-header mt-2">
                     <div class="echo-avatar echo-avatar-lg" id="profileAvatar">U</div>
-                    <div>
+                    <div id="perfilIdentidade">
                         <div class="profile-name" id="profileName">Usuário</div>
                         <div class="profile-handle" id="profileHandle">@usuario</div>
                         <div class="profile-email" id="profileEmail">email@exemplo.com</div>
                     </div>
                 </div>
 
-                <div class="profile-stats mt-3">
+                <div class="profile-stats mt-3" id="perfilEstatisticas">
                     <span><strong id="countPosts">0</strong> posts</span>
                     <span><strong id="countLikes">0</strong> curtidas recebidas</span>
                     <span><strong id="countFriends">0</strong> amigos</span>
                     <span><strong id="countCircles">0</strong> círculos</span>
                 </div>
+
+                <!-- Modo edição do layout por blocos -->
+                <div id="perfilLayoutBarra" class="d-none">
+                    <div class="perfil-layout-barra" role="toolbar" aria-label="Editar layout do perfil">
+                        <button type="button" class="btn btn-sm btn-primary rounded-pill px-3" id="btnLayoutSalvar">Salvar</button>
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnLayoutCancelar">Cancelar</button>
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnLayoutRestaurar">Restaurar padrão</button>
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3" id="btnLayoutModelos"
+                                aria-expanded="false" aria-controls="perfilModelos">Começar de um modelo</button>
+                    </div>
+                    <div id="perfilModelos" class="perfil-modelos d-none"></div>
+                </div>
             </div>
 
             <!-- SOBRE -->
-            <div class="profile-card">
+            <div class="profile-card" id="perfilSobre">
                 <h6 class="mb-1 text-light font-weight-bold">Sobre</h6>
                 <small id="profileAbout" class="text-secondary">
                     Usuário do ECHO. Essa parte exibe sua biografia.
@@ -243,6 +263,8 @@
 <script src="js/echo-ui.js?v=20260928b"></script>
 <script src="js/echo-feed.js?v=20260921a"></script>
 <script src="js/echo-bit.js?v=20260920a"></script>
+<script src="lib/sortablejs/Sortable.min.js?v=1.15.7"></script>
+<script src="js/perfil-layout.js?v=20260930a"></script>
 
 <script>
 let currentUser = null;
@@ -265,6 +287,10 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     loadProfileData();
     loadMyPosts();
+
+    // Layout por blocos salvo pelo dono do perfil aberto (sem layout, o
+    // perfil segue como está). O servidor decide se é editável.
+    PerfilLayout.iniciar(perfilUserId);
 });
 
 function logout() {

@@ -4191,3 +4191,57 @@ mandando `user_id` do dono (400), lendo o layout do dono
 (`editavel: false`, intacto), e restaurando só o dela; 31º salvamento na
 hora (429) e layout inválido não gastando vaga; restaurar (com e sem
 layout salvo), tela desconhecida, salvar por GET.
+
+### Front: `js/perfil-layout.js` e o modo edição
+
+O JS novo **não desenha conteúdo**: move os elementos que o perfil já
+tinha (avatar, `#perfilIdentidade`, `#perfilEstatisticas`, `#perfilSobre`,
+`#myPostsContainer`) para dentro de caixas de bloco e, no "Restaurar
+padrão", devolve cada um ao lugar marcado (comentário no DOM). Quem
+preenche esses elementos continua sendo o `perfil.html`, pelos mesmos ids
+e com o mesmo escape; os botões "Enviar mensagem" / "Voltar" do perfil
+alheio entram sozinhos no bloco "sobre". Só tipos conhecidos viram bloco;
+todo texto novo (rótulos, nomes e descrições dos modelos) vem de constantes
+e entra por `textContent`. Duas camadas por bloco: a caixa da grade leva o
+tamanho (e os controles na edição) e a de dentro leva a forma — a barra de
+controles nunca fica dentro de um círculo.
+
+Modo edição (só no próprio perfil; o botão "Organizar" aparece depois que
+o servidor diz `editavel`): Salvar, Cancelar, Restaurar padrão (com o
+diálogo de confirmação do app) e "Começar de um modelo" (3 modelos com
+miniatura desenhada do próprio JSON; escolher só carrega na edição). Por
+bloco: alça de arrastar (SortableJS), botões ↑/↓ que mantêm o foco no
+bloco que andou, seletor de tamanho e seletor de forma com só as formas
+permitidas para o tipo. Contorno de foco de 2px no `:focus-visible` em
+qualquer forma. Celular (< 768px): uma coluna, todo bloco na largura dela.
+O estado aplicado fica em `body[data-perfil-layout]` (`automatico` ou
+`blocos`).
+
+**Teste ao vivo.** O Chrome controlado por extensão continua ligado a
+OUTRA máquina (os arquivos novos davam 404 lá; esta branch não foi
+enviada), então o teste rodou no `chrome-headless-shell` do motor, nesta
+máquina, contra o Apache local, por CDP — cliques e arrasto com eventos de
+mouse reais, prints em `C:\Users\User\projeto\prints-layout-blocos\` (fora
+do repositório). Nenhuma foto de usuário do seed existe em `uploads/`
+nesta máquina (a pasta não é versionada), então uma imagem local foi posta
+temporariamente com o nome do avatar do Gustavo e apagada no fim — nada
+mudou no banco. Resultado, todos os passos passando: perfil sem layout
+igual ao de sempre; entrar na edição; descer um bloco pelo botão (foco
+fica no botão); arrastar "Sobre" para o topo pela alça; mudar tamanho e
+forma (foto oferece 4 formas, texto 3); pílula no feed (ver abaixo); foco
+visível pelo teclado; os 3 modelos carregando só na edição (servidor
+continua `null`); salvar e recarregar (layout igual); celular 390px (5
+blocos de 366px, sem rolagem horizontal) e edição no celular; visitante
+vendo o layout do dono sem botão de edição, com "Enviar mensagem" e
+"Voltar" dentro do "sobre" em pílula, sem transbordar; restaurar (volta ao
+perfil de sempre, servidor `null`). Dois acabamentos corrigidos durante o
+teste: o `mt-3` das estatísticas virava vão dentro do bloco; e, no
+celular, o botão "Organizar" com texto fazia "Editar" quebrar em duas
+linhas (agora só ícone abaixo de 576px, com `aria-label`).
+
+**Pílula no bloco de publicações (decisão pendente do dono).** Com
+`9999px` o navegador limita o raio à metade do lado menor — no feed, a
+largura (~360px de raio): o bloco vira uma oval grande. O texto não é
+cortado (sem `overflow: hidden`), mas as linhas separadoras e o fundo dos
+posts passam para fora da curva nos cantos. Print:
+`05_pilula_publicacoes.png`.

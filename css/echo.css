@@ -6129,3 +6129,153 @@ body.rede-ia .main-col { background: var(--ia-fundo); }
     border-radius: 50%;
     box-shadow: 0 0 0 1.5px rgba(0,0,0,0.4);
 }
+
+/* ==========================================================================
+   LAYOUT POR BLOCOS DO PERFIL (etapa 1, 30/09/2026) — js/perfil-layout.js
+
+   Grade de 6 colunas: pequeno = 2 (1/3), medio = 3 (1/2), grande = 6.
+   Forma só por border-radius, sem clip-path: quadrado e arredondado com
+   raio FIXO em px (nunca relativo ao tamanho, para os dois nunca se
+   confundirem); pílula 9999px (o navegador limita à metade do lado menor)
+   e círculo 50%. Círculo só existe na foto, sempre 1:1 — a foto é fundo
+   com background-size: cover, o equivalente a object-fit: cover.
+   ========================================================================== */
+
+.perfil-blocos {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px 16px;
+    align-items: start;
+}
+
+.perfil-bloco            { grid-column: span 6; min-width: 0; }
+.perfil-bloco-pequeno    { grid-column: span 2; }
+.perfil-bloco-medio      { grid-column: span 3; }
+.perfil-bloco-grande     { grid-column: span 6; }
+
+.perfil-bloco-forma {
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    padding: 14px 16px;
+}
+
+.perfil-forma-quadrado    { border-radius: 0; }
+.perfil-forma-arredondado { border-radius: var(--radius-lg); }
+.perfil-forma-pilula      { border-radius: 9999px; }
+.perfil-forma-circulo     { border-radius: 50%; }
+
+/* Pílula num bloco de texto: um pouco mais de respiro nas laterais, onde
+   a curva é mais funda. O texto não é cortado (sem overflow: hidden). */
+.perfil-bloco-forma.perfil-forma-pilula:not(.perfil-bloco-imagem) { padding-left: 28px; padding-right: 28px; }
+
+/* Foto: sempre 1:1, a forma recorta a imagem (overflow só aqui). */
+.perfil-bloco-imagem {
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    overflow: hidden;
+}
+.perfil-bloco-imagem > .echo-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    background-size: cover;
+    background-position: center;
+    font-size: clamp(2rem, 8vw, 5rem);
+}
+
+/* O conteúdo que veio do perfil automático, dentro de um bloco. As
+   estatísticas trazem o `mt-3` do cabeçalho (do Bootstrap, com
+   !important), que dentro do bloco vira um vão em cima. */
+.perfil-bloco-forma > .profile-card { background: transparent; border-bottom: 0; padding: 0; }
+.perfil-bloco-forma > .profile-stats { margin-top: 0 !important; }
+.perfil-bloco-forma > #myPostsContainer { margin: -14px -16px; }
+.perfil-bloco-forma.perfil-forma-pilula > #myPostsContainer { margin: -14px -28px; }
+
+/* Com blocos, o cabeçalho do perfil (que ficou vazio) some; a barra do
+   topo com título e botões continua. */
+body.perfil-com-blocos .main-header .profile-header { display: none; }
+
+/* Contorno de foco do teclado visível em qualquer forma. */
+.perfil-bloco :focus-visible,
+.perfil-layout-barra :focus-visible,
+.perfil-modelo:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ---- modo edição ---- */
+.perfil-layout-barra {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.perfil-bloco-controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    padding: 6px 8px;
+    border: 1px dashed var(--border-hover);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+}
+.perfil-bloco-controles strong { margin-right: auto; }
+.perfil-bloco-alca { cursor: grab; color: var(--text-soft); padding: 0 4px; }
+.perfil-bloco-campo { display: inline-flex; align-items: center; gap: 4px; margin: 0; color: var(--text-soft); }
+.perfil-bloco-campo .form-select { width: auto; padding-top: 0; padding-bottom: 0; font-size: 0.8rem; }
+.sortable-ghost { opacity: 0.4; }
+
+/* ---- modelos ---- */
+.perfil-modelos {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+.perfil-modelo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    background: var(--bg-card);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    color: var(--text-main);
+}
+.perfil-modelo:hover { border-color: var(--accent); }
+.perfil-modelo small { color: var(--text-soft); }
+.perfil-modelo-mini {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 3px;
+    align-items: start;
+}
+.perfil-modelo-mini > span {
+    grid-column: span 6;
+    background: var(--bg-input);
+    border: 1px solid var(--border-soft);
+    font-size: 0.55rem;
+    color: var(--text-soft);
+    padding: 2px 3px;
+    min-height: 16px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+.perfil-modelo-mini > .perfil-bloco-pequeno { grid-column: span 2; }
+.perfil-modelo-mini > .perfil-bloco-medio   { grid-column: span 3; }
+.perfil-modelo-mini > .perfil-bloco-imagem  { aspect-ratio: 1 / 1; padding: 0; }
+
+/* Celular: uma coluna, todo bloco na largura dela, qualquer tamanho. */
+@media (max-width: 767.98px) {
+    .perfil-blocos { grid-template-columns: minmax(0, 1fr); padding: 10px 12px; }
+    .perfil-bloco,
+    .perfil-bloco-pequeno,
+    .perfil-bloco-medio,
+    .perfil-bloco-grande { grid-column: 1 / -1; }
+    .perfil-modelos { grid-template-columns: minmax(0, 1fr); }
+}
