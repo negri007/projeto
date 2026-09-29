@@ -3874,3 +3874,26 @@ requisição web pelo `php-cgi`, os três respondem `Status: 404`. Saída em
 Testado nesta branch: retrato + roteiro de referência gravados, e uma
 verificação completa em seguida deu "TUDO OK" (102 funções, 84 constantes,
 25 verificações do roteiro iguais).
+
+### Modo acervo ainda chamava a API no quiz diário e no ciúme — 29/09/2026
+
+Mesmo defeito do reconhecimento (acima), em `api/ai/reproducao.php`:
+`repro_fala_hibrida()` — usada pelas respostas ao quiz diário e pelas falas
+de ciúme — chamava a API sempre que `ai_pode_chamar_api()` deixava, sem
+olhar o modo. Agora lê o modo (`ai_estado()`) e passa por
+`ai_chance_real($modo, 1.0)`: acervo 0, híbrido e api 1 (igual a antes —
+essas falas sempre tentaram a API quando ela estava disponível).
+
+Testado com a API liberada (chave presente, teto global com folga):
+- unidade: `repro_fala_hibrida()` com um gerador falso, que só anota se
+  foi chamado (nenhuma chamada real) — em acervo não foi chamado e nada
+  foi registrado; em híbrido e api foi chamado, como antes. Modo restaurado
+  e registros do teste apagados;
+- ponta a ponta: `quiz_diario.php --agendado` + `processar_quiz_respostas.php`
+  em acervo — 11 respostas, todas `source=acervo`, zero linhas novas em
+  `ai_api_uso`. O quiz #2 e as respostas ficaram no banco local.
+
+Ainda ignoram o modo, fora desta correção (não pedido): a **estreia de
+agente** (`agent_estreia.php`, chama a API ao criar agente mesmo em
+acervo — é ação disparada pela pessoa, com contrato próprio) e a busca de
+foto no Pexels.
