@@ -56,15 +56,15 @@ try {
         exit;
     }
 
-    // Daqui em diante é chamada de verdade ao Sonnet. Material só de
-    // imagem sai com erro amigável sem API, então não gasta vaga.
-    if (turma_material_resumivel($material)) {
-        ai_exigir_cota($pdo, $userId, AI_ACOES_TURMA_POR_HORA);
-    }
-
-    $resultado = turma_quiz_gerar($material);
+    // Daqui em diante é chamada de verdade ao Sonnet. A cota do professor
+    // é conferida e registrada pelo cliente da API, dentro de
+    // turma_quiz_gerar() — material só de imagem sai antes, sem gastar vaga.
+    $resultado = turma_quiz_gerar($material, $pdo, $userId);
 
     if (!$resultado["ok"]) {
+        if (isset($resultado["espera"])) {
+            http_response_code(429);
+        }
         echo json_encode(["error" => $resultado["erro"]], JSON_UNESCAPED_UNICODE);
         exit;
     }

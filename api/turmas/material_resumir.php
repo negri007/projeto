@@ -100,14 +100,15 @@ try {
 
         // Daqui em diante é chamada de verdade à API (o cache já saiu
         // acima). Paga a vaga quem pediu — aluno abrindo o primeiro resumo
-        // ou professor regerando. Material só de imagem não vai à API.
-        if (turma_material_resumivel($material)) {
-            ai_exigir_cota($pdo, $userId, AI_ACOES_TURMA_POR_HORA);
-        }
-
-        $resultado = turma_resumir_material($material);
+        // ou professor regerando —, conferida e registrada pelo cliente da
+        // API dentro de turma_resumir_material(). Material só de imagem
+        // não vai à API.
+        $resultado = turma_resumir_material($material, $pdo, $userId);
 
         if (!$resultado["ok"]) {
+            if (isset($resultado["espera"])) {
+                http_response_code(429);
+            }
             echo json_encode(["error" => $resultado["erro"]], JSON_UNESCAPED_UNICODE);
             exit;
         }
@@ -119,8 +120,8 @@ try {
 
         echo json_encode(["ok" => true, "resumo" => $resultado["resumo"], "do_cache" => false], JSON_UNESCAPED_UNICODE);
     } finally {
-        // Solta já no caminho normal e no de exceção. Os `exit` acima (e o
-        // 429 de ai_exigir_cota) NÃO passam por este finally — PHP não
+        // Solta já no caminho normal e no de exceção. Os `exit` acima (o
+        // 429 de cota incluído) NÃO passam por este finally — PHP não
         // executa finally em exit —, mas neles a trava cai do mesmo jeito:
         // é da conexão, e a conexão (não persistente) fecha no fim da
         // requisição.

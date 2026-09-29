@@ -4015,3 +4015,55 @@ comportamento):**
   `ai_sem_travessao()` (`cliente_api.php`), sobrando só o bloco de
   `@param` sobre a função. Movidos como estavam.
 
+
+### Etapa 3: cliente único da API da Anthropic — 29/09/2026
+
+Havia três cópias do cURL da Anthropic, cada uma tratando falha de um
+jeito: `ai_chamar_api()` (rede), `turma_resumir_pdf()` (resumo de PDF) e
+`turma_quiz_gerar()` (quiz). Agora há um só, `ai_api_mensagens()` em
+`nucleo/cliente_api.php` — nenhuma outra chamada a `api.anthropic.com` no
+projeto.
+
+- **Cota obrigatória.** A opção `cota` precisa ser declarada: `pessoa`
+  (`pdo`, `user_id`, `teto` — o cliente confere o freio e registra em
+  `ai_api_uso`) ou `chamador` com `motivo` (quem chama já cuidou: rede,
+  `ai_exigir_cota`, freio próprio). Sem ela, com tipo desconhecido, ou sem
+  `timeout` e `max_tokens` explícitos: `InvalidArgumentException`, nada é
+  chamado.
+- **Sem `exit`.** Cota estourada devolve `erro: "cota"` e `espera` em
+  segundos — em CLI ou web; quem responde 429 é o endpoint. Base nova em
+  `limite_uso.php`: `ai_cota_reservar()` e `ai_cota_mensagem()`;
+  `ai_exigir_cota()` (endpoints de agente) usa as duas e segue igual por
+  fora.
+- **Falha tratada igual para todos.** HTTP falho (inclusive o 200 com
+  corpo cortado, defeito de 03/09), `max_tokens` e `refusal` viram erro. A
+  leitura da resposta é função pura, `ai_api_interpretar()`.
+- **`ai_chamar_api()`** mantém assinatura e pós-processamento de fala e
+  usa o cliente com cota `chamador` — os 22 pontos que a chamam não mudam.
+- **Turmas.** Resumo (texto ou PDF) e quiz passam pelo cliente com a cota
+  da pessoa; a cobrança à parte saiu de `material_resumir.php` e
+  `quiz_gerar.php` (não conta dobrado). Mesmo 429, mesma mensagem.
+  `turma_resumir_pdf()` deixou de existir. O quiz declara
+  `TURMA_QUIZ_MAX_TOKENS = 16000` e `TURMA_QUIZ_TIMEOUT_S = 150`; o resumo,
+  `TURMA_RESUMO_MAX_TOKENS = 1200` (igual a antes).
+- **Mudança de comportamento (contrato atualizado):** resumo de PDF
+  cortado por `max_tokens` agora é erro — antes gravava o texto pela
+  metade como completo. Recusa do modelo vira erro em todos os caminhos.
+
+Testado:
+- 24 testes sem API: as 6 formas de chamar sem cota/limites lançam antes
+  de chamar; cota estourada em CLI devolve a espera (2.760 s) sem exit e
+  sem registrar; a leitura da resposta com 8 respostas gravadas (texto,
+  tool_use, max_tokens, refusal, 529, 200 cortado com erro do curl, não-JSON,
+  sem rede); limites do quiz (16000/150) e do resumo;
+- `quiz_gerar.php` e `material_resumir.php` por curl com a cota cheia: 429
+  com a mesma mensagem de antes, nenhuma linha registrada;
+- **duas chamadas reais ao Haiku** pelo cliente, com cota `pessoa`: com
+  `max_tokens` 30 o modelo foi cortado e o cliente devolveu
+  `erro: max_tokens` descartando o texto parcial (o tratamento novo, ao
+  vivo); com 80, `ok`, `end_turn`, 18 tokens de saída. Cada uma registrou
+  1 linha em `ai_api_uso` no nome da pessoa;
+- `tools/verificacao/`: roteiro de curl igual à base; o retrato mudou só no
+  previsto (funções `ai_api_mensagens`/`ai_api_interpretar` e constantes
+  `AI_API_URL`/`AI_API_VERSAO` novas, corpo de `ai_chamar_api`; assinatura
+  dela igual).
