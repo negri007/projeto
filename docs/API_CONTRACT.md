@@ -3145,3 +3145,90 @@ assunto das questões dos quizzes ativos, quem acertou menos de 60% nele (só
 assuntos com alguém em risco, do maior para o menor). `alunos` traz só quem
 está em risco, com mais motivos primeiro. `nota_baixa` soma `acertos`,
 `total`, `pct`; `quiz_pendente` soma `dias`.
+
+## Layout por blocos do perfil (30/09/2026)
+
+A pessoa reorganiza o próprio perfil: reordena os blocos, escolhe um de 3
+tamanhos e uma forma para cada um. Sem layout salvo, a tela é a de sempre
+(layout automático); o layout salvo é visto por todo mundo que abre o
+perfil, mas só o dono o altera. Tabela `perfil_layouts` (uma linha por
+dono e tela; hoje a única tela é `perfil`).
+
+### O formato do layout (versão 1)
+
+```json
+{ "versao": 1,
+  "blocos": [
+    { "tipo": "foto",         "ordem": 1, "tamanho": "pequeno", "forma": "circulo" },
+    { "tipo": "identidade",   "ordem": 2, "tamanho": "medio",   "forma": "arredondado" },
+    { "tipo": "estatisticas", "ordem": 3, "tamanho": "grande",  "forma": "arredondado" },
+    { "tipo": "sobre",        "ordem": 4, "tamanho": "grande",  "forma": "quadrado" },
+    { "tipo": "publicacoes",  "ordem": 5, "tamanho": "grande",  "forma": "arredondado" }
+  ] }
+```
+
+Regras (o servidor valida tudo; o front só desenha tipos conhecidos):
+
+| Campo | Valores | Se vier errado |
+|---|---|---|
+| `versao` | `1` | erro |
+| `blocos` | lista com **cada um dos 5 tipos exatamente uma vez** (esse é o máximo de blocos) | erro |
+| `tipo` | `foto`, `identidade`, `estatisticas`, `sobre`, `publicacoes` | erro "tipo desconhecido" |
+| `ordem` | inteiros de 1 a 5, sem repetir (o servidor ordena por eles) | erro |
+| `tamanho` | `pequeno` (1/3 da largura), `medio` (1/2), `grande` (largura toda) | erro |
+| `forma` | `quadrado`, `arredondado`, `pilula`, `circulo` — ver abaixo | ver abaixo |
+
+Formas por tipo: `foto` aceita as quatro (padrão `circulo`; sempre 1:1 com
+`object-fit: cover`); `identidade`, `estatisticas` e `sobre` aceitam
+`quadrado`, `arredondado` e `pilula`; `publicacoes` aceita só `quadrado`
+e `arredondado` (numa lista alta, a pílula vira uma oval e o fundo dos
+posts escapa pela curva — decisão de 30/09/2026). Padrão dos blocos de
+texto: `arredondado`. Forma **ausente ou desconhecida** cai na padrão do
+tipo, sem erro. Forma **conhecida mas não permitida para o tipo** (ex.:
+`circulo` em `sobre`, `pilula` em `publicacoes`) é erro.
+
+Nenhum texto livre: qualquer chave fora de `versao`/`blocos` no layout, ou
+fora de `tipo`/`ordem`/`tamanho`/`forma` num bloco, é erro. O servidor
+grava só a versão normalizada, montada a partir das listas fixas — nunca o
+JSON como veio. No celular o front mostra uma coluna, com todo bloco na
+largura dela, qualquer que seja o tamanho.
+
+Erros de layout respondem **HTTP 400** com `{ "error": "..." }`.
+
+### `GET /api/layout/obter.php?tela=perfil[&user_id=N]`
+
+Sessão obrigatória (401). Sem `user_id`, o layout da própria sessão; com,
+o do perfil daquela pessoa (é o que a tela de perfil de outra pessoa
+precisa para se desenhar). Resposta:
+
+```json
+{ "ok": true, "tela": "perfil", "user_id": 32, "editavel": true,
+  "layout": null | { "versao": 1, "blocos": [ ... ] } }
+```
+
+`editavel` é `true` só quando o layout é o da sessão. `layout: null` =
+layout automático. Um layout guardado que não passe mais na validação
+(ex.: versão futura) também volta `null`.
+
+### `POST /api/layout/salvar.php` (JSON)
+
+Corpo: `{ "tela": "perfil", "layout": { ... } }` — **só** essas duas
+chaves; qualquer outra (inclusive `user_id`) é erro 400: o dono é sempre
+a sessão. Grava (ou substitui) o layout da sessão para a tela. Resposta:
+`{ "ok": true, "layout": { ... normalizado ... } }`.
+
+Limite: **30 salvamentos por pessoa por hora**; acima disso, 429 com
+`{ "error": "Muitos salvamentos de layout. Tente de novo em N minutos." }`.
+
+### `POST /api/layout/restaurar.php` (JSON)
+
+Corpo: `{ "tela": "perfil" }`. Apaga o layout da sessão para a tela — o
+perfil volta ao layout automático. Resposta: `{ "ok": true, "layout": null }`
+(também quando não havia layout salvo).
+
+### Modelos prontos
+
+Três modelos ("Foco em fotos", "Foco em texto", "Denso") são constantes no
+front (`js/perfil-layout.js`), no mesmo formato acima. Escolher um só
+carrega o JSON na edição; nada vai ao servidor até "Salvar", que passa pela
+mesma validação de qualquer layout.

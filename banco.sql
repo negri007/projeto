@@ -1848,6 +1848,23 @@ CREATE TABLE IF NOT EXISTS turma_material_views (
     FOREIGN KEY (user_id)     REFERENCES users(id)           ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Layout por blocos de uma tela, escolhido pelo dono (30/09/2026). Uma
+-- linha por (dono, tela) — hoje só a tela 'perfil'. Sem linha, a tela
+-- aparece no layout automático de sempre; "Restaurar padrão" apaga a linha.
+-- `layout` é o JSON já normalizado pelo servidor (api/layout/helpers.php):
+-- só tipos, tamanhos e formas de listas fixas, nenhum texto livre. O CHECK
+-- é a segunda trava — o banco recusa o que não for JSON válido.
+CREATE TABLE IF NOT EXISTS perfil_layouts (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    user_id        INT NOT NULL,
+    tela           VARCHAR(20) NOT NULL,
+    versao         SMALLINT NOT NULL,
+    layout         TEXT NOT NULL CHECK (JSON_VALID(layout)),
+    atualizado_em  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_perfil_layouts_dono_tela (user_id, tela),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 
 DROP PROCEDURE IF EXISTS echo_add_index_if_missing;
 DROP PROCEDURE IF EXISTS echo_add_column_if_missing;

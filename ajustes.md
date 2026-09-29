@@ -4111,3 +4111,183 @@ e pago em créditos. Continuam valendo o teto global e o freio por pessoa.
 Com isso, o que ainda chama a API em acervo é só esse fluxo; reconhecimento
 (`36b888e`), quiz diário e ciúme (`f3dca6d`) e a foto do Pexels (`b97bf5c`)
 obedecem o modo.
+
+---
+
+## Editor de layout por blocos do perfil — etapa 1 — 30/09/2026
+
+Branch `feat/layout-blocos`. A pessoa reorganiza o próprio perfil sem
+escrever código: reordena blocos, escolhe entre 3 tamanhos e uma forma, e
+pode partir de um de 3 modelos prontos. Sem layout salvo, o perfil é o de
+sempre; "Restaurar padrão" apaga o layout e volta a ele.
+
+**Blocos (aprovados pelo dono):** os 5 que o perfil já tinha, nenhum novo
+— `foto` (avatar, o único de imagem), `identidade` (nome, @, e-mail),
+`estatisticas`, `sobre` (bio; no perfil alheio, também os botões de
+mensagem e voltar) e `publicacoes` (feed). A barra do topo e a coluna
+direita ("Resumo rápido", "Dica") ficam fora do editor.
+
+**Formas:** `foto` aceita quadrado, arredondado, pílula e círculo (1:1,
+`object-fit: cover`); `identidade`, `estatisticas` e `sobre` só quadrado,
+arredondado e pílula; `publicacoes` só quadrado e arredondado (ver
+abaixo). Raios: quadrado 0 e arredondado fixo em px (nunca relativos ao
+tamanho, para os dois nunca se confundirem); pílula `9999px` e círculo
+`50%`.
+
+**SortableJS 1.15.7** (MIT, sem dependências) em `lib/sortablejs/`, só
+`Sortable.min.js` e `LICENSE`, do tarball oficial do npm conferido contra
+o sha512 publicado antes de extrair (commit `1be20ff`).
+
+### Banco: `perfil_layouts`
+
+Uma linha por (dono, tela), hoje só `perfil`: `user_id`, `tela`, `versao`,
+`layout` (JSON normalizado pelo servidor), `atualizado_em`. Chave única
+(user_id, tela), FK para `users` com `ON DELETE CASCADE`, e
+`CHECK (JSON_VALID(layout))` como segunda trava — testado: o banco recusa
+JSON inválido.
+
+**Incidente no teste da migração (erro meu).** Para testar a instalação
+nova, criei um banco vazio `banco_teste_migracao` e rodei o `banco.sql`
+nele — mas o arquivo começa com `CREATE DATABASE IF NOT EXISTS banco;
+USE banco;`, então as duas execuções foram no **banco real**. O
+`banco.sql` é o instalador/migrador idempotente do projeto (o `SETUP.md`
+manda rodar assim), e foi rodado com `--default-character-set=utf8mb4`.
+Conferido depois: contagens de usuários, posts, lojas, materiais e
+agentes iguais às de antes; nenhum acento estragado (bytes UTF-8 certos,
+nenhum `??`). O que o arquivo regrava por desenho, e portanto foi
+regravado: nos 7 agentes de sistema, nome, persona, cor, bio, avatar,
+`modelo` e `pode_reproduzir` voltaram aos valores do repositório (quem os
+tivesse editado à mão no banco local perderia a edição); `traits` só se
+vazio; o `echo_sistema` inativo. Agentes de usuário, posts e o resto não
+são tocados. O banco de teste (vazio) foi apagado. Lição: testar
+migração em banco separado exige tirar o `USE banco` (ou usar uma cópia
+do arquivo sem ele). Conferência completa contra o dump de 25/09 no fim
+desta seção.
+
+### API: `api/layout/` (obter, salvar, restaurar)
+
+Contrato em `docs/API_CONTRACT.md`, "Layout por blocos do perfil".
+`helpers.php` concentra a validação: listas fixas de tela, tipos,
+tamanhos e formas (com as formas aceitas e a padrão de cada tipo); cada
+tipo exatamente uma vez (é o máximo de blocos); `ordem` de 1 a 5 sem
+repetir; nenhuma chave fora de `versao`/`blocos` e
+`tipo`/`ordem`/`tamanho`/`forma`. O layout gravado é **remontado** a
+partir das listas — nada do cliente é copiado sem bater com uma delas. O
+nome de uma chave recusada volta limpo na mensagem (só `[A-Za-z0-9_]`).
+Identidade sempre pela sessão: um `user_id` no corpo do salvar é erro 400,
+não ignorado em silêncio. Ler o layout de outra pessoa é permitido (o
+perfil dela já é visível) e vem com `editavel: false`. Limite: 30
+salvamentos por pessoa por hora, pelo freio genérico de `rate_limit.php`;
+layout inválido não gasta vaga. Corpo acima de 4 KB é recusado antes do
+`json_decode`, com profundidade máxima 8.
+
+Testado por curl, 37 casos, todos passando: sem sessão nos três (401);
+corpo que não é JSON, lista em vez de objeto, tela desconhecida, versão 2,
+bloco faltando, bloco repetido, ordem repetida e em texto, tamanho fora da
+lista, chave livre no layout e num bloco, nome de chave com HTML (volta
+limpo), corpo acima de 4 KB (400); tipo desconhecido (400); `circulo` em
+`sobre` (400); forma desconhecida, ausente ou não-texto viram a padrão do
+tipo (200); caminho feliz com blocos fora de ordem (normaliza e ordena),
+leitura do próprio (`editavel: true`); "não é seu" — outra pessoa
+mandando `user_id` do dono (400), lendo o layout do dono
+(`editavel: false`, intacto), e restaurando só o dela; 31º salvamento na
+hora (429) e layout inválido não gastando vaga; restaurar (com e sem
+layout salvo), tela desconhecida, salvar por GET.
+
+### Front: `js/perfil-layout.js` e o modo edição
+
+O JS novo **não desenha conteúdo**: move os elementos que o perfil já
+tinha (avatar, `#perfilIdentidade`, `#perfilEstatisticas`, `#perfilSobre`,
+`#myPostsContainer`) para dentro de caixas de bloco e, no "Restaurar
+padrão", devolve cada um ao lugar marcado (comentário no DOM). Quem
+preenche esses elementos continua sendo o `perfil.html`, pelos mesmos ids
+e com o mesmo escape; os botões "Enviar mensagem" / "Voltar" do perfil
+alheio entram sozinhos no bloco "sobre". Só tipos conhecidos viram bloco;
+todo texto novo (rótulos, nomes e descrições dos modelos) vem de constantes
+e entra por `textContent`. Duas camadas por bloco: a caixa da grade leva o
+tamanho (e os controles na edição) e a de dentro leva a forma — a barra de
+controles nunca fica dentro de um círculo.
+
+Modo edição (só no próprio perfil; o botão "Organizar" aparece depois que
+o servidor diz `editavel`): Salvar, Cancelar, Restaurar padrão (com o
+diálogo de confirmação do app) e "Começar de um modelo" (3 modelos com
+miniatura desenhada do próprio JSON; escolher só carrega na edição). Por
+bloco: alça de arrastar (SortableJS), botões ↑/↓ que mantêm o foco no
+bloco que andou, seletor de tamanho e seletor de forma com só as formas
+permitidas para o tipo. Contorno de foco de 2px no `:focus-visible` em
+qualquer forma. Celular (< 768px): uma coluna, todo bloco na largura dela.
+O estado aplicado fica em `body[data-perfil-layout]` (`automatico` ou
+`blocos`).
+
+**Teste ao vivo.** O Chrome controlado por extensão continua ligado a
+OUTRA máquina (os arquivos novos davam 404 lá; esta branch não foi
+enviada), então o teste rodou no `chrome-headless-shell` do motor, nesta
+máquina, contra o Apache local, por CDP — cliques e arrasto com eventos de
+mouse reais, prints em `C:\Users\User\projeto\prints-layout-blocos\` (fora
+do repositório). Nenhuma foto de usuário do seed existe em `uploads/`
+nesta máquina (a pasta não é versionada), então uma imagem local foi posta
+temporariamente com o nome do avatar do Gustavo e apagada no fim — nada
+mudou no banco. Resultado, todos os passos passando: perfil sem layout
+igual ao de sempre; entrar na edição; descer um bloco pelo botão (foco
+fica no botão); arrastar "Sobre" para o topo pela alça; mudar tamanho e
+forma (foto oferece 4 formas, texto 3); pílula no feed (ver abaixo); foco
+visível pelo teclado; os 3 modelos carregando só na edição (servidor
+continua `null`); salvar e recarregar (layout igual); celular 390px (5
+blocos de 366px, sem rolagem horizontal) e edição no celular; visitante
+vendo o layout do dono sem botão de edição, com "Enviar mensagem" e
+"Voltar" dentro do "sobre" em pílula, sem transbordar; restaurar (volta ao
+perfil de sempre, servidor `null`). Dois acabamentos corrigidos durante o
+teste: o `mt-3` das estatísticas virava vão dentro do bloco; e, no
+celular, o botão "Organizar" com texto fazia "Editar" quebrar em duas
+linhas (agora só ícone abaixo de 576px, com `aria-label`).
+
+**Pílula no bloco de publicações: decidido — não vale.** No primeiro
+teste ao vivo, com `9999px` o navegador limitou o raio à metade do lado
+menor — no feed, a largura (~360px de raio): o bloco virou uma oval
+grande, e as linhas separadoras e o fundo dos posts passavam para fora da
+curva nos cantos. Decisão do dono: `publicacoes` aceita só **quadrado e
+arredondado**, no servidor (`LAYOUT_BLOCOS` em `api/layout/helpers.php`;
+pílula ou círculo nesse bloco é erro 400, como qualquer forma conhecida
+fora da lista do tipo) e no front (o seletor só oferece as duas). A regra
+de CSS da pílula no feed saiu junto. Nenhum dos 3 modelos usava pílula no
+feed, então nada mudou neles. Contrato atualizado.
+
+**Outros dois ajustes pedidos depois do primeiro teste:**
+- **Teto da foto:** o bloco de imagem (`.perfil-bloco-imagem`) tem
+  `max-width`/`max-height` de **320px**, centrado na célula. Sem isso, a
+  foto grande em círculo ocupava toda a largura da coluna (~725px no
+  desktop) — um círculo enorme. 320px é pouco mais que o dobro do avatar
+  de sempre e cabe inteiro na tela do celular (366px de célula).
+- **Painel de modelos:** `max-height: 220px` com `overflow-y: auto` (e
+  `overscroll-behavior: contain`, para a rolagem do painel não arrastar a
+  página). No celular os 3 modelos ficam empilhados (~940px de conteúdo);
+  sem o limite, o painel empurrava os blocos para fora da tela.
+
+**Conferência do banco depois do `banco.sql` rodado duas vezes.**
+Contagens hoje: `users` 32, `posts` 211, `ai_agents` 15 (12 de sistema,
+3 de usuário) — iguais às anotadas antes das execuções. Comparado também
+coluna a coluna com o dump de 25/09 (restaurado num banco à parte, já
+apagado): as únicas diferenças são persona e bio (e, no `mare_mansa`,
+o nome) dos 7 agentes de sistema que o `banco.sql` regrava. Checado byte
+a byte: no dump esses 7 textos estavam com acentuação estragada (UTF-8
+lido como cp850); desfazendo essa troca, o texto do dump fica
+**idêntico** ao atual. Ou seja, a reexecução só consertou a codificação
+— nenhum conteúdo mudou. Filhotes, `echo_sistema` e os 3 agentes de
+usuário estão iguais ao dump. (Uma contagem anterior de "15 agentes
+diferentes" estava errada — usava `LIKE`, que ignora acento; a checagem
+byte a byte é a que vale.)
+
+**Teste completo refeito do zero depois dos ajustes** (o roteiro
+inteiro, prints novos em `prints-layout-blocos/`):
+- curl: **39 casos, todos passando** — os 37 anteriores (com o layout
+  base agora usando arredondado no feed) mais "pílula em publicações" e
+  "círculo em publicações", ambos 400. `perfil_layouts` termina vazia.
+- navegador (os 11 passos): seletor de forma de `publicacoes` com só
+  `quadrado`/`arredondado`, de `sobre` com as 3 de texto, da foto com as
+  4; foto grande em círculo com 320×320, raio 50%, centrada numa célula
+  de 725px; pílula em "sobre" (`9999px`) e feed quadrado; painel de
+  modelos com 220px de altura (378px de conteúdo no desktop, 943px no
+  celular, rolando); salvar/recarregar igual; celular sem rolagem
+  horizontal; visitante; restaurar. Nenhum erro no console. Prints
+  principais: `05_foto_grande_circulo.png`, `07_modelos_miniaturas.png`,
+  `07_modelos_celular.png`.
