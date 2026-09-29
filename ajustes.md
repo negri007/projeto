@@ -3897,3 +3897,50 @@ Ainda ignoram o modo, fora desta correção (não pedido): a **estreia de
 agente** (`agent_estreia.php`, chama a API ao criar agente mesmo em
 acervo — é ação disparada pela pessoa, com contrato próprio) e a busca de
 foto no Pexels.
+
+### Verificações de 29/09/2026 (sem mudança de código)
+
+**Scripts de linha de comando da reprodução.** `reproducao.php`,
+`check_maturacao.php` e `processar_quiz_respostas.php` rodados em modo
+acervo, com o teto global cheio de linhas marcadas (nenhuma chamada paga
+possível): os três saem com código 0, sem erro de PHP e sem nenhuma
+chamada nova. Nessa rodada `check_maturacao` não tinha filhote a
+amadurecer e `processar_quiz_respostas` não tinha quiz pendente — só a
+carga e a consulta foram exercitadas. (O quiz foi exercitado de ponta a
+ponta depois, no teste da correção do modo — ver acima.)
+
+**Falha 12 testada de ponta a ponta, e não só analisada.** Antes, o caso
+"banco em outro servidor" só tinha sido verificado pela função pura
+`seed_motivo_nao_local()`. Agora: numa cópia temporária do projeto
+(`git worktree`, fora da pasta servida pelo Apache) com um `db_config.php`
+de teste apontando para `192.0.2.10`, `seed_usuarios.php` e
+`seed_demo_videos.php` — os dois caminhos de entrada — recusaram com
+código 1 e "o banco configurado (host "192.0.2.10") não está nesta
+máquina"; o banco local não mudou. Controle: a mesma cópia com `localhost`
+deixa passar. Cópia removida; o `db_config.php` real nunca foi tocado.
+
+**`.gitattributes` aplicado (`* text=auto eol=lf`).** O índice já estava
+todo em LF (`git add --renormalize` não mudou nenhum arquivo). A cópia de
+trabalho desta máquina tinha 265 arquivos em CRLF (efeito do
+`core.autocrlf=true` do Git para Windows), convertidos para LF; conteúdo
+idêntico ao índice (mesmo hash). Consequência real, pega pelos scripts de
+`tools/verificacao/`: quatro constantes de prompt com quebra de linha
+literal (`AI_SAFETY_COMMON`, `AI_LIBERDADE`, `AI_GIRIA_BASE`,
+`AI_COMO_ESCREVER`) e os delimitadores da mensagem em
+`user_agent/helpers.php` deixam de levar `\r` **nesta máquina** —
+passam a ter o mesmo valor que o repositório e qualquer instalação em
+Linux sempre tiveram. Confirmado que a única diferença é o `\r` (recolocar
+`\r\n` devolve o valor antigo). Os outros 201 textos de várias linhas em
+`api/` são SQL. Depois de regerar a referência, a verificação completa deu
+"TUDO OK".
+
+**`feature/videos-ia` x `feature/grupos-academia`.** A `videos-ia`
+remota tem um único commit fora da `grupos-academia` (`cfdeff5`, roadmap
+v2), e ele é cópia exata do `2e62113` que já está aqui (mesmo
+`patch-id`); a local está 11 commits atrás da remota e não tem nada
+próprio. O que `git diff main...feature/videos-ia` mostra em
+`agent_estreia.php`, `agent_confirm.php`, `reproducao.php` e
+`validar_corpus.php` veio de commits de 21 a 25/09 (`014cde9`, `e57bde3`,
+`5984dd6`) que já estão no histórico da `grupos-academia`. Ela não mexe no
+`helpers.php` e não conflita com a correção do modo nem com a divisão em
+`nucleo/`: é uma branch atrasada, sem trabalho próprio.
