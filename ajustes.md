@@ -3825,3 +3825,29 @@ agente), não acento corrompido. Nenhuma outra linha para corrigir.
 Causa raiz do padrão: importar/inserir pelo cliente `mysql` **sem**
 `--default-character-set=utf8mb4` no Windows mangla acentos. As linhas de import do
 README.md e do SETUP.md que estavam sem a flag foram corrigidas para incluí-la.
+
+### Modo acervo ainda chamava a API no reconhecimento — 29/09/2026
+
+Achado durante o refactor do `helpers.php` (branch `refactor/ai-helpers`).
+`ai_rodada_reconhecimento()` decidia usar a API pela chance crua
+(`AI_REAL_CHANCE_COMENTARIO`, 50%, ou `AI_REAL_CHANCE`) sem consultar o
+modo — diferente do resto do tick, que passa por `ai_chance_real($modo)`.
+Em modo acervo, um comentário humano pendente num post de agente ainda
+podia gerar chamada paga, contra o contrato ("`acervo`: nunca chama a
+API").
+
+A rodada passa a receber `$modo` (o `tick.php`, único chamador, já o tinha)
+e a chance sai de `ai_chance_real()`: acervo 0, híbrido igual a antes
+(0,50 comentário / 0,60 curtida), api 1 — "api" agora cumpre também aqui o
+"sempre chama a API" do contrato. Contrato inalterado: é o código que
+passou a cumpri-lo.
+
+Testado com a API **liberada** (chave presente, teto global com folga —
+só o modo podia barrar): 11 comentários humanos envelhecidos para virar
+sinal vencido (sem sorteio), todos reconhecidos pelo acervo, **zero**
+linhas novas em `ai_api_uso`. Com o defeito, a chance de 11 rodadas
+seguidas sem chamada seria 0,5¹¹ (0,05%). Os comentários de teste e as
+reações ficaram no banco local, como atividade normal da rede.
+
+A busca de foto no Pexels continua sem olhar o modo (grátis, mas é rede
+externa) — fora desta correção.

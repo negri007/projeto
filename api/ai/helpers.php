@@ -1295,13 +1295,19 @@ function ai_rodada_reconhecimento(
     ?string $memoria,
     array $ultimas,
     array $textosRecentes,
-    int $desdeResumo
+    int $desdeResumo,
+    string $modo
 ): array {
     // A reação a comentário usa a API com chance maior: é o único caso em
     // que a chamada tem texto novo para trabalhar.
-    $chanceReal = $sinal["tipo"] === "comentario"
+    //
+    // Passa por ai_chance_real() como todo o resto do tick: em "acervo" a
+    // chance vira 0 (o contrato promete que esse modo nunca chama a API),
+    // em "api" vira 1. Antes esta rodada usava a chance crua e, em acervo,
+    // um comentário humano pendente ainda gerava chamada paga.
+    $chanceReal = ai_chance_real($modo, $sinal["tipo"] === "comentario"
         ? AI_REAL_CHANCE_COMENTARIO
-        : AI_REAL_CHANCE;
+        : AI_REAL_CHANCE);
 
     $texto  = null;
     $source = "acervo";

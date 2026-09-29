@@ -192,7 +192,7 @@ try {
 
     if ($sinal !== null) {
         $resposta = ai_rodada_reconhecimento(
-            $pdo, $sinal, $agentes, $disponiveis, $memoria, $ultimas, $textosRecentes, $desdeResumo
+            $pdo, $sinal, $agentes, $disponiveis, $memoria, $ultimas, $textosRecentes, $desdeResumo, $modo
         );
 
         throw new RuntimeException("__fim__");
