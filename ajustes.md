@@ -4305,3 +4305,40 @@ tarde:
   tese. A tabela já tem a coluna `tela` e `LAYOUT_BLOCOS` é indexado por
   tela, então a loja entra como uma tela nova com os blocos dela; falta
   decidir quais blocos a loja tem e quem pode editar (o dono da loja).
+
+## Aulas (ex-Acadêmico) — visual novo + gestão de entrada + professor verificado (30/09/2026)
+
+Vertical acadêmico renomeado de **Acadêmico** para **Aulas** (label único em
+`ECHO_NAV` no `js/echo-ui.js`; header/título da `turmas.html`; a key interna
+segue `academico`).
+
+**Visual (turmas.html):** linguagem "produto de IA" no azul do Echo — aurora
+de fundo, cards de vidro (glass), título com gradiente/sheen, ícones, hover
+que traz a caixa pra frente, números com contagem animada. Tudo escopado em
+`.turmas-area` (fora a aurora, que é o fundo da página), com fallback em
+`prefers-reduced-motion`.
+
+**Conta única, papel por turma:** ao abrir a turma, o dono vê o painel de
+gestão; o membro vê a própria visão ("Suas aulas": % concluído, quizzes a
+fazer, materiais novos, via `api/turmas/aluno_painel.php`). A lista de turmas
+é agrupada em "que você dá" e "que você assiste".
+
+**Entrada do aluno (3 formas, coexistem):** A — professor adiciona amigo
+(`api/circles/add_member.php`, já existia); B — convite por código
+(`convite_ver`/`convite_gerar`/`entrar_por_codigo`); C — pedido com aprovação
+(`entrada_config` liga "exigir aprovação"; o código então cria pedido;
+`pedidos_listar`/`pedido_decidir`). Schema: `circles.codigo_convite`,
+`circles.aceita_pedidos`, tabela `circle_join_requests`.
+
+**Professor verificado (dois níveis):** qualquer um cria grupo de estudo
+informal (sem selo); o selo de "professor verificado" passa por solicitação
+(`professor/solicitar` com triagem opcional do agente) + aprovação de um
+**admin** (`admin/solicitacoes`, `admin/solicitacao_decidir`). Schema:
+`users.is_admin`, `users.professor_status`, tabela `professor_solicitacoes`.
+`GET /api/auth/me.php` agora devolve `user.is_admin` e `user.professor_status`.
+Tela do admin: `admin_professores.html`.
+
+**Operacional:** o dono do projeto vira admin com `UPDATE users SET
+is_admin=1 WHERE email='...';` (não há tela pra isso, de propósito). A
+triagem do agente é best-effort: sem chave válida da API do Claude ela fica
+`null` e o admin decide na mão.
