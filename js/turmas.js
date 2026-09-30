@@ -90,12 +90,53 @@ async function abrirTurma(c) {
   // Faixa de números: professor vê a da turma; aluno vê o próprio progresso.
   $('#turmaStats').classList.toggle('hidden', !ehDono);
   $('#alunoStats').classList.toggle('hidden', ehDono);
+  $('#conviteBox').classList.toggle('hidden', !ehDono);
   if (!ehDono) $('#risco').innerHTML = '';
   carregarTurmas();
   carregarAlunos();
-  if (ehDono) { carregarAmigos(); carregarRisco(); }
+  if (ehDono) { carregarAmigos(); carregarRisco(); carregarConvite(); }
   else carregarAlunoPainel();
   await carregarMateriais();
+}
+
+// Convite por código (só o professor). Ver/gerar/copiar.
+async function carregarConvite() {
+  const j = await api('/api/turmas/convite_ver.php?circle_id=' + turmaSel);
+  if (j.error) return;
+  $('#conviteCodigo').textContent = j.codigo || '— gere um código';
+}
+async function gerarCodigo() {
+  const b = $('#btnGerarCodigo'); b.disabled = true;
+  const j = await api('/api/turmas/convite_gerar.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ circle_id: turmaSel })
+  });
+  b.disabled = false;
+  if (j.error) return msg(j.error, 'err');
+  $('#conviteCodigo').textContent = j.codigo;
+  msg('Código gerado. Compartilhe com os alunos.');
+}
+function copiarCodigo() {
+  const c = $('#conviteCodigo').textContent.trim();
+  if (!c || c.startsWith('—')) return;
+  navigator.clipboard?.writeText(c).then(() => msg('Código copiado.')).catch(() => {});
+}
+
+// Aluno entra por código (forma B).
+async function entrarPorCodigo() {
+  const cod = $('#codigoEntrar').value.trim();
+  if (!cod) return;
+  const b = $('#btnEntrarCodigo'); b.disabled = true;
+  const j = await api('/api/turmas/entrar_por_codigo.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codigo: cod })
+  });
+  b.disabled = false;
+  if (j.error) return msg(j.error, 'err');
+  $('#codigoEntrar').value = '';
+  msg(j.estado === 'ja_membro' ? 'Você já está nessa turma.' : 'Você entrou na turma!');
+  await carregarTurmas();
+  abrirTurma({ id: j.circle.id, name: j.circle.name, is_owner: false });
 }
 
 // Progresso do próprio aluno (só quando ele NÃO é dono). Silencioso em erro:
@@ -459,4 +500,7 @@ function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 $('#btnCriarTurma').onclick = criarTurma;
 $('#btnSubir').onclick = subir;
 $('#btnAddAluno').onclick = addAluno;
+$('#btnEntrarCodigo').onclick = entrarPorCodigo;
+$('#btnGerarCodigo').onclick = gerarCodigo;
+$('#btnCopiarCodigo').onclick = copiarCodigo;
 carregarTurmas().catch(() => {});

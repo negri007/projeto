@@ -291,6 +291,78 @@ function turma_resumir_material(array $material, PDO $pdo, int $userId): array
     return ["ok" => true, "resumo" => mb_substr($resumo, 0, TURMA_RESUMO_MAX_CHARS)];
 }
 
+/* ----------------------------------------------------------------------
+   Entrada de aluno na turma (Fase 2). Três formas coexistem: o professor
+   adiciona (A, em api/circles/add_member.php), convite por código (B) e
+   pedido com aprovação (C). As funções abaixo são a parte comum.
+   -------------------------------------------------------------------- */
+
+/** Alfabeto do código de convite, sem caracteres ambíguos (0/O, 1/I). */
+const TURMA_CODIGO_ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const TURMA_CODIGO_TAM      = 8;
+
+/** Gera um código de convite único (não colide com nenhum já em uso). */
+function turma_gerar_codigo(PDO $pdo): string
+{
+    $alfa = TURMA_CODIGO_ALFABETO;
+    $max  = strlen($alfa) - 1;
+
+    for ($tentativa = 0; $tentativa < 12; $tentativa++) {
+        $cod = "";
+        for ($i = 0; $i < TURMA_CODIGO_TAM; $i++) {
+            $cod .= $alfa[random_int(0, $max)];
+        }
+
+        $stmt = $pdo->prepare("SELECT 1 FROM circles WHERE codigo_convite = ? LIMIT 1");
+        $stmt->execute([$cod]);
+
+        if (!$stmt->fetch()) {
+            return $cod;
+        }
+    }
+
+    // Praticamente impossível chegar aqui; some o timestamp pra garantir.
+    return substr($cod, 0, 4) . substr((string)time(), -4);
+}
+
+/**
+ * Turma (círculo academia) de um código de convite, ou null. O código é
+ * normalizado (maiúsculas, sem espaço) antes da busca.
+ */
+function turma_por_codigo(PDO $pdo, string $codigo): ?array
+{
+    $codigo = strtoupper(trim($codigo));
+
+    if ($codigo === "") {
+        return null;
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT id, owner_id, name FROM circles
+          WHERE codigo_convite = ? AND tipo = 'academia' LIMIT 1"
+    );
+    $stmt->execute([$codigo]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $row ?: null;
+}
+
+/**
+ * Adiciona um aluno à turma (INSERT IGNORE). Devolve o estado:
+ * "novo" (entrou agora), "ja_membro" (já estava) ou "dono" (é o professor).
+ */
+function turma_add_membro(PDO $pdo, int $circleId, int $ownerId, int $userId): string
+{
+    if ($userId === $ownerId) {
+        return "dono";
+    }
+
+    $stmt = $pdo->prepare("INSERT IGNORE INTO circle_members (circle_id, user_id) VALUES (?, ?)");
+    $stmt->execute([$circleId, $userId]);
+
+    return $stmt->rowCount() > 0 ? "novo" : "ja_membro";
+}
+
 /** Formata um material para a resposta JSON (sem despejar o texto inteiro
  *  nas listagens: `tem_texto` basta pra tela). */
 function turma_material_row(array $m, bool $completo = false): array

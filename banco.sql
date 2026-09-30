@@ -1848,6 +1848,27 @@ CREATE TABLE IF NOT EXISTS turma_material_views (
     FOREIGN KEY (user_id)     REFERENCES users(id)           ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Entrada do aluno na turma (Fase 2). Tres formas coexistem: o professor
+-- adiciona (A, ja existia via circle_members), convite por codigo (B) e
+-- pedido com aprovacao (C). `codigo_convite` guarda o codigo da turma
+-- (quem digitar entra); `aceita_pedidos` liga o "pedir para entrar". A
+-- tabela guarda os pedidos pendentes/decididos (um por pessoa e turma).
+CALL echo_add_column_if_missing('circles', 'codigo_convite', "VARCHAR(12) DEFAULT NULL AFTER tipo");
+CALL echo_add_column_if_missing('circles', 'aceita_pedidos', "TINYINT(1) NOT NULL DEFAULT 0 AFTER codigo_convite");
+CALL echo_add_index_if_missing('circles', 'idx_circ_codigo', 'codigo_convite');
+
+CREATE TABLE IF NOT EXISTS circle_join_requests (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    circle_id  INT NOT NULL,
+    user_id    INT NOT NULL,
+    status     VARCHAR(12) NOT NULL DEFAULT 'pendente',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    decided_at TIMESTAMP NULL DEFAULT NULL,
+    UNIQUE KEY uq_cjr (circle_id, user_id),
+    FOREIGN KEY (circle_id) REFERENCES circles(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Layout por blocos de uma tela, escolhido pelo dono (30/09/2026). Uma
 -- linha por (dono, tela) — hoje só a tela 'perfil'. Sem linha, a tela
 -- aparece no layout automático de sempre; "Restaurar padrão" apaga a linha.

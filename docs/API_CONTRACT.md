@@ -3160,6 +3160,26 @@ Só quizzes **ativos** contam. `respondidos`/`media_pct`/`pct` olham as
 respostas **desse** usuário; `media_pct` é null se ele não respondeu nenhum;
 `materiais_novos` = materiais que ele ainda não abriu pelo Echo.
 
+### Entrada do aluno na turma (Fase 2, 30/09/2026)
+
+Três formas coexistem: **A** o professor adiciona (já existia,
+`POST /api/circles/add_member.php`), **B** convite por código, **C** pedido
+com aprovação. `circles` ganhou `codigo_convite` (VARCHAR, indexado) e
+`aceita_pedidos` (bool); tabela `circle_join_requests` guarda os pedidos.
+
+#### `GET /api/turmas/convite_ver.php?circle_id=<id>`
+**Só o dono.** `{ ok:true, codigo:string|null, aceita_pedidos:bool }`.
+
+#### `POST /api/turmas/convite_gerar.php` — `{ circle_id }`
+**Só o dono.** Gera/troca o código (o anterior deixa de valer).
+`{ ok:true, codigo:string }`.
+
+#### `POST /api/turmas/entrar_por_codigo.php` — `{ codigo }`
+Qualquer usuário logado. Acha a turma (tipo academia) pelo código e entra
+como membro. `{ ok:true, estado:"novo"|"ja_membro", circle:{id,name} }`.
+Código inexistente: `{"error":"Código inválido. Confira com o professor."}`;
+dono do próprio código: `{"error":"Você é o professor desta turma."}`.
+
 ## Layout por blocos do perfil (30/09/2026)
 
 A pessoa reorganiza o próprio perfil: reordena os blocos, escolhe um de 3
