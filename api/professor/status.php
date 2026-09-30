@@ -17,9 +17,10 @@ $userId = require_login();
 liberar_sessao();
 
 try {
-    $stmt = $pdo->prepare("SELECT professor_status FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT professor_status, is_admin FROM users WHERE id = ?");
     $stmt->execute([$userId]);
-    $status = $stmt->fetchColumn() ?: "nenhum";
+    $u = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $status = ($u["professor_status"] ?? "") ?: "nenhum";
 
     $stmt = $pdo->prepare("SELECT area, status, created_at FROM professor_solicitacoes WHERE user_id = ?");
     $stmt->execute([$userId]);
@@ -28,6 +29,7 @@ try {
     echo json_encode([
         "ok"          => true,
         "status"      => $status,
+        "is_admin"    => (bool)($u["is_admin"] ?? 0),
         "solicitacao" => $sol ? [
             "area"       => $sol["area"],
             "status"     => $sol["status"],

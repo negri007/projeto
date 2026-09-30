@@ -150,6 +150,11 @@
       .turmas-area .mat-texto { white-space:pre-wrap; border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-top:10px; font-size:14px; }
       .turmas-area .mat-texto a { color:var(--g3); }
 
+      /* professor verificado (coluna direita, fora do .turmas-area) */
+      #professorCard .prof-selo { display:inline-flex; align-items:center; gap:8px; font-weight:700; color:#31d0aa; background:rgba(49,208,170,.14); border:1px solid rgba(49,208,170,.32); padding:8px 12px; border-radius:999px; font-size:14px; }
+      #professorCard .prof-adminlink { display:inline-flex; align-items:center; gap:7px; margin-top:14px; color:#5cc3ff; text-decoration:none; font-size:13px; font-weight:600; }
+      #professorCard .prof-adminlink:hover { text-decoration:underline; }
+
       /* convite */
       .turmas-area .codigo-box { font-family:'Space Grotesk',monospace; font-weight:700; font-size:20px; letter-spacing:3px; color:var(--g3); background:var(--grad-soft); border:1px solid var(--line2); border-radius:10px; padding:8px 16px; }
       .turmas-area .chk-aprovacao { display:flex; align-items:center; gap:9px; margin:14px 0 0; font-size:13px; color:var(--ink); cursor:pointer; }
@@ -289,6 +294,11 @@
 
         <!-- COLUNA DIREITA -->
         <aside class="col-lg-3 d-none d-lg-block right-col">
+            <div class="right-card" data-dobravel="nao" id="professorCard">
+                <h5>Professor verificado</h5>
+                <div id="profCardBody"><p class="text-secondary mb-0 small">Carregando…</p></div>
+            </div>
+
             <div class="right-card" data-dobravel="como-funciona-academico">
                 <h5>Como funciona</h5>
                 <small class="text-secondary">
@@ -317,6 +327,6 @@
     EchoUIInstance.initHeader("academico");
 })();
 </script>
-<script src="js/turmas.js?v=20260930e"></script>
+<script src="js/turmas.js?v=20260930g"></script>
 </body>
 </html>

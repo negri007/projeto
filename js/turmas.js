@@ -552,6 +552,56 @@ async function subir() {
 
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
+// ---- Professor verificado (Fase 3): card na coluna direita ----
+async function initProfessor() {
+  const box = $('#profCardBody');
+  if (!box) return;
+  // Só status.php (libera a sessão cedo: sem corrida de lock no php -S).
+  const st = await api('/api/professor/status.php');
+  if (st.error) { box.innerHTML = ''; return; }
+
+  const status = st.status || 'nenhum';
+  const admin = !!st.is_admin;
+  const linkAdmin = admin
+    ? '<a href="admin_professores.html" class="prof-adminlink"><i class="fa-solid fa-shield-halved"></i> Painel de admin</a>'
+    : '';
+
+  if (status === 'verificado') {
+    box.innerHTML = `<div class="prof-selo"><i class="fa-solid fa-circle-check"></i> Professor verificado</div>
+      <p class="text-secondary small mb-0" style="margin-top:8px">Suas turmas mostram o selo de professor verificado.</p>${linkAdmin}`;
+    return;
+  }
+  if (status === 'pendente') {
+    box.innerHTML = `<p class="text-secondary small mb-0"><i class="fa-solid fa-hourglass-half"></i> Solicitação em análise. Avisamos quando o admin decidir.</p>${linkAdmin}`;
+    return;
+  }
+
+  const recusado = status === 'recusado'
+    ? '<p class="small" style="color:#ffb1bc;margin:0 0 8px">Seu pedido anterior foi recusado. Você pode pedir de novo.</p>' : '';
+  box.innerHTML = `${recusado}
+    <p class="text-secondary small" style="margin:0 0 8px">Qualquer um cria grupo de estudo. O selo de <b>professor verificado</b> passa por aprovação.</p>
+    <input id="profArea" class="form-control form-control-sm mb-2" placeholder="Área (ex.: Biologia)" maxlength="80">
+    <textarea id="profJust" class="form-control form-control-sm mb-2" rows="3" placeholder="Por que você quer o selo? (quem é você, o que ensina)"></textarea>
+    <button id="btnProf" class="btn btn-primary btn-sm w-100">Pedir verificação</button>${linkAdmin}`;
+  $('#btnProf').onclick = solicitarProfessor;
+}
+
+async function solicitarProfessor() {
+  const area = $('#profArea').value.trim();
+  const just = $('#profJust').value.trim();
+  if (area.length < 2) return msg('Diga a área que você quer ensinar.', 'err');
+  if (just.length < 20) return msg('Escreva uma justificativa (mín. 20 caracteres).', 'err');
+  const b = $('#btnProf'); b.disabled = true;
+  const j = await api('/api/professor/solicitar.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ area, justificativa: just })
+  });
+  b.disabled = false;
+  if (j.error) return msg(j.error, 'err');
+  msg('Pedido enviado! Um admin vai avaliar.');
+  initProfessor();
+}
+
 $('#btnCriarTurma').onclick = criarTurma;
 $('#btnSubir').onclick = subir;
 $('#btnAddAluno').onclick = addAluno;
@@ -560,3 +610,4 @@ $('#btnGerarCodigo').onclick = gerarCodigo;
 $('#btnCopiarCodigo').onclick = copiarCodigo;
 $('#chkAprovacao').onchange = salvarAprovacao;
 carregarTurmas().catch(() => {});
+initProfessor().catch(() => {});

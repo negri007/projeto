@@ -3213,8 +3213,10 @@ IA não estiver disponível). `{ ok:true, status:"pendente" }`. Já verificado:
 `{"error":"Você já é professor verificado."}`.
 
 #### `GET /api/professor/status.php`
-Estado do próprio usuário: `{ ok:true, status, solicitacao:{area,status,
-created_at}|null }`. A triagem da IA **não** vai para o cliente.
+Estado do próprio usuário: `{ ok:true, status, is_admin:bool,
+solicitacao:{area,status,created_at}|null }`. A triagem da IA **não** vai
+para o cliente. (`is_admin` vem junto para o front decidir mostrar o link do
+painel de admin sem uma segunda chamada.)
 
 #### `GET /api/admin/solicitacoes.php`
 **Só admin** (`403 {"error":"Acesso restrito."}` caso contrário). Pendentes:
