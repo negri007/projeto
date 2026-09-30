@@ -218,10 +218,18 @@
                 </div>
 
                 <div id="painel" class="bloco hidden">
+                    <!-- Faixa do PROFESSOR (dono): números da turma -->
                     <div id="turmaStats" class="tstats hidden">
                         <div class="tstat"><div class="ic"><i class="fa-solid fa-users"></i></div><div class="n" id="stAlunos">0</div><div class="l">Alunos</div></div>
                         <div class="tstat good"><div class="ic"><i class="fa-solid fa-folder-open"></i></div><div class="n" id="stMateriais">0</div><div class="l">Materiais</div></div>
                         <div class="tstat risk"><div class="ic"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="n" id="stRisco">0</div><div class="l">Em risco</div></div>
+                    </div>
+
+                    <!-- Faixa do ALUNO (membro): progresso da própria pessoa -->
+                    <div id="alunoStats" class="tstats hidden">
+                        <div class="tstat good"><div class="ic"><i class="fa-solid fa-circle-check"></i></div><div class="n"><span id="stConcluido">0</span>%</div><div class="l">Você concluiu</div></div>
+                        <div class="tstat"><div class="ic"><i class="fa-solid fa-list-check"></i></div><div class="n" id="stPendentes">0</div><div class="l">Quizzes a fazer</div></div>
+                        <div class="tstat"><div class="ic"><i class="fa-solid fa-folder-open"></i></div><div class="n" id="stNovos">0</div><div class="l">Materiais novos</div></div>
                     </div>
 
                     <div id="riscoBox" class="hidden">
@@ -283,6 +291,6 @@
     EchoUIInstance.initHeader("academico");
 })();
 </script>
-<script src="js/turmas.js?v=20260930a"></script>
+<script src="js/turmas.js?v=20260930c"></script>
 </body>
 </html>

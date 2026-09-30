@@ -3146,6 +3146,20 @@ assuntos com alguém em risco, do maior para o menor). `alunos` traz só quem
 está em risco, com mais motivos primeiro. `nota_baixa` soma `acertos`,
 `total`, `pct`; `quiz_pendente` soma `dias`.
 
+#### `GET /api/turmas/aluno_painel.php?circle_id=<id>` (30/09/2026)
+
+Progresso do **próprio usuário logado** na turma (não da turma). Qualquer
+membro ou o dono; quem não é da turma: `{"error":"Turma não encontrada."}`.
+SQL puro, sem API. Usado pela visão do aluno em `turmas.html` (a faixa de
+números quando a pessoa não é dona).
+
+Resposta: `{ ok:true, progresso:{ quizzes_total, respondidos, pendentes,
+media_pct|null, pct_concluido, materiais_total, materiais_novos },
+quizzes:[{material_id, titulo, respondido, acertos, total, pct|null}] }`.
+Só quizzes **ativos** contam. `respondidos`/`media_pct`/`pct` olham as
+respostas **desse** usuário; `media_pct` é null se ele não respondeu nenhum;
+`materiais_novos` = materiais que ele ainda não abriu pelo Echo.
+
 ## Layout por blocos do perfil (30/09/2026)
 
 A pessoa reorganiza o próprio perfil: reordena os blocos, escolhe um de 3

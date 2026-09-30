@@ -87,13 +87,26 @@ async function abrirTurma(c) {
   $('#subir').classList.toggle('hidden', !ehDono);
   $('#addAluno').classList.toggle('hidden', !ehDono);
   $('#riscoBox').classList.toggle('hidden', !ehDono);
-  // Faixa de números da turma: só o professor (o aluno não vê "em risco").
+  // Faixa de números: professor vê a da turma; aluno vê o próprio progresso.
   $('#turmaStats').classList.toggle('hidden', !ehDono);
+  $('#alunoStats').classList.toggle('hidden', ehDono);
   if (!ehDono) $('#risco').innerHTML = '';
   carregarTurmas();
   carregarAlunos();
   if (ehDono) { carregarAmigos(); carregarRisco(); }
+  else carregarAlunoPainel();
   await carregarMateriais();
+}
+
+// Progresso do próprio aluno (só quando ele NÃO é dono). Silencioso em erro:
+// a lista de materiais/quizzes continua aparecendo de qualquer forma.
+async function carregarAlunoPainel() {
+  const j = await api('/api/turmas/aluno_painel.php?circle_id=' + turmaSel);
+  if (j.error || !j.progresso) return;
+  const p = j.progresso;
+  setStat('stConcluido', p.pct_concluido); // o "%" é fixo no HTML, fora do número
+  setStat('stPendentes', p.pendentes);
+  setStat('stNovos', p.materiais_novos);
 }
 
 // Alerta de aluno em risco (so o professor; o PHP recusa aluno). Todo
