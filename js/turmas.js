@@ -40,15 +40,28 @@ async function carregarTurmas() {
   const turmas = (j.circles || []).filter(c => c.tipo === 'academia');
   if (!turmas.length) { box.innerHTML = '<span class="spin">nenhuma turma ainda — crie uma abaixo.</span>'; return; }
   box.innerHTML = '';
-  turmas.forEach(c => {
+  // Papel é por turma: separa "que você dá" (dono) de "que você assiste".
+  const dou = turmas.filter(c => c.is_owner);
+  const assisto = turmas.filter(c => !c.is_owner);
+  if (dou.length) box.appendChild(grupoTurmas('Turmas que você dá', 'fa-chalkboard-user', dou));
+  if (assisto.length) box.appendChild(grupoTurmas('Turmas que você assiste', 'fa-user-graduate', assisto));
+}
+
+function grupoTurmas(titulo, icone, lista) {
+  const g = document.createElement('div');
+  g.className = 'turma-grupo';
+  g.innerHTML = `<div class="turma-grupo-tit"><i class="fa-solid ${icone}"></i>${esc(titulo)}</div><div class="turma-grid"></div>`;
+  const grid = g.querySelector('.turma-grid');
+  lista.forEach(c => {
     const d = document.createElement('div');
     d.className = 'turma-card' + (turmaSel === c.id ? ' sel' : '');
     d.innerHTML = `<div class="tc-ic"><i class="fa-solid fa-graduation-cap"></i></div>
       <div class="tc-body"><div class="tc-name">${esc(c.name)}</div><div class="tc-meta">${c.member_count} aluno(s)</div></div>
       <span class="tag">${c.is_owner ? 'professor' : 'aluno'}</span>`;
     d.onclick = () => abrirTurma(c);
-    box.appendChild(d);
+    grid.appendChild(d);
   });
+  return g;
 }
 
 async function criarTurma() {

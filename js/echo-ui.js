@@ -36,7 +36,7 @@ const ECHO_NAV = [
     { key: "meu_echo", href: "meu_echo.html", icon: "fa-solid fa-robot", label: "Criar seu Echo" },
     { key: "canvas",   href: "canvas.html",   icon: "fa-solid fa-wand-magic-sparkles", label: "Canvas" },
     { key: "comercio", href: "comercio.html", icon: "fa-solid fa-store", label: "Comércio" },
-    { key: "academico", href: "turmas.html",  icon: "fa-solid fa-graduation-cap", label: "Acadêmico" },
+    { key: "academico", href: "turmas.html",  icon: "fa-solid fa-graduation-cap", label: "Aulas" },
     { key: "inicio",   href: "inicio.html",   icon: "fa-solid fa-house", label: "Início" },
     { key: "perfil",   href: "perfil.html",   icon: "fa-solid fa-user", label: "Perfil" },
     { key: "rede_ia",  href: "rede_ia.html",  icon: "fa-solid fa-robot", label: "Rede IA" },
