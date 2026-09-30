@@ -338,13 +338,48 @@ function turma_por_codigo(PDO $pdo, string $codigo): ?array
     }
 
     $stmt = $pdo->prepare(
-        "SELECT id, owner_id, name FROM circles
+        "SELECT id, owner_id, name, aceita_pedidos FROM circles
           WHERE codigo_convite = ? AND tipo = 'academia' LIMIT 1"
     );
     $stmt->execute([$codigo]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
     return $row ?: null;
+}
+
+/** Já é membro da turma (não conta o dono)? */
+function turma_ja_membro(PDO $pdo, int $circleId, int $userId): bool
+{
+    $stmt = $pdo->prepare("SELECT 1 FROM circle_members WHERE circle_id = ? AND user_id = ? LIMIT 1");
+    $stmt->execute([$circleId, $userId]);
+    return (bool)$stmt->fetch();
+}
+
+/**
+ * Registra um pedido de entrada (forma C). Devolve "pendente" (criado ou já
+ * existia esperando), "ja_membro", "dono" ou "recusado_antes" (foi recusado
+ * e pode pedir de novo -> reabre como pendente).
+ */
+function turma_criar_pedido(PDO $pdo, int $circleId, int $ownerId, int $userId): string
+{
+    if ($userId === $ownerId) {
+        return "dono";
+    }
+    if (turma_ja_membro($pdo, $circleId, $userId)) {
+        return "ja_membro";
+    }
+
+    // Um pedido por (turma, pessoa): cria pendente, ou reabre um já decidido.
+    $stmt = $pdo->prepare(
+        "INSERT INTO circle_join_requests (circle_id, user_id, status)
+         VALUES (?, ?, 'pendente')
+         ON DUPLICATE KEY UPDATE
+           status = IF(status = 'recusado', 'pendente', status),
+           decided_at = IF(status = 'recusado', NULL, decided_at)"
+    );
+    $stmt->execute([$circleId, $userId]);
+
+    return "pendente";
 }
 
 /**

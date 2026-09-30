@@ -32,7 +32,29 @@ try {
         exit;
     }
 
-    $estado = turma_add_membro($pdo, (int)$turma["id"], (int)$turma["owner_id"], $userId);
+    $circleId = (int)$turma["id"];
+    $ownerId  = (int)$turma["owner_id"];
+
+    // Se a turma exige aprovação, o código cria um PEDIDO (forma C); senão,
+    // entra na hora (forma B).
+    if (!empty($turma["aceita_pedidos"])) {
+        $estado = turma_criar_pedido($pdo, $circleId, $ownerId, $userId);
+
+        if ($estado === "dono") {
+            echo json_encode(["error" => "Você é o professor desta turma."]);
+            exit;
+        }
+
+        // Membro entra direto na turma (não vira "pedido" à toa).
+        echo json_encode([
+            "ok"     => true,
+            "estado" => $estado, // "pendente" | "ja_membro"
+            "circle" => ["id" => $circleId, "name" => $turma["name"]],
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $estado = turma_add_membro($pdo, $circleId, $ownerId, $userId);
 
     if ($estado === "dono") {
         echo json_encode(["error" => "Você é o professor desta turma."]);
@@ -41,8 +63,8 @@ try {
 
     echo json_encode([
         "ok"     => true,
-        "estado" => $estado,
-        "circle" => ["id" => (int)$turma["id"], "name" => $turma["name"]],
+        "estado" => $estado, // "novo" | "ja_membro"
+        "circle" => ["id" => $circleId, "name" => $turma["name"]],
     ], JSON_UNESCAPED_UNICODE);
 
 } catch (Throwable $e) {

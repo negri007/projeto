@@ -152,6 +152,11 @@
 
       /* convite */
       .turmas-area .codigo-box { font-family:'Space Grotesk',monospace; font-weight:700; font-size:20px; letter-spacing:3px; color:var(--g3); background:var(--grad-soft); border:1px solid var(--line2); border-radius:10px; padding:8px 16px; }
+      .turmas-area .chk-aprovacao { display:flex; align-items:center; gap:9px; margin:14px 0 0; font-size:13px; color:var(--ink); cursor:pointer; }
+      .turmas-area .chk-aprovacao input { width:auto; accent-color:var(--ac); }
+      .turmas-area .pedido { display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid var(--line); border-left:3px solid var(--amber); border-radius:12px; padding:10px 14px; margin-top:10px; background:var(--glass); }
+      .turmas-area .pedido b { font-size:14px; } .turmas-area .pedido span { font-size:12px; color:var(--mut); }
+      .turmas-area .pedido .row button { margin-top:0; }
 
       /* msg / util */
       .turmas-area .msg { font-size:13px; padding:9px 13px; border-radius:10px; margin-bottom:12px; display:none; }
@@ -247,6 +252,10 @@
                             <button id="btnCopiarCodigo" class="ghost"><i class="fa-regular fa-copy"></i> Copiar</button>
                             <button id="btnGerarCodigo" class="ghost"><i class="fa-solid fa-rotate"></i> Gerar / trocar</button>
                         </div>
+                        <label class="chk-aprovacao">
+                            <input type="checkbox" id="chkAprovacao"> Exigir aprovação pra entrar (o código vira pedido)
+                        </label>
+                        <div id="pedidos"></div>
                     </div>
 
                     <div id="riscoBox" class="hidden">
@@ -308,6 +317,6 @@
     EchoUIInstance.initHeader("academico");
 })();
 </script>
-<script src="js/turmas.js?v=20260930d"></script>
+<script src="js/turmas.js?v=20260930e"></script>
 </body>
 </html>

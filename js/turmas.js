@@ -104,6 +104,54 @@ async function carregarConvite() {
   const j = await api('/api/turmas/convite_ver.php?circle_id=' + turmaSel);
   if (j.error) return;
   $('#conviteCodigo').textContent = j.codigo || '— gere um código';
+  $('#chkAprovacao').checked = !!j.aceita_pedidos;
+  carregarPedidos();
+}
+
+// Liga/desliga "exigir aprovação".
+async function salvarAprovacao() {
+  const aceita = $('#chkAprovacao').checked;
+  const j = await api('/api/turmas/entrada_config.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ circle_id: turmaSel, aceita_pedidos: aceita })
+  });
+  if (j.error) { $('#chkAprovacao').checked = !aceita; return msg(j.error, 'err'); }
+  msg(aceita ? 'Agora o código exige sua aprovação.' : 'Agora o código entra direto.');
+  carregarPedidos();
+}
+
+// Pedidos pendentes (só o professor).
+async function carregarPedidos() {
+  const box = $('#pedidos');
+  if (!ehDono) { box.innerHTML = ''; return; }
+  const j = await api('/api/turmas/pedidos_listar.php?circle_id=' + turmaSel);
+  if (j.error) { box.innerHTML = ''; return; }
+  if (!j.pedidos.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '';
+  j.pedidos.forEach(p => {
+    const d = document.createElement('div');
+    d.className = 'pedido';
+    d.innerHTML = `<div><b>${esc(p.name)}</b><span> quer entrar</span></div>`;
+    const acoes = document.createElement('div'); acoes.className = 'row';
+    const ok = document.createElement('button'); ok.className = 'ok'; ok.textContent = 'Aprovar';
+    ok.onclick = () => decidirPedido(p.id, true);
+    const no = document.createElement('button'); no.className = 'ghost'; no.textContent = 'Recusar';
+    no.onclick = () => decidirPedido(p.id, false);
+    acoes.appendChild(ok); acoes.appendChild(no);
+    d.appendChild(acoes);
+    box.appendChild(d);
+  });
+}
+
+async function decidirPedido(id, aprovar) {
+  const j = await api('/api/turmas/pedido_decidir.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ request_id: id, aprovar })
+  });
+  if (j.error) return msg(j.error, 'err');
+  msg(aprovar ? 'Aluno aprovado.' : 'Pedido recusado.');
+  carregarPedidos();
+  if (aprovar) { carregarAlunos(); carregarTurmas(); carregarRisco(); }
 }
 async function gerarCodigo() {
   const b = $('#btnGerarCodigo'); b.disabled = true;
@@ -134,6 +182,13 @@ async function entrarPorCodigo() {
   b.disabled = false;
   if (j.error) return msg(j.error, 'err');
   $('#codigoEntrar').value = '';
+
+  // Turma que exige aprovação: vira pedido, não entra ainda.
+  if (j.estado === 'pendente') {
+    msg('Pedido enviado! Aguarde o professor aprovar.');
+    return;
+  }
+
   msg(j.estado === 'ja_membro' ? 'Você já está nessa turma.' : 'Você entrou na turma!');
   await carregarTurmas();
   abrirTurma({ id: j.circle.id, name: j.circle.name, is_owner: false });
@@ -503,4 +558,5 @@ $('#btnAddAluno').onclick = addAluno;
 $('#btnEntrarCodigo').onclick = entrarPorCodigo;
 $('#btnGerarCodigo').onclick = gerarCodigo;
 $('#btnCopiarCodigo').onclick = copiarCodigo;
+$('#chkAprovacao').onchange = salvarAprovacao;
 carregarTurmas().catch(() => {});

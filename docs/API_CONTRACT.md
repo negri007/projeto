@@ -3175,10 +3175,26 @@ com aprovação. `circles` ganhou `codigo_convite` (VARCHAR, indexado) e
 `{ ok:true, codigo:string }`.
 
 #### `POST /api/turmas/entrar_por_codigo.php` — `{ codigo }`
-Qualquer usuário logado. Acha a turma (tipo academia) pelo código e entra
-como membro. `{ ok:true, estado:"novo"|"ja_membro", circle:{id,name} }`.
-Código inexistente: `{"error":"Código inválido. Confira com o professor."}`;
-dono do próprio código: `{"error":"Você é o professor desta turma."}`.
+Qualquer usuário logado. Acha a turma (tipo academia) pelo código. Se a
+turma **não** exige aprovação, entra como membro na hora (forma B):
+`{ ok:true, estado:"novo"|"ja_membro", circle:{id,name} }`. Se **exige**
+aprovação (`aceita_pedidos=1`), cria um pedido (forma C):
+`{ ok:true, estado:"pendente"|"ja_membro", circle:{id,name} }`. Código
+inexistente: `{"error":"Código inválido. Confira com o professor."}`; dono
+do próprio código: `{"error":"Você é o professor desta turma."}`.
+
+#### `POST /api/turmas/entrada_config.php` — `{ circle_id, aceita_pedidos }`
+**Só o dono.** Liga/desliga "exigir aprovação" (o código passa a criar
+pedido em vez de admitir direto). `{ ok:true, aceita_pedidos:bool }`.
+
+#### `GET /api/turmas/pedidos_listar.php?circle_id=<id>`
+**Só o dono.** Pedidos pendentes:
+`{ ok:true, pedidos:[{ id, user_id, name, created_at }] }`.
+
+#### `POST /api/turmas/pedido_decidir.php` — `{ request_id, aprovar }`
+**Só o dono** da turma do pedido. Aprovar adiciona o aluno como membro e
+marca `aprovado`; recusar marca `recusado` (a pessoa pode pedir de novo,
+que reabre como pendente). `{ ok:true, aprovado:bool }`.
 
 ## Layout por blocos do perfil (30/09/2026)
 
