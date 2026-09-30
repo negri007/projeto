@@ -150,6 +150,18 @@
       .turmas-area .mat-texto { white-space:pre-wrap; border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-top:10px; font-size:14px; }
       .turmas-area .mat-texto a { color:var(--g3); }
 
+      /* cabeçalho de seção com ação, e botão ícone-＋ que abre um form */
+      .turmas-area .bloco-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 16px; }
+      .turmas-area .bloco-head h2 { margin:0; }
+      .turmas-area .bloco-head.mt { margin-top:24px; }
+      .turmas-area .acoes-topo { display:flex; gap:8px; flex:none; }
+      .turmas-area .icon-add { position:relative; width:40px; height:40px; border-radius:12px; border:1px solid var(--line2); background:var(--glass); color:var(--g3); display:grid; place-items:center; font-size:16px; cursor:pointer; margin:0; padding:0; box-shadow:none; }
+      .turmas-area .icon-add:hover { border-color:var(--ac); color:#fff; }
+      .turmas-area .icon-add.ativo { background:var(--grad-soft); border-color:var(--ac); color:#fff; }
+      .turmas-area .icon-add .plus { position:absolute; right:-5px; top:-5px; width:17px; height:17px; border-radius:50%; background:var(--grad); color:#fff; font-size:11px; font-weight:700; display:grid; place-items:center; line-height:1; box-shadow:0 2px 8px rgba(29,155,240,.5); }
+      .turmas-area .form-pop { margin:0 0 14px; }
+      .turmas-area .form-pop.hidden { display:none; }
+
       /* professor verificado (coluna direita, fora do .turmas-area) */
       #professorCard .prof-selo { display:inline-flex; align-items:center; gap:8px; font-weight:700; color:#31d0aa; background:rgba(49,208,170,.14); border:1px solid rgba(49,208,170,.32); padding:8px 12px; border-radius:999px; font-size:14px; }
       #professorCard .prof-adminlink { display:inline-flex; align-items:center; gap:7px; margin-top:14px; color:#5cc3ff; text-decoration:none; font-size:13px; font-weight:600; }
@@ -222,16 +234,26 @@
                 <div id="msg" class="msg"></div>
 
                 <div class="bloco">
-                    <h2><i class="fa-solid fa-graduation-cap"></i> Minhas turmas</h2>
+                    <div class="bloco-head">
+                        <h2><i class="fa-solid fa-graduation-cap"></i> Minhas turmas</h2>
+                        <div class="acoes-topo">
+                            <button class="icon-add" id="btnAbrirCriar" type="button" title="Criar turma" aria-label="Criar turma"><i class="fa-solid fa-chalkboard-user"></i><span class="plus">+</span></button>
+                            <button class="icon-add" id="btnAbrirEntrar" type="button" title="Entrar por código" aria-label="Entrar por código"><i class="fa-solid fa-key"></i><span class="plus">+</span></button>
+                        </div>
+                    </div>
+                    <div id="formCriar" class="form-pop hidden">
+                        <div class="row">
+                            <input id="novaTurma" placeholder="Nome da turma (ex.: Banco de Dados II)" style="flex:1;min-width:200px">
+                            <button id="btnCriarTurma">Criar</button>
+                        </div>
+                    </div>
+                    <div id="formEntrar" class="form-pop hidden">
+                        <div class="row">
+                            <input id="codigoEntrar" placeholder="Código de convite (ex.: ABCD2345)" maxlength="12" style="flex:1;min-width:200px;text-transform:uppercase">
+                            <button id="btnEntrarCodigo" class="ok">Entrar</button>
+                        </div>
+                    </div>
                     <div id="turmas"><span class="spin">carregando…</span></div>
-                    <div class="row" style="margin-top:12px">
-                        <input id="novaTurma" placeholder="Criar turma (ex.: Banco de Dados II)" style="flex:1;min-width:200px">
-                        <button id="btnCriarTurma"><i class="fa-solid fa-plus"></i> Criar turma</button>
-                    </div>
-                    <div class="row" style="margin-top:8px">
-                        <input id="codigoEntrar" placeholder="Entrar por código de convite (ex.: ABCD2345)" maxlength="12" style="flex:1;min-width:200px;text-transform:uppercase">
-                        <button id="btnEntrarCodigo" class="ghost"><i class="fa-solid fa-right-to-bracket"></i> Entrar</button>
-                    </div>
                 </div>
 
                 <div id="painel" class="bloco hidden">
@@ -268,16 +290,22 @@
                         <div id="risco"></div>
                     </div>
 
-                    <h2><i class="fa-solid fa-users"></i> Alunos de <span class="turmaNome"></span></h2>
+                    <div class="bloco-head">
+                        <h2><i class="fa-solid fa-users"></i> Alunos de <span class="turmaNome"></span></h2>
+                        <button class="icon-add hidden" id="btnAbrirAddAluno" type="button" title="Adicionar aluno" aria-label="Adicionar aluno"><i class="fa-solid fa-user-plus"></i><span class="plus">+</span></button>
+                    </div>
                     <div id="alunos"></div>
-                    <div id="addAluno" class="row hidden" style="margin-top:8px">
+                    <div id="addAluno" class="form-pop row hidden" style="margin-top:10px">
                         <select id="amigoSel" style="flex:1;min-width:200px"></select>
-                        <button id="btnAddAluno" style="margin-top:0">Adicionar aluno</button>
+                        <button id="btnAddAluno" style="margin-top:0">Adicionar</button>
                     </div>
 
-                    <h2 style="margin-top:20px"><i class="fa-solid fa-folder-open"></i> Material de <span class="turmaNome"></span></h2>
+                    <div class="bloco-head mt">
+                        <h2><i class="fa-solid fa-folder-open"></i> Material de <span class="turmaNome"></span></h2>
+                        <button class="icon-add hidden" id="btnAbrirSubir" type="button" title="Subir material" aria-label="Subir material"><i class="fa-solid fa-upload"></i><span class="plus">+</span></button>
+                    </div>
 
-                    <div id="subir" class="hidden">
+                    <div id="subir" class="form-pop hidden">
                         <label>Nome do material</label>
                         <input id="matTitulo" placeholder="ex.: Aula 5 — Normalização">
                         <label>Texto do material (cole aqui)</label>
@@ -327,6 +355,6 @@
     EchoUIInstance.initHeader("academico");
 })();
 </script>
-<script src="js/turmas.js?v=20260930g"></script>
+<script src="js/turmas.js?v=20260930h"></script>
 </body>
 </html>

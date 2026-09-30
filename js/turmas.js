@@ -7,6 +7,25 @@ function msg(txt, tipo='info') {
   if (tipo === 'info') setTimeout(() => { el.className = 'msg'; }, 4000);
 }
 
+// Fecha todos os formulários "pop" e apaga o estado ativo dos botões ícone-＋.
+function fecharForms() {
+  document.querySelectorAll('.form-pop').forEach(f => f.classList.add('hidden'));
+  document.querySelectorAll('.icon-add').forEach(b => b.classList.remove('ativo'));
+}
+
+// Abre um form pop (fechando os outros) e foca o primeiro campo. Reclicar fecha.
+function abrirForm(btnSel, formSel) {
+  const f = $(formSel), b = $(btnSel);
+  const vaiAbrir = f.classList.contains('hidden');
+  fecharForms();
+  if (vaiAbrir) {
+    f.classList.remove('hidden');
+    b.classList.add('ativo');
+    const campo = f.querySelector('input, select, textarea');
+    if (campo) campo.focus();
+  }
+}
+
 // Número da faixa com contagem animada (0..valor). Instantâneo se a pessoa
 // pediu menos movimento.
 function setStat(id, val) {
@@ -43,14 +62,20 @@ async function carregarTurmas() {
   // Papel é por turma: separa "que você dá" (dono) de "que você assiste".
   const dou = turmas.filter(c => c.is_owner);
   const assisto = turmas.filter(c => !c.is_owner);
-  if (dou.length) box.appendChild(grupoTurmas('Turmas que você dá', 'fa-chalkboard-user', dou));
-  if (assisto.length) box.appendChild(grupoTurmas('Turmas que você assiste', 'fa-user-graduate', assisto));
+  const grupos = [];
+  if (dou.length) grupos.push(['Turmas que você dá', 'fa-chalkboard-user', dou]);
+  if (assisto.length) grupos.push(['Turmas que você assiste', 'fa-user-graduate', assisto]);
+  // Só rotula os grupos quando há os dois papéis; com um só, o título do
+  // bloco ("Minhas turmas") já basta — evita a repetição.
+  const comTitulo = grupos.length > 1;
+  grupos.forEach(([t, ic, l]) => box.appendChild(grupoTurmas(comTitulo ? t : null, ic, l)));
 }
 
 function grupoTurmas(titulo, icone, lista) {
   const g = document.createElement('div');
   g.className = 'turma-grupo';
-  g.innerHTML = `<div class="turma-grupo-tit"><i class="fa-solid ${icone}"></i>${esc(titulo)}</div><div class="turma-grid"></div>`;
+  const tit = titulo ? `<div class="turma-grupo-tit"><i class="fa-solid ${icone}"></i>${esc(titulo)}</div>` : '';
+  g.innerHTML = `${tit}<div class="turma-grid"></div>`;
   const grid = g.querySelector('.turma-grid');
   lista.forEach(c => {
     const d = document.createElement('div');
@@ -84,8 +109,11 @@ async function abrirTurma(c) {
   turmaSel = c.id; ehDono = !!c.is_owner;
   $('#painel').classList.remove('hidden');
   document.querySelectorAll('.turmaNome').forEach(el => { el.textContent = c.name; });
-  $('#subir').classList.toggle('hidden', !ehDono);
-  $('#addAluno').classList.toggle('hidden', !ehDono);
+  // Formulários abrem só ao clicar no botão ícone-＋ (menos poluição). O
+  // professor vê os botões; os forms começam fechados a cada turma aberta.
+  $('#btnAbrirSubir').classList.toggle('hidden', !ehDono);
+  $('#btnAbrirAddAluno').classList.toggle('hidden', !ehDono);
+  fecharForms();
   $('#riscoBox').classList.toggle('hidden', !ehDono);
   // Faixa de números: professor vê a da turma; aluno vê o próprio progresso.
   $('#turmaStats').classList.toggle('hidden', !ehDono);
@@ -186,6 +214,7 @@ async function entrarPorCodigo() {
   // Turma que exige aprovação: vira pedido, não entra ainda.
   if (j.estado === 'pendente') {
     msg('Pedido enviado! Aguarde o professor aprovar.');
+    fecharForms();
     return;
   }
 
@@ -268,6 +297,7 @@ async function addAluno() {
   $('#btnAddAluno').disabled = false;
   if (j.error) return msg(j.error, 'err');
   msg('Aluno adicionado.');
+  fecharForms();
   carregarAlunos();
   carregarTurmas();
   carregarRisco();
@@ -547,6 +577,7 @@ async function subir() {
   if (j.error) return msg(j.error, 'err');
   $('#matTitulo').value = ''; $('#matTexto').value = ''; $('#matArquivo').value = '';
   msg('Material adicionado.');
+  fecharForms();
   carregarMateriais();
 }
 
@@ -609,5 +640,10 @@ $('#btnEntrarCodigo').onclick = entrarPorCodigo;
 $('#btnGerarCodigo').onclick = gerarCodigo;
 $('#btnCopiarCodigo').onclick = copiarCodigo;
 $('#chkAprovacao').onchange = salvarAprovacao;
+// Botões ícone-＋ que abrem os formulários (fecham a poluição da tela).
+$('#btnAbrirCriar').onclick = () => abrirForm('#btnAbrirCriar', '#formCriar');
+$('#btnAbrirEntrar').onclick = () => abrirForm('#btnAbrirEntrar', '#formEntrar');
+$('#btnAbrirAddAluno').onclick = () => abrirForm('#btnAbrirAddAluno', '#addAluno');
+$('#btnAbrirSubir').onclick = () => abrirForm('#btnAbrirSubir', '#subir');
 carregarTurmas().catch(() => {});
 initProfessor().catch(() => {});
