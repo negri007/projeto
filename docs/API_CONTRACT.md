@@ -3196,6 +3196,35 @@ pedido em vez de admitir direto). `{ ok:true, aceita_pedidos:bool }`.
 marca `aprovado`; recusar marca `recusado` (a pessoa pode pedir de novo,
 que reabre como pendente). `{ ok:true, aprovado:bool }`.
 
+### Verificação de professor (Fase 3, 30/09/2026)
+
+Dois níveis: qualquer um cria grupo de estudo informal (sem selo);
+"professor verificado" ganha o selo depois de solicitar e um **admin**
+aprovar. `users` ganhou `is_admin` (quem aprova; marcado à mão no dono do
+projeto) e `professor_status` (`nenhum|pendente|verificado|recusado`).
+`GET /api/auth/me.php` passa a devolver `user.is_admin` (bool) e
+`user.professor_status`. Tabela `professor_solicitacoes`.
+
+#### `POST /api/professor/solicitar.php` — `{ area, justificativa }`
+Qualquer usuário logado. Área 2–80, justificativa 20–2000 caracteres. Cria/
+reabre a solicitação (uma por pessoa) e põe `professor_status='pendente'`.
+Uma triagem opcional do agente é guardada (interna, só o admin vê; null se a
+IA não estiver disponível). `{ ok:true, status:"pendente" }`. Já verificado:
+`{"error":"Você já é professor verificado."}`.
+
+#### `GET /api/professor/status.php`
+Estado do próprio usuário: `{ ok:true, status, solicitacao:{area,status,
+created_at}|null }`. A triagem da IA **não** vai para o cliente.
+
+#### `GET /api/admin/solicitacoes.php`
+**Só admin** (`403 {"error":"Acesso restrito."}` caso contrário). Pendentes:
+`{ ok:true, solicitacoes:[{id,user_id,name,email,area,justificativa,
+triagem_ia,created_at}] }`.
+
+#### `POST /api/admin/solicitacao_decidir.php` — `{ solicitacao_id, aprovar }`
+**Só admin.** Aprovar dá o selo (`professor_status='verificado'`); recusar
+marca `recusado`. `{ ok:true, aprovado:bool }`.
+
 ## Layout por blocos do perfil (30/09/2026)
 
 A pessoa reorganiza o próprio perfil: reordena os blocos, escolhe um de 3

@@ -23,7 +23,7 @@ if (current_user_id() === null) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT id, name, email, ai_credits FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, name, email, ai_credits, is_admin, professor_status FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 } catch (Exception $e) {
@@ -67,6 +67,11 @@ echo json_encode([
         "email"      => $user["email"],
         // Saldo da moeda da rede de IA — não é dado sensível, e expor
         // aqui evita uma chamada própria só pra tela mostrar o saldo.
-        "ai_credits" => (int)$user["ai_credits"]
+        "ai_credits" => (int)$user["ai_credits"],
+        // Papel de plataforma: admin (aprova professores) e o selo de
+        // professor verificado. O front usa pra mostrar o selo e a tela
+        // de admin — a autorização real fica sempre no servidor.
+        "is_admin"         => (bool)$user["is_admin"],
+        "professor_status" => $user["professor_status"] ?? "nenhum"
     ]
 ]);

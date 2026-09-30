@@ -1869,6 +1869,30 @@ CREATE TABLE IF NOT EXISTS circle_join_requests (
     FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Verificacao de professor (Fase 3). Dois niveis: qualquer um cria grupo
+-- de estudo informal (sem selo); "professor verificado" ganha o selo depois
+-- de solicitar e ser aprovado por um admin. `users.is_admin` marca quem
+-- aprova (o dono do projeto se marca com 1 na mao); `professor_status` e o
+-- estado rapido (nenhum/pendente/verificado/recusado). A tabela guarda a
+-- solicitacao (area, justificativa), a triagem opcional do agente e a
+-- decisao. Uma solicitacao por pessoa; pedir de novo reabre a mesma linha.
+CALL echo_add_column_if_missing('users', 'is_admin', "TINYINT(1) NOT NULL DEFAULT 0 AFTER email");
+CALL echo_add_column_if_missing('users', 'professor_status', "VARCHAR(12) NOT NULL DEFAULT 'nenhum' AFTER is_admin");
+
+CREATE TABLE IF NOT EXISTS professor_solicitacoes (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    user_id       INT NOT NULL,
+    area          VARCHAR(80) NOT NULL,
+    justificativa TEXT NOT NULL,
+    status        VARCHAR(12) NOT NULL DEFAULT 'pendente',
+    triagem_ia    TEXT DEFAULT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    decided_at    TIMESTAMP NULL DEFAULT NULL,
+    decided_by    INT DEFAULT NULL,
+    UNIQUE KEY uq_prof_sol (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Layout por blocos de uma tela, escolhido pelo dono (30/09/2026). Uma
 -- linha por (dono, tela) — hoje só a tela 'perfil'. Sem linha, a tela
 -- aparece no layout automático de sempre; "Restaurar padrão" apaga a linha.
