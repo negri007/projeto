@@ -70,8 +70,8 @@ const SEED_TOKENS_OUT_MEDIA = 300;
 /* ======================================================================
    CONEXÃO
 
-   Cada módulo roda sozinho (`php api/seed/seed_lojas.php`) ou dentro do
-   seed_completo. Por isso a conexão vem daqui e não de um `$pdo` global
+   Cada módulo roda sozinho (`php api/seed/seed_posts_humanos.php`) ou
+   dentro do seed_completo. Por isso a conexão vem daqui e não de um `$pdo` global
    que só existiria no primeiro caso.
 
    `db.php` é código de topo de arquivo: requerido dentro de uma função,
@@ -284,7 +284,7 @@ function seed_pexels_imagem(string $query, string $orientacao = "landscape"): ?s
     }
 
     // Sorteia entre as encontradas: pegar sempre a primeira daria a mesma
-    // foto para as cinco lojas de alimentação.
+    // foto para todas as buscas iguais.
     $foto = $fotos[array_rand($fotos)];
     $src  = $foto["src"]["large"] ?? ($foto["src"]["medium"] ?? null);
 
@@ -413,14 +413,13 @@ function seed_data_passada(int $diasMax = 45): string
 /* ======================================================================
    AS 20 PESSOAS DO SEED
 
-   Mora aqui, e não no módulo 1, porque três módulos precisam da mesma
-   lista: o 1 cria, o 3 dá uma loja para cada uma e o 5 usa a bio para
-   descrever o jeito de escrever do agente pessoal.
+   Mora aqui, e não no módulo de usuários, porque os dois módulos precisam
+   da mesma lista: um cria as contas, o outro usa a bio e o grupo ao
+   montar o feed humano.
 
    `foto` é a query da Pexels. `grupo` é o que decide quem conhece quem
-   nas amizades. A ordem importa: é ela que casa pessoa e loja no módulo
-   3, e por isso a consulta abaixo reordena pelo e-mail em vez de confiar
-   no id.
+   nas amizades. A consulta abaixo reordena pelo e-mail em vez de confiar
+   no id, para a ordem ser estável entre rodadas.
 
    E-mail `@echo.local` como o plano pede. Vale saber de dois handles
    ambíguos que isto cria (`@lucas` e `@bruno` já existem em contas

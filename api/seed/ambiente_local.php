@@ -2,8 +2,8 @@
 /**
  * Trava dos seeds: só rodam em ambiente local.
  *
- * Os seeds criam 20 contas com a senha `senha123`, posts, lojas e vídeos
- * de demonstração. Rodados contra um banco de produção, deixariam contas
+ * Os seeds criam 20 contas com a senha `senha123` e um feed humano de
+ * demonstração. Rodados contra um banco de produção, deixariam contas
  * com senha conhecida por qualquer um que leia o repositório (público).
  * A trava de CLI (`PHP_SAPI`) impede a execução pela web, mas não impede
  * alguém de rodar `php api/seed/seed_completo.php` no servidor errado.
@@ -15,8 +15,7 @@
  * Não há como forçar: quem precisa semear outro lugar semeia de dentro dele,
  * com o banco dele em loopback.
  *
- * Incluído no topo de api/seed/helpers_seed.php e de seed_demo_videos.php,
- * antes de qualquer conexão.
+ * Incluído no topo de api/seed/helpers_seed.php, antes de qualquer conexão.
  */
 
 if (PHP_SAPI !== "cli") {

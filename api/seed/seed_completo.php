@@ -1,13 +1,14 @@
 <?php
 /**
- * Seed do Echo — roda os seis módulos na ordem.
+ * Seed do Echo — enche a rede humana para teste.
  * Ver docs/plans/seed-echo.md.
  *
  *     php api/seed/seed_completo.php
  *
- * Cada módulo também roda sozinho, na ordem que quiser:
+ * Depois do corte de escopo (01/10/2026) sobraram dois módulos: as contas
+ * e o feed humano. Cada um também roda sozinho:
  *
- *     php api/seed/seed_lojas.php
+ *     php api/seed/seed_posts_humanos.php
  *
  * Só CLI, em todos eles: são scripts que escrevem dezenas de linhas no
  * banco sem pedir sessão.
@@ -37,7 +38,7 @@ if (!ai_config_valida()) {
 }
 
 if (trim((string)(ai_config()["pexels_api_key"] ?? "")) === "") {
-    seed_diz("Sem chave da Pexels: nenhum avatar, foto de post ou logo de loja.");
+    seed_diz("Sem chave da Pexels: nenhum avatar nem foto de post.");
 }
 
 seed_diz(str_repeat("-", 56));
@@ -45,10 +46,6 @@ seed_diz(str_repeat("-", 56));
 $modulos = [
     "seed_usuarios",
     "seed_posts_humanos",
-    "seed_lojas",
-    "seed_posts_comercio",
-    "seed_agentes_pessoais",
-    "seed_ia_posts",
 ];
 
 foreach ($modulos as $modulo) {
@@ -97,25 +94,7 @@ $curtidas = $umNumero(
 $comentarios = $umNumero(
     "SELECT COUNT(*) FROM comments c JOIN users u ON u.id = c.user_id WHERE u.email IN ($marcadores)"
 );
-$lojas = $umNumero(
-    "SELECT COUNT(*) FROM lojas l JOIN users u ON u.id = l.user_id WHERE u.email IN ($marcadores)"
-);
-$produtos = $umNumero(
-    "SELECT COUNT(*) FROM loja_produtos p JOIN lojas l ON l.id = p.loja_id
-       JOIN users u ON u.id = l.user_id WHERE u.email IN ($marcadores)"
-);
-$postsLoja = $umNumero(
-    "SELECT COUNT(*) FROM loja_posts lp JOIN lojas l ON l.id = lp.loja_id
-       JOIN users u ON u.id = l.user_id WHERE u.email IN ($marcadores)"
-);
-$agentes = $umNumero(
-    "SELECT COUNT(*) FROM user_agents a JOIN users u ON u.id = a.user_id WHERE u.email IN ($marcadores)"
-);
-$memorias = $umNumero(
-    "SELECT COUNT(*) FROM user_agent_memoria m JOIN users u ON u.id = m.user_id WHERE u.email IN ($marcadores)"
-);
 
-$postsIA  = (int)$pdo->query("SELECT COUNT(*) FROM ai_posts")->fetchColumn();
 $placar   = seed_placar();
 $chamadas = $placar["chamadas_api"] ?? 0;
 $falhas   = $placar["chamadas_api_falhas"] ?? 0;
@@ -129,12 +108,6 @@ seed_diz(sprintf("  usuários de teste........... %d", $usuarios));
 seed_diz(sprintf("  amizades aceitas............ %d (contando os dois lados)", $amizades));
 seed_diz(sprintf("  posts no feed humano........ %d", $posts));
 seed_diz(sprintf("  curtidas / comentários...... %d / %d", $curtidas, $comentarios));
-seed_diz(sprintf("  lojas....................... %d", $lojas));
-seed_diz(sprintf("  produtos no catálogo........ %d", $produtos));
-seed_diz(sprintf("  posts no feed de comércio... %d", $postsLoja));
-seed_diz(sprintf("  agentes pessoais............ %d", $agentes));
-seed_diz(sprintf("  memórias dos agentes........ %d", $memorias));
-seed_diz(sprintf("  posts no feed da Rede IA.... %d (total da tabela)", $postsIA));
 seed_diz(sprintf("  fotos baixadas da Pexels.... %d", $placar["fotos"] ?? 0));
 seed_diz("");
 seed_diz(sprintf("  chamadas de API............. %d (%d falharam e caíram no fallback)", $chamadas, $falhas));
