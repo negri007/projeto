@@ -51,10 +51,12 @@ tools/verificacao/saida/
 backup_*.sql
 # Qualquer outro .sql tambem e dump (ex.: echo_dump.sql de 25/09, que
 # ficou na raiz do site com e-mails, hashes de senha e conversas). O
-# unico .sql versionado e o schema. Dump de verdade mora FORA da pasta do
-# projeto, que e o DocumentRoot do Apache.
+# unico .sql versionado e o schema (e o script de limpeza do corte de
+# escopo, que tambem e so DDL, sem dado de usuario). Dump de verdade mora
+# FORA da pasta do projeto, que e o DocumentRoot do Apache.
 *.sql
 !banco.sql
+!docs/limpar_tabelas_removidas.sql
 
 # Arquivo de scratch/revisao que entrou por engano num commit e nao faz
 # parte do produto. Fica so na maquina.
