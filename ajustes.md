@@ -13,6 +13,13 @@ Documentos relacionados:
 
 ## Situação geral
 
+> **Corte de escopo (01/10/2026).** O projeto foi enxugado para a rede
+> social humana + o Aulas. As seções abaixo descrevem módulos que, em
+> parte, foram removidos no corte — valem como histórico do que existiu.
+> O estado atual e a lista do que saiu estão no fim deste arquivo, em
+> "Corte de escopo (01/10/2026)". O projeto completo fica em
+> `backup/echo-completo-2026-10-01`.
+
 **O upgrade está completo**, e sobre ele veio uma rodada de melhorias de
 produto (31/08/2026). Tudo testado ponta a ponta por `curl` e no
 navegador.
@@ -4342,3 +4349,63 @@ Tela do admin: `admin_professores.html`.
 is_admin=1 WHERE email='...';` (não há tela pra isso, de propósito). A
 triagem do agente é best-effort: sem chave válida da API do Claude ela fica
 `null` e o admin decide na mão.
+
+---
+
+## Corte de escopo (01/10/2026)
+
+Para a entrega do TCC, o projeto foi enxugado para **duas verticais só**: a
+rede social entre pessoas e o **Aulas** (turmas). Tudo o que ficou continua
+100% funcional; o resto saiu inteiro — front, back, schema, seed e docs.
+
+**Branches.** O corte foi feito a partir de `feature/grupos-academia`. O
+projeto completo (com tudo o que foi removido) está preservado em
+`backup/echo-completo-2026-10-01` — é lá que mora o histórico das seções
+apagadas do contrato. O trabalho do corte vive em `echo-enxuto`.
+
+### O que saiu
+
+- **Rede de IAs (IAlândia):** `rede_ia.html`, `ialandia.html`,
+  `ai_perfil.html`, `api/ialandia/`, o motor da rede em `api/ai/`
+  (tick, feed, reprodução, memória, quizzes, provocações, acervo...),
+  `assets/ai/avatares/`, `seed_ia_posts.php`.
+- **Criação de agente pelo usuário:** os `api/ai/agent_*.php` e o diálogo de
+  criação no `js/echo-ui.js`.
+- **Agente pessoal ("Criar seu Echo"):** `meu_echo.html`, `js/meu-echo.js`,
+  `api/user_agent/`, `seed_agentes_pessoais.php`, a sugestão de resposta no
+  chat e os créditos (`ai_credits`).
+- **Comércio:** `comercio.html`, `loja_chat.html`, `loja_perfil.html`,
+  `js/comercio.js`, `js/loja-*.js`, `api/lojas/`, os seeds de loja.
+- **Vídeo pelo motor / canvas:** `canvas.html`, `js/canvas*.js`, `motor/`,
+  `api/video/`, `seed_demo_videos.php`.
+- **`tools/verificacao/`** (era teste da rede de IA).
+
+### O que ficou
+
+Feed, posts, comentários, curtidas, compartilhar, salvos, amigos, chat,
+círculos, notificações, hashtags, busca, menções, perfil + editor de
+layout, login (e-mail + Google), recuperação de senha, o mascote Bit, e
+**todo o Aulas** (`turmas.html`, `js/turmas.js`, `api/turmas/`,
+`api/professor/`, `api/admin/`, `admin_professores.html`).
+
+**Núcleo de IA mínimo, por causa do Aulas.** O Aulas e a triagem de
+professor ainda usam a API do Claude (resumo de material, quiz, triagem),
+então `api/ai/` não sumiu — ficou só o que eles chamam:
+`helpers.php` (carrega apenas `nucleo/config.php` + `nucleo/cliente_api.php`),
+`nucleo/config.php`, `nucleo/cliente_api.php`, `limite_uso.php`,
+`ai_config.example.php` e a tabela `ai_api_uso` (com `user_id`, para o freio
+por pessoa).
+
+### Números
+
+| Arquivo | Antes | Depois |
+|---|---|---|
+| `banco.sql` | 1917 linhas | 658 linhas |
+| `docs/API_CONTRACT.md` | 3281 linhas | 1710 linhas |
+
+Para derrubar as tabelas mortas numa base que já tinha o schema completo,
+há `docs/limpar_tabelas_removidas.sql` (idempotente, ordem de FK). O
+`banco.sql` novo roda do zero numa base vazia e roda de novo por cima sem
+erro — testado: import duplo e import sobre a base antiga já limpa.
+
+O seed ficou com dois módulos: `seed_usuarios` + `seed_posts_humanos`.

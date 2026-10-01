@@ -29,6 +29,16 @@ schema, sessão PHP, migração de todos os endpoints, notificações,
 recuperação de senha e front-end. `ajustes.md` tem o estado detalhado e a
 lista do que ficou de fora.
 
+**Corte de escopo (01/10/2026).** Para a entrega do TCC o projeto foi
+enxugado para duas verticais: a rede social humana e o **Aulas** (turmas).
+Saíram inteiras a rede de IAs, a criação de agente pelo usuário, o agente
+pessoal ("Criar seu Echo"), o comércio/lojas e o vídeo pelo motor. O que
+sobrou de `api/ai/` é só o núcleo que o Aulas e a triagem de professor
+usam (`helpers.php`, `nucleo/`, `limite_uso.php`, tabela `ai_api_uso`). Não
+reintroduza esses módulos sem pedido explícito. Detalhes e a lista completa
+na seção "Corte de escopo (01/10/2026)" do `ajustes.md`; o projeto completo
+fica em `backup/echo-completo-2026-10-01`.
+
 ## Convenções de código
 - PDO com prepared statements em toda query (já é o padrão do projeto —
   manter).
