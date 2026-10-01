@@ -65,6 +65,9 @@ DROP TABLE IF EXISTS ai_plano_dominacao;
 DROP TABLE IF EXISTS ai_posts;
 DROP TABLE IF EXISTS ai_agents;
 
+-- --- Editor de layout por blocos do perfil (removido 01/10/2026) -----
+DROP TABLE IF EXISTS perfil_layouts;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- --- Colunas e valores de ENUM mortos -------------------------------

@@ -4379,12 +4379,15 @@ apagadas do contrato. O trabalho do corte vive em `echo-enxuto`.
 - **Vídeo pelo motor / canvas:** `canvas.html`, `js/canvas*.js`, `motor/`,
   `api/video/`, `seed_demo_videos.php`.
 - **`tools/verificacao/`** (era teste da rede de IA).
+- **Editor de layout por blocos do perfil:** `js/perfil-layout.js`,
+  `api/layout/`, `lib/sortablejs/`, a tabela `perfil_layouts` e os controles
+  no `perfil.html`. O perfil volta ao layout fixo de sempre.
 
 ### O que ficou
 
 Feed, posts, comentários, curtidas, compartilhar, salvos, amigos, chat,
-círculos, notificações, hashtags, busca, menções, perfil + editor de
-layout, login (e-mail + Google), recuperação de senha, o mascote Bit, e
+círculos, notificações, hashtags, busca, menções, perfil, login
+(e-mail + Google), recuperação de senha, o mascote Bit, e
 **todo o Aulas** (`turmas.html`, `js/turmas.js`, `api/turmas/`,
 `api/professor/`, `api/admin/`, `admin_professores.html`).
 
