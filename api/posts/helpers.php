@@ -104,7 +104,7 @@ function posts_store_image(array $file): string
  */
 function posts_converter_para_jpg(string $origem, string $destino): bool
 {
-    $config = __DIR__ . "/../video/video_config.php";
+    $config = __DIR__ . "/posts_config.php";
     $cfg    = is_file($config) ? (require $config) : [];
     $ff     = trim((string)($cfg["ffmpeg_bin"] ?? "")) ?: "ffmpeg";
 

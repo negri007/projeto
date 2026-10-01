@@ -3,7 +3,7 @@
  * Conexão com o banco — de onde vêm host, banco, usuário e senha.
  *
  * As credenciais moram em `api/auth/db_config.php` (fora do git, modelo em
- * `db_config.example.php`), mesmo padrão de ai_config/video_config.
+ * `db_config.example.php`), mesmo padrão de ai_config.
  *
  * Sem o arquivo, cai no padrão do XAMPP (root sem senha em localhost/banco),
  * mas SÓ em ambiente local:
