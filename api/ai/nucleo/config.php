@@ -1,7 +1,7 @@
 <?php
 /**
- * Configuração da IA e o teto de chamadas: leitura do ai_config.php, o
- * modelo de cada agente, e o registro/contagem de chamadas de API na hora.
+ * Configuração da IA e o teto de chamadas: leitura do ai_config.php e o
+ * registro/contagem de chamadas de API na hora.
  *
  * Não é um endpoint. Carregado por api/ai/helpers.php — não inclua este
  * arquivo direto.
@@ -59,38 +59,13 @@ function ai_config(): ?array
 
     $config["model"]   = $config["model"]   ?? "claude-haiku-4-5-20251001";
     $config["timeout"] = (int)($config["timeout"] ?? 15);
-    // Um modelo por família de agente (ai_agents.modelo) — ver
-    // ai_modelo_do_agente(). Sem a chave no arquivo, Haiku continua sendo
-    // o `model` de sempre, e Sonnet cai no Sonnet atual.
+    // O resumo/triagem usa o `model` (Haiku) e o quiz usa `model_sonnet`
+    // (o gabarito precisa estar certo). Sem a chave no arquivo, cada um cai
+    // num id atual padrão.
     $config["model_haiku"]  = $config["model_haiku"]  ?? $config["model"];
     $config["model_sonnet"] = $config["model_sonnet"] ?? "claude-sonnet-5";
 
     return $cache = $config;
-}
-
-/**
- * O id de modelo da API para um agente, pela família gravada em
- * `ai_agents.modelo` (docs/plans/echo-briefing-codigo.md, Seção 4):
- * filhote nasce em 'haiku' e passa a 'sonnet' ao amadurecer.
- *
- * Os ids do briefing (claude-3-5-haiku-20241022 e
- * claude-3-5-sonnet-20241022) não entram: são modelos já aposentados, e
- * a chamada voltaria erro. O id concreto vem de ai_config.php
- * (`model_haiku` / `model_sonnet`).
- *
- * Agente sem a chave `modelo` no array (quem montou a linha à mão, como
- * a estreia de agente recém-criado) devolve null — `ai_chamar_api()`
- * usa o `model` padrão da configuração, que é o comportamento de antes.
- */
-function ai_modelo_do_agente(array $agente): ?string
-{
-    $config = ai_config();
-
-    if ($config === null || !isset($agente["modelo"])) {
-        return null;
-    }
-
-    return $agente["modelo"] === "haiku" ? $config["model_haiku"] : $config["model_sonnet"];
 }
 
 /** Existe chave de API utilizável? Não olha o teto por hora — é a

@@ -129,9 +129,6 @@ function ai_pode_provocar(PDO $pdo, int $userId, int $teto = AI_PROVOCACOES_POR_
 /** Ações de IA por pessoa por hora nas turmas (resumo, quiz). */
 const AI_ACOES_TURMA_POR_HORA = 10;
 
-/** Ações de IA por pessoa por hora na criação/edição de agente. */
-const AI_ACOES_AGENTE_POR_HORA = 8;
-
 /**
  * Reserva uma vaga de IA para esta pessoa: confere o freio e, se couber,
  * grava a linha em `ai_api_uso` no nome dela ANTES da chamada (a chamada
