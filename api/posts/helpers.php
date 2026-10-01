@@ -95,7 +95,7 @@ function posts_store_image(array $file): string
 /**
  * Converte HEIC/TIFF/BMP/AVIF para JPG pelo ffmpeg, reduzindo o maior lado
  * para POSTS_IMAGE_CONVERT_MAX_DIM. O caminho do ffmpeg vem de `ffmpeg_bin`
- * em api/video/video_config.php (o PHP nem sempre enxerga o PATH); sem ele,
+ * em api/posts/posts_config.php (o PHP nem sempre enxerga o PATH); sem ele,
  * tenta `ffmpeg` do PATH. Devolve false se não converteu — sem ffmpeg
  * instalado, o upload só recusa com mensagem clara.
  *

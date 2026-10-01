@@ -747,8 +747,8 @@ class EchoUI {
      * caída NÃO mandam ninguém para a tela de login: antes mandavam, e o
      * resultado era o pior sintoma possível de depurar — a pessoa entrava
      * com a senha certa, a sessão abria, e o app a devolvia para o login sem
-     * dizer por quê. Foi exatamente o que aconteceu quando a coluna
-     * `users.ai_credits` faltava no banco e o `me.php` respondia 500.
+     * dizer por quê. Foi exatamente o que aconteceu quando uma coluna que o
+     * `me.php` lia faltava no banco e a rota respondia 500.
      *
      * @param {Object} options - { redirectOnFail: boolean }
      * @returns {Promise<Object|null>} usuário autenticado, ou null.
@@ -1812,9 +1812,9 @@ window.logout = () => EchoUIInstance.logout();
    COMPORTAMENTOS DE FORMULÁRIO (20/09/2026)
 
    Três coisas pequenas que valem para qualquer tela e por isso moram aqui,
-   e não na página. Todas por delegação no document: os formulários do
-   "Criar seu Echo" e da loja são redesenhados por innerHTML a cada carga,
-   e listener pendurado no elemento morre junto com ele.
+   e não na página. Todas por delegação no document: formulários
+   redesenhados por innerHTML a cada carga perdem qualquer listener
+   pendurado direto no elemento, que morre junto com ele.
    ========================================================================== */
 
 /* --- Enter envia ---

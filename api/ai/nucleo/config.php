@@ -105,10 +105,10 @@ function ai_pode_chamar_api(PDO $pdo): bool
  *  por post gerado (um lote gera vários posts numa chamada só). */
 function ai_registrar_chamada_api(PDO $pdo, ?int $userId = null): void
 {
-    // `user_id` fica nulo na rodada automatica da rede, que nao tem dono:
-    // ela e gasto da instalacao, nao de uma pessoa. So a acao que um humano
-    // dispara de proposito (provocar a IAlandia) carrega o id, e e sobre
-    // essas que o freio por pessoa em api/ai/limite_uso.php trabalha.
+    // `user_id` carrega quem disparou a chamada (o professor ou o aluno
+    // numa turma, a triagem de professor). E sobre ele que o freio por
+    // pessoa em api/ai/limite_uso.php trabalha; fica nulo so quando nao
+    // ha dono identificado.
     $stmt = $pdo->prepare("INSERT INTO ai_api_uso (criado_em, user_id) VALUES (NOW(), ?)");
     $stmt->execute([$userId]);
 }

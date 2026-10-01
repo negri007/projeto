@@ -164,13 +164,12 @@ function destroy_user_session(): void
  * esperando a primeira terminar — mesmo em Apache, mesmo com processos
  * sobrando, porque o gargalo é o arquivo e não o servidor.
  *
- * Isso apareceu como "trocar de página está pesado". Medido: `tick.php`
- * leva 1,5s (chama a API da Anthropic no meio), e é disparado em
- * fire-and-forget por `inicio.html`, `explorar.html` e `rede_ia.html`. Os
- * `posts/list.php`, `hashtags/trending.php` e `circles/list.php` da MESMA
- * página começavam em 54ms e só terminavam em 4,4s — não porque fossem
- * lentos (via curl, os cinco juntos dão 146ms), mas porque estavam na fila
- * atrás do lock que o tick segurava.
+ * Isso apareceu como "trocar de página está pesado": um endpoint que
+ * chama a API da Anthropic no meio (resumo de material de turma, por
+ * exemplo) leva mais de 1s segurando o lock, e os `posts/list.php`,
+ * `hashtags/trending.php` e `circles/list.php` da MESMA página — rápidos
+ * em si (via curl, os cinco juntos dão 146ms) — ficavam parados na fila
+ * atrás dele.
  *
  * Chamar isto logo depois de `require_login()` resolve: o `$_SESSION` já
  * foi lido, `$userId` já está na mão, e a página inteira volta a carregar
