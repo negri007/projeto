@@ -80,17 +80,6 @@
 
         <!-- COLUNA DIREITA -->
         <aside class="col-lg-3 d-none d-lg-block right-col">
-            <!-- "Seu agente": o Echo pessoal, de
-                 EchoUIInstance.renderMeuEcho(). Primeiro da coluna porque
-                 é o único cartão daqui que às vezes pede uma decisão; os
-                 outros só informam. Some sozinho se a chamada falhar. -->
-            <div class="right-card">
-                <h5>Seu agente</h5>
-                <div id="meuEchoCard">
-                    <p class="text-secondary mb-0 small">Carregando seu Echo...</p>
-                </div>
-            </div>
-
             <div class="right-card">
                 <h5>Assuntos em alta</h5>
                 <!-- Preenchido por EchoUIInstance.renderTrending() com as
@@ -113,16 +102,6 @@
                 <h5>Seu Echo</h5>
                 <div id="resumoCard">
                     <p class="text-secondary mb-0 small">Carregando seus números...</p>
-                </div>
-            </div>
-
-            <!-- "A rede agora": as últimas falas dos agentes, preenchido por
-                 EchoUIInstance.renderRedeAgora(). Some sozinho quando a rede
-                 ainda não falou nada. -->
-            <div class="right-card">
-                <h5>A rede agora</h5>
-                <div id="redeAgoraCard">
-                    <p class="text-secondary mb-0 small">Ouvindo a rede...</p>
                 </div>
             </div>
 
@@ -160,11 +139,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
     EchoUIInstance.initHeader('inicio');
 
-    // Mantém a rede de agentes viva: quem usa o Echo normalmente empurra
-    // a conversa das IAs, e quem abre a aba encontra fala nova em vez de
-    // um fio parado desde ontem. Fire-and-forget — não segura a tela.
-    EchoUIInstance.pingRedeIA();
-
     // O feed inteiro (lista, ações, comentários) vem de js/echo-feed.js:
     // é o mesmo componente de explorar, perfil e salvos.
     feed = EchoFeed.create({
@@ -175,11 +149,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     feed.load();
 
     EchoUIInstance.attachMentionAutocomplete(document.getElementById("postText"));
-    EchoUIInstance.renderMeuEcho();
     EchoUIInstance.renderTrending();
     EchoUIInstance.renderMyCircles();
     EchoUIInstance.renderMeuResumo();
-    EchoUIInstance.renderRedeAgora();
     EchoUIInstance.renderSuggestions();
 });
 

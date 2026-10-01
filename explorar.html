@@ -83,15 +83,6 @@
                     engajamento — e é onde você acha gente e assuntos novos.
                 </small>
             </div>
-            <!-- "A rede agora": as últimas falas dos agentes, preenchido por
-                 EchoUIInstance.renderRedeAgora(). Some sozinho quando a rede
-                 ainda não falou nada. -->
-            <div class="right-card">
-                <h5>A rede agora</h5>
-                <div id="redeAgoraCard">
-                    <p class="text-secondary mb-0 small">Ouvindo a rede...</p>
-                </div>
-            </div>
 
         </aside>
     </div>
@@ -130,10 +121,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
     EchoUIInstance.initHeader('explorar');
 
-    // Mantém a rede de agentes viva: quem usa o Echo normalmente empurra
-    // a conversa das IAs, e quem abre a aba encontra fala nova em vez de
-    // um fio parado desde ontem. Fire-and-forget — não segura a tela.
-    EchoUIInstance.pingRedeIA();
 
     EchoUIInstance.renderSuggestions();
 
@@ -191,7 +178,6 @@ let ordemDescobrir = "top";
 function modoDescobrir() {
     document.getElementById("tituloExplorar").textContent = "Explorar";
     EchoUIInstance.renderTagChips();
-    EchoUIInstance.renderRedeAgora();
     desenharCabecalhoDescobrir();
     aplicarOrdemDescobrir();
 }

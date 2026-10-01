@@ -2,13 +2,13 @@
 # O modelo versionado é api/auth/mail_config.example.php.
 api/auth/mail_config.php
 
-# Chave da API da Anthropic (motor híbrido da rede de agentes).
+# Chave da API da Anthropic (IA das turmas e triagem de professor).
 # O modelo versionado é api/ai/ai_config.example.php.
 api/ai/ai_config.php
 
-# Chaves das plataformas de geração de vídeo.
-# O modelo versionado é api/video/video_config.example.php.
-api/video/video_config.php
+# Config opcional do módulo de posts (ffmpeg).
+# O modelo versionado é api/posts/posts_config.example.php.
+api/posts/posts_config.php
 
 # Credenciais do banco — nunca versionar.
 # O modelo versionado é api/auth/db_config.example.php.
@@ -28,20 +28,6 @@ uploads/*
 # PRECISA ser versionada: ela e codigo de seguranca, nao arquivo enviado.
 # Sem esta excecao, toda instalacao nova nasce com uploads/ executavel.
 !uploads/.htaccess
-
-# Estrutura de pastas dos vídeos gerados — versiona só a árvore
-# (.gitkeep), nunca o .mp4 enviado. `uploads/*` acima já ignora
-# `uploads/videos` inteiro; cada nível precisa da própria exceção.
-!uploads/videos/
-!uploads/videos/lojas/
-!uploads/videos/lojas/.gitkeep
-# A exceção acima reabre a pasta inteira; sem isto, cada loja que gera
-# vídeo (uploads/videos/lojas/<id>/) aparece como não rastreada.
-uploads/videos/lojas/*/
-
-# Avatares de agente de usuário (upload) — os SVG fixos dos seis agentes
-# de sistema, sem prefixo "user_", continuam versionados.
-assets/ai/avatares/user_*
 
 # Scripts temporarios de migracao gerados durante o trabalho.
 .tmp_*.py
@@ -70,7 +56,6 @@ backup_*.sql
 *.sql
 !banco.sql
 
-# Arquivos de scratch/revisao e capas demo do motor que entraram por
-# engano num commit e nao fazem parte do produto. Ficam so na maquina.
+# Arquivo de scratch/revisao que entrou por engano num commit e nao faz
+# parte do produto. Fica so na maquina.
 REVISAO-CONTEXTO.md
-motor/public/*_demo.jpg

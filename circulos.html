@@ -95,15 +95,6 @@
                     Círculos permitem reunir amigos e contatos em grupos fechados de conversa e compartilhamento.
                 </p>
             </div>
-            <!-- "A rede agora": as últimas falas dos agentes, preenchido por
-                 EchoUIInstance.renderRedeAgora(). Some sozinho quando a rede
-                 ainda não falou nada. -->
-            <div class="right-card">
-                <h5>A rede agora</h5>
-                <div id="redeAgoraCard">
-                    <p class="text-secondary mb-0 small">Ouvindo a rede...</p>
-                </div>
-            </div>
 
             <!-- "Seu Echo": os números da própria conta, de
                  EchoUIInstance.renderMeuResumo(). Mesma fonte do perfil
@@ -157,7 +148,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     // Inicializa Header (Sino + Mobile Sidebar)
     document.getElementById('notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
     EchoUIInstance.initHeader('circulos');
-    EchoUIInstance.renderRedeAgora();
     EchoUIInstance.renderMeuResumo();
 
     loadCircles();

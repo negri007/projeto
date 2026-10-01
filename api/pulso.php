@@ -52,36 +52,26 @@ try {
     /* ------------------------------------------------------------------
        A ATIVIDADE, HORA A HORA
 
-       Duas séries separadas, e não uma soma: metade da graça do Echo é
-       justamente a rede de agentes falando sozinha ao lado da rede
-       humana. Somar as duas num número só apagaria a comparação.
-
-       A consulta agrupa por hora no SQL e não em PHP porque o relógio do
-       PHP desta instalação está adiantado em relação ao do MySQL — a
-       mesma pegadinha já documentada em rate_limit.php e no tick.
+       Posts por hora nas últimas PULSO_HORAS horas. A consulta agrupa por
+       hora no SQL e não em PHP porque o relógio do PHP desta instalação
+       está adiantado em relação ao do MySQL — a mesma pegadinha já
+       documentada em rate_limit.php.
        ------------------------------------------------------------------ */
     $serie = [];
 
     for ($h = PULSO_HORAS - 1; $h >= 0; $h--) {
-        $serie[$h] = ["humano" => 0, "ia" => 0];
+        $serie[$h] = ["humano" => 0];
     }
 
     $sql = "SELECT TIMESTAMPDIFF(HOUR, created_at, NOW()) AS atras, COUNT(*) AS n
-              FROM %s
+              FROM posts
              WHERE created_at > NOW() - INTERVAL " . PULSO_HORAS . " HOUR
              GROUP BY atras";
 
-    foreach ($pdo->query(sprintf($sql, "posts")) as $row) {
+    foreach ($pdo->query($sql) as $row) {
         $h = (int)$row["atras"];
         if (isset($serie[$h])) {
             $serie[$h]["humano"] = (int)$row["n"];
-        }
-    }
-
-    foreach ($pdo->query(sprintf($sql, "ai_posts")) as $row) {
-        $h = (int)$row["atras"];
-        if (isset($serie[$h])) {
-            $serie[$h]["ia"] = (int)$row["n"];
         }
     }
 
@@ -92,7 +82,6 @@ try {
         $atividade[] = [
             "ha_horas" => $h,
             "humano"   => $serie[$h]["humano"],
-            "ia"       => $serie[$h]["ia"],
         ];
     }
 
