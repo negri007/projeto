@@ -171,6 +171,8 @@ function atualizarQtd(n) {
 function cardReporte(r) {
   const d = document.createElement('div');
   d.className = 'adm-card';
+  d.dataset.material  = r.material.id;
+  d.dataset.pendentes = r.pendentes_do_material;
 
   const titulo = esc(r.material.titulo);
   const mat = r.material.arquivo_url
@@ -218,7 +220,19 @@ async function decidirReporte(id, decisao, card) {
   }
   EchoUIInstance.toastSuccess(decisao === 'resolvido' ? 'Reporte marcado como resolvido.' : 'Reporte descartado.');
   // Sai da fila de pendentes na hora; o filtro certo mostra ele de novo.
+  const materialId = card.dataset.material;
   card.remove();
+
+  // Os outros reportes do mesmo material têm um pendente a menos: o selo
+  // "N reportes" acompanha, em vez de esperar o recarregar da página.
+  document.querySelectorAll(`#listaReportes .adm-card[data-material="${CSS.escape(materialId)}"]`).forEach(c => {
+    const n = Math.max(0, Number(c.dataset.pendentes) - 1);
+    c.dataset.pendentes = n;
+    const selo = c.querySelector('.rep-varios');
+    if (!selo) return;
+    if (n > 1) selo.textContent = n + ' reportes';
+    else selo.remove();
+  });
   const restantes = $('#listaReportes').querySelectorAll('.adm-card').length;
   atualizarQtd(restantes);
   if (!restantes) $('#listaReportes').innerHTML = '<p class="adm-vazio">Nenhum reporte pendente.</p>';
@@ -231,6 +245,7 @@ async function decidirReporte(id, decisao, card) {
     document.querySelector('.adm-abas').hidden = true;
     $('#secReportes').hidden = true;
     $('#secSolicitacoes').hidden = false;
+    $('#secSolicitacoes .sub').hidden = true;
     $('#lista').innerHTML = '<p class="adm-erro">Acesso restrito a administradores.</p>';
     return;
   }
