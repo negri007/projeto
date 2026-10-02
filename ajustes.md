@@ -4412,3 +4412,40 @@ há `docs/limpar_tabelas_removidas.sql` (idempotente, ordem de FK). O
 erro — testado: import duplo e import sobre a base antiga já limpa.
 
 O seed ficou com dois módulos: `seed_usuarios` + `seed_posts_humanos`.
+
+---
+
+## Reporte de material de turma (01/10/2026)
+
+O aluno reporta um material do professor quando o conteúdo está fora do
+tema da turma. O reporte vai para os admins (`users.is_admin`), que
+verificam e decidem **fora do sistema** o que fazer com o professor: a
+decisão ("Resolvido" / "Descartar") só muda o status, nada é apagado.
+**Não tem IA**: é reporte humano. Formatos em `docs/API_CONTRACT.md`,
+seção "Reporte de material de turma".
+
+- **Tabela `turma_reportes`**, um reporte por (material, aluno) pela chave
+  única — é ela que barra o duplicado (409), inclusive na corrida de dois
+  cliques. Cascade com material, turma e usuários.
+- **Por que já existe a coluna `origem`** (`'aluno'` hoje): para uma
+  verificação automática futura poder inserir reportes com `'ia'` na mesma
+  fila, sem migração. **Não está implementada**; nada hoje grava `'ia'`.
+- **Aluno**: botão "Reportar" em cada material (só para quem é membro; o
+  professor dono não vê), modal com motivo opcional (até 500), freio de 5
+  reportes por hora. Depois de reportar, o botão vira "Reportado"
+  (`ja_reportei` em `material_listar.php`).
+- **Admin**: aba "Reportes" em `admin_professores.html`, com filtro
+  pendentes/resolvidos/descartados, turma, professor, quem reportou,
+  motivo, data e quantos reportes pendentes aquele material tem. O sino
+  avisa (`turma_reporte`) e o clique abre direto na aba.
+- **Acesso do admin ao material**: o admin não é da turma. Em vez de dar a
+  ele acesso geral, `material_arquivo.php` deixa o admin abrir **só material
+  que tem reporte**; material de texto vem com o texto na própria fila.
+- Ordem das recusas: o "é o professor dono" vem antes do "é membro",
+  porque o professor não está em `circle_members` — na ordem inversa ele
+  levaria 403 em vez do aviso certo (400).
+
+**Atenção ao testar o `banco.sql`**: ele faz `USE banco`, então importar
+"numa base de teste" pelo `mysql nome_da_base < banco.sql` grava na base
+de dev. Para testar numa base vazia, troque o nome nas linhas do `CREATE
+DATABASE` e do `USE` numa cópia do arquivo.

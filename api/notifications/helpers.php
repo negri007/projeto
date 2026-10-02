@@ -9,7 +9,7 @@
 /** Tipos aceitos — espelham o ENUM da coluna `notifications.type`. */
 const NOTIFICATION_TYPES = [
     "like", "comment", "share", "friend_request", "friend_accept", "message",
-    "mention",
+    "mention", "turma_reporte",
 ];
 
 /** Quantas pessoas um único texto pode notificar por menção. */

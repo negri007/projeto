@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     actor_id INT NOT NULL,
-    type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention') NOT NULL,
+    type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention', 'turma_reporte') NOT NULL,
     reference_id INT DEFAULT NULL,
     is_read TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -384,7 +384,7 @@ CALL echo_add_column_if_missing('users', 'session_version', 'INT NOT NULL DEFAUL
 -- Menção (@fulano) entra por MODIFY num banco que já existia com o ENUM
 -- antigo; reexecutar é inofensivo — a definição é a mesma.
 ALTER TABLE notifications
-    MODIFY COLUMN type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention') NOT NULL;
+    MODIFY COLUMN type ENUM('like', 'comment', 'share', 'friend_request', 'friend_accept', 'message', 'mention', 'turma_reporte') NOT NULL;
 
 -- Login com Google (16/09/2026). `google_id` é o `sub` do token OpenID —
 -- estável mesmo que o usuário troque o e-mail da conta Google — usado
@@ -631,6 +631,35 @@ CREATE TABLE IF NOT EXISTS professor_solicitacoes (
     decided_by    INT DEFAULT NULL,
     UNIQUE KEY uq_prof_sol (user_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Reporte de material de turma (01/10/2026). O aluno reporta um material
+-- do professor fora do tema da turma; vai para os admins, que decidem fora
+-- do sistema -- aqui so muda o status, nada e apagado. Sem IA: `origem`
+-- existe para uma verificacao automatica futura inserir com 'ia' (nao
+-- implementada). Um reporte por (material, aluno): a chave unica e quem
+-- barra o duplicado, inclusive na corrida. `professor_id` e copiado do
+-- material para a fila do admin nao depender de JOIN para saber o dono.
+CREATE TABLE IF NOT EXISTS turma_reportes (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    material_id   INT NOT NULL,
+    circle_id     INT NOT NULL,
+    professor_id  INT NOT NULL,
+    reporter_id   INT NOT NULL,
+    motivo        VARCHAR(500) NULL,
+    origem        VARCHAR(20) NOT NULL DEFAULT 'aluno',
+    status        VARCHAR(20) NOT NULL DEFAULT 'pendente',
+    decidido_por  INT NULL,
+    decidido_em   TIMESTAMP NULL DEFAULT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_treport_mat_reporter (material_id, reporter_id),
+    KEY idx_treport_status (status, id),
+    KEY idx_treport_reporter (reporter_id, created_at),
+    FOREIGN KEY (material_id)  REFERENCES turma_materiais(id) ON DELETE CASCADE,
+    FOREIGN KEY (circle_id)    REFERENCES circles(id)         ON DELETE CASCADE,
+    FOREIGN KEY (professor_id) REFERENCES users(id)           ON DELETE CASCADE,
+    FOREIGN KEY (reporter_id)  REFERENCES users(id)           ON DELETE CASCADE,
+    FOREIGN KEY (decidido_por) REFERENCES users(id)           ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 

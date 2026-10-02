@@ -353,8 +353,95 @@ function cardMaterial(m) {
     const s = document.createElement('span'); s.className = 'spin'; s.textContent = 'não resumível (imagem)';
     acoes.appendChild(s);
   }
+  // Reportar: só o aluno (quem vê a turma sem ser o dono é membro dela).
+  if (!ehDono) {
+    const rep = document.createElement('button');
+    rep.className = 'ghost mat-reportar';
+    rep.title = 'Reportar material fora do tema da turma';
+    if (m.ja_reportei) marcarReportado(rep);
+    else {
+      rep.innerHTML = '<i class="fa-regular fa-flag"></i> Reportar';
+      rep.onclick = () => abrirReporte(m, rep);
+    }
+    acoes.appendChild(rep);
+  }
   d.appendChild(acoes);
   return d;
+}
+
+/* ---------------------------------------------------------------- reporte
+   O aluno reporta um material fora do tema da turma. Vai para a
+   administração do Echo (api/turmas/material_reportar.php); não tem IA. */
+
+const REPORTE_MOTIVO_MAX = 500;
+
+function marcarReportado(btn) {
+  btn.disabled = true;
+  btn.onclick = null;
+  btn.innerHTML = '<i class="fa-solid fa-flag"></i> Reportado';
+  btn.title = 'Você já reportou este material';
+}
+
+function abrirReporte(m, btn) {
+  const fundo = document.createElement('div');
+  fundo.className = 'echo-dialog-backdrop';
+  fundo.innerHTML = `
+    <div class="echo-dialog reporte-dialog" role="dialog" aria-modal="true" aria-labelledby="reporteTitulo">
+      <h5 id="reporteTitulo">Reportar material</h5>
+      <p class="reporte-alvo"></p>
+      <p>O reporte vai para a administração do Echo. Use quando o conteúdo estiver fora do tema da turma.</p>
+      <label class="reporte-label" for="reporteMotivo">Motivo (opcional)</label>
+      <textarea id="reporteMotivo" rows="4" maxlength="${REPORTE_MOTIVO_MAX}"
+                placeholder="Ex.: o material é de outra disciplina."></textarea>
+      <small class="reporte-contador">0 / ${REPORTE_MOTIVO_MAX}</small>
+      <div class="echo-dialog-actions">
+        <button type="button" class="echo-dialog-cancel">Cancelar</button>
+        <button type="button" class="echo-dialog-confirm danger">Enviar reporte</button>
+      </div>
+    </div>`;
+  // Título vindo do professor: textContent, nunca HTML cru.
+  fundo.querySelector('.reporte-alvo').textContent = '“' + m.titulo + '”';
+
+  const campo = fundo.querySelector('textarea');
+  const conta = fundo.querySelector('.reporte-contador');
+  const enviar = fundo.querySelector('.echo-dialog-confirm');
+
+  const fechar = () => { document.removeEventListener('keydown', aoTeclar); fundo.remove(); btn.focus(); };
+  const aoTeclar = (e) => { if (e.key === 'Escape') fechar(); };
+
+  campo.addEventListener('input', () => { conta.textContent = campo.value.length + ' / ' + REPORTE_MOTIVO_MAX; });
+  fundo.querySelector('.echo-dialog-cancel').onclick = fechar;
+  fundo.onclick = (e) => { if (e.target === fundo) fechar(); };
+  enviar.onclick = async () => {
+    enviar.disabled = true;
+    const r = await enviarReporte(m.id, campo.value.trim());
+    enviar.disabled = false;
+    if (r.ok || r.status === 409) {
+      marcarReportado(btn);
+      fechar();
+    }
+    if (r.ok) EchoUIInstance.toastSuccess('Reporte enviado. Obrigado por avisar.');
+    else EchoUIInstance.toastError(r.status === 409 ? 'Você já reportou este material.' : r.error);
+  };
+
+  document.addEventListener('keydown', aoTeclar);
+  document.body.appendChild(fundo);
+  campo.focus();
+}
+
+// fetch próprio (e não api()): o 409 precisa do status HTTP, não só do texto.
+async function enviarReporte(materialId, motivo) {
+  try {
+    const r = await fetch('/api/turmas/material_reportar.php', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ material_id: materialId, motivo })
+    });
+    const j = await r.json().catch(() => ({}));
+    return { ok: r.ok && !!j.ok, status: r.status, error: j.error || 'Não deu para enviar o reporte. Tente de novo.' };
+  } catch (e) {
+    return { ok: false, status: 0, error: 'Sem conexão. Tente de novo.' };
+  }
 }
 
 // Abre o material (texto na tela ou link do arquivo). No PHP, a abertura do
