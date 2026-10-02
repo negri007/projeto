@@ -3,7 +3,7 @@
  * Lista os materiais de uma turma. Dono (professor) ou membro (aluno).
  *
  * GET ?circle_id=<id>
- * Resposta: { ok:true, is_owner:bool, materiais:[{...}] }
+ * Resposta: { ok:true, is_owner:bool, materiais:[{..., ja_reportei:bool}] }
  */
 
 header("Content-Type: application/json; charset=utf-8");
@@ -34,10 +34,24 @@ try {
     );
     $stmt->execute([$circleId]);
 
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // `ja_reportei`: uma consulta para a turma inteira, não uma por material.
+    // O professor nunca reporta o próprio material, então para ele é falso.
+    $reportados = [];
+
+    if (!$circle["is_owner"]) {
+        $stmt = $pdo->prepare("SELECT material_id FROM turma_reportes WHERE circle_id = ? AND reporter_id = ?");
+        $stmt->execute([$circleId, $userId]);
+        $reportados = array_flip(array_map("intval", $stmt->fetchAll(PDO::FETCH_COLUMN)));
+    }
+
     $materiais = [];
 
-    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $m) {
-        $materiais[] = turma_material_row($m);
+    foreach ($rows as $m) {
+        $row = turma_material_row($m);
+        $row["ja_reportei"] = isset($reportados[(int)$m["id"]]);
+        $materiais[] = $row;
     }
 
     echo json_encode([

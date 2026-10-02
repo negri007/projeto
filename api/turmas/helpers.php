@@ -421,3 +421,38 @@ function turma_material_row(array $m, bool $completo = false): array
 
     return $row;
 }
+
+/**
+ * Admin abrindo um material REPORTADO (fila de reportes). O admin não é da
+ * turma e não ganha acesso geral a ela: só enxerga um material que algum
+ * aluno reportou, que é o que ele precisa verificar. Devolve a linha do
+ * material (mesmo formato de turma_material_load, com is_owner=false) ou null.
+ */
+function turma_material_load_admin_reportado(PDO $pdo, int $materialId, int $userId): ?array
+{
+    if ($materialId <= 0) {
+        return null;
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT m.id, m.circle_id, m.owner_id, m.titulo, m.tipo_arquivo,
+                m.arquivo, m.conteudo_texto, m.resumo, m.resumo_em, m.created_at
+           FROM turma_materiais m
+           JOIN users u ON u.id = ? AND u.is_admin = 1
+          WHERE m.id = ?
+            AND EXISTS (SELECT 1 FROM turma_reportes r WHERE r.material_id = m.id)"
+    );
+    $stmt->execute([$userId, $materialId]);
+    $mat = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$mat) {
+        return null;
+    }
+
+    $mat["id"]        = (int)$mat["id"];
+    $mat["circle_id"] = (int)$mat["circle_id"];
+    $mat["owner_id"]  = (int)$mat["owner_id"];
+    $mat["is_owner"]  = false;
+
+    return $mat;
+}

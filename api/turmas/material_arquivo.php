@@ -45,7 +45,10 @@ function material_arquivo_nao_achado(): void
 try {
     $materialId = (int)($_GET["material_id"] ?? 0);
 
-    $material = turma_material_load($pdo, $materialId, $userId);
+    // Dono e membros pela turma; admin só se o material tiver reporte
+    // (é como ele verifica o conteúdo sem entrar na turma).
+    $material = turma_material_load($pdo, $materialId, $userId)
+             ?? turma_material_load_admin_reportado($pdo, $materialId, $userId);
 
     if ($material === null) {
         material_arquivo_nao_achado();
