@@ -467,6 +467,12 @@ class EchoUI {
                     icon = 'fa-at';
                     actionText = 'mencionou você.';
                     break;
+                // Só admins recebem: um aluno reportou material de turma.
+                case 'turma_reporte':
+                    iconClass = 'notification-icon-reporte';
+                    icon = 'fa-flag';
+                    actionText = 'reportou um material de turma.';
+                    break;
             }
 
             return `
@@ -519,6 +525,10 @@ class EchoUI {
                 window.location = item.reference_id
                     ? "chat.html?friend=" + encodeURIComponent(item.reference_id)
                     : "chat.html";
+                break;
+            // `reference_id` é o reporte; a fila do admin abre na aba certa.
+            case 'turma_reporte':
+                window.location = "admin_professores.html#reportes";
                 break;
         }
     }

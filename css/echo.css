@@ -1821,6 +1821,7 @@ a.echo-author-link:hover { text-decoration: underline; }
 
 /* Notificação de menção no sino. */
 .notification-icon-mention { background: rgba(29, 155, 240, 0.15); color: var(--accent); }
+.notification-icon-reporte { background: rgba(244, 33, 46, 0.15); color: var(--danger); }
 
 /* Lista de pessoas/círculos nos resultados da busca em tela cheia. */
 .echo-result-row {

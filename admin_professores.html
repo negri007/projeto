@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="assets/favicon.svg?v=20260920a" type="image/svg+xml">
-    <title>ECHO - Admin · Professores</title>
+    <title>ECHO - Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="css/echo.css?v=20260930d" rel="stylesheet">
+    <link href="css/echo.css?v=20261001r" rel="stylesheet">
     <style>
       .adm-wrap { max-width:760px; margin:0 auto; padding:28px 18px; }
       .adm-wrap h1 { font-size:24px; font-weight:800; margin:0 0 4px; }
@@ -26,18 +26,57 @@
       .adm-vazio, .adm-erro { color:var(--text-soft,#71767b); font-size:14px; }
       .adm-erro { color:#f6b1b1; }
       .adm-voltar { color:#5cc3ff; text-decoration:none; font-size:13px; }
+
+      /* Abas: Solicitações de professor | Reportes de material */
+      .adm-abas { display:flex; gap:6px; border-bottom:1px solid var(--border-soft,#2f3336); margin:18px 0 20px; }
+      .adm-aba { background:transparent; border:0; border-bottom:2px solid transparent; color:var(--text-soft,#71767b); font-weight:700; font-size:14px; padding:8px 12px; margin-bottom:-1px; cursor:pointer; }
+      .adm-aba.ativa { color:#fff; border-bottom-color:#1d9bf0; }
+      .adm-aba .qtd { display:inline-block; min-width:18px; margin-left:6px; padding:0 6px; border-radius:999px; background:#f4212e; color:#fff; font-size:11px; line-height:18px; text-align:center; }
+      .adm-filtro { display:flex; gap:6px; margin:0 0 16px; flex-wrap:wrap; }
+      .adm-filtro button { background:transparent; border:1px solid var(--border-soft,#2f3336); color:var(--text-soft,#71767b); border-radius:999px; padding:5px 14px; font-size:13px; font-weight:700; cursor:pointer; }
+      .adm-filtro button.ativo { border-color:#1d9bf0; color:#5cc3ff; background:rgba(29,155,240,.12); }
+
+      /* Card de reporte */
+      .rep-linha { font-size:13.5px; color:#cdd0d6; margin:3px 0; }
+      .rep-linha b { color:#fff; font-weight:700; }
+      .rep-mat { font-weight:700; font-size:16px; word-break:break-word; }
+      .rep-mat a { color:#5cc3ff; text-decoration:none; }
+      .rep-mat a:hover { text-decoration:underline; }
+      .rep-motivo { margin-top:10px; font-size:14px; line-height:1.5; white-space:pre-wrap; word-break:break-word; color:#cdd0d6; background:rgba(255,255,255,.04); border:1px solid var(--border-soft,#2f3336); border-radius:10px; padding:8px 11px; }
+      .rep-motivo.vazio { color:var(--text-soft,#71767b); font-style:italic; }
+      .rep-texto { margin-top:10px; font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word; color:#cdd0d6; max-height:180px; overflow:auto; border-left:3px solid rgba(29,155,240,.5); padding:4px 0 4px 10px; }
+      .rep-varios { display:inline-block; margin-left:8px; font-size:11.5px; font-weight:700; color:#f6b1b1; background:rgba(244,33,46,.12); border:1px solid rgba(244,33,46,.35); padding:2px 9px; border-radius:999px; vertical-align:middle; }
+      .rep-data { color:var(--text-soft,#71767b); font-size:12.5px; white-space:nowrap; }
     </style>
 </head>
 <body>
 <div class="adm-wrap">
     <a href="turmas.html" class="adm-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar para Aulas</a>
-    <h1 style="margin-top:12px"><i class="fa-solid fa-shield-halved"></i> Solicitações de professor</h1>
-    <p class="sub">Aprove ou recuse quem pediu o selo de professor verificado.</p>
-    <div id="lista"><p class="adm-vazio">Carregando…</p></div>
+    <h1 style="margin-top:12px"><i class="fa-solid fa-shield-halved"></i> Administração</h1>
+
+    <div class="adm-abas" role="tablist">
+        <button type="button" class="adm-aba ativa" role="tab" data-aba="solicitacoes" aria-selected="true">Solicitações de professor</button>
+        <button type="button" class="adm-aba" role="tab" data-aba="reportes" aria-selected="false">Reportes <span class="qtd" id="qtdReportes" hidden></span></button>
+    </div>
+
+    <section id="secSolicitacoes">
+        <p class="sub">Aprove ou recuse quem pediu o selo de professor verificado.</p>
+        <div id="lista"><p class="adm-vazio">Carregando…</p></div>
+    </section>
+
+    <section id="secReportes" hidden>
+        <p class="sub">Materiais de turma que alunos reportaram como fora do tema. A decisão só muda o status: o material e o reporte continuam no sistema.</p>
+        <div class="adm-filtro" role="group" aria-label="Filtrar reportes">
+            <button type="button" class="ativo" data-status="pendente">Pendentes</button>
+            <button type="button" data-status="resolvido">Resolvidos</button>
+            <button type="button" data-status="descartado">Descartados</button>
+        </div>
+        <div id="listaReportes"><p class="adm-vazio">Carregando…</p></div>
+    </section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="js/echo-ui.js?v=20260930a"></script>
+<script src="js/echo-ui.js?v=20261001r"></script>
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -46,6 +85,21 @@ async function api(url, opts) {
   const r = await fetch(url, opts);
   return r.json().catch(() => ({ error: 'Resposta inválida.' }));
 }
+
+/* ------------------------------------------------------------- abas */
+
+function mostrarAba(aba) {
+  document.querySelectorAll('.adm-aba').forEach(b => {
+    const ativa = b.dataset.aba === aba;
+    b.classList.toggle('ativa', ativa);
+    b.setAttribute('aria-selected', ativa ? 'true' : 'false');
+  });
+  $('#secSolicitacoes').hidden = aba !== 'solicitacoes';
+  $('#secReportes').hidden     = aba !== 'reportes';
+  history.replaceState(null, '', aba === 'reportes' ? '#reportes' : location.pathname);
+}
+
+/* ---------------------------------------------- solicitações de professor */
 
 async function carregar() {
   const box = $('#lista');
@@ -74,19 +128,124 @@ async function decidir(id, aprovar, card) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ solicitacao_id: id, aprovar })
   });
-  if (j.error) { card.querySelectorAll('button').forEach(b => b.disabled = false); alert(j.error); return; }
+  if (j.error) { card.querySelectorAll('button').forEach(b => b.disabled = false); EchoUIInstance.toastError(j.error); return; }
   card.style.opacity = '.5';
   card.querySelector('.acoes').innerHTML = `<span style="color:${aprovar ? '#31d0aa' : '#f6b1b1'};font-weight:700;font-size:13px">${aprovar ? 'Aprovado ✔' : 'Recusado'}</span>`;
+}
+
+/* ------------------------------------------------- reportes de material */
+
+let statusReportes = 'pendente';
+
+function dataCurta(s) {
+  const d = new Date(String(s).replace(' ', 'T'));
+  return isNaN(d) ? String(s) : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+async function carregarReportes() {
+  const box = $('#listaReportes');
+  box.innerHTML = '<p class="adm-vazio">Carregando…</p>';
+  const j = await api('/api/admin/reportes.php?status=' + encodeURIComponent(statusReportes));
+  if (j.error) { box.innerHTML = `<p class="adm-erro">${esc(j.error)}</p>`; return; }
+
+  if (statusReportes === 'pendente') atualizarQtd(j.reportes.length);
+
+  if (!j.reportes.length) {
+    const vazio = { pendente: 'Nenhum reporte pendente.', resolvido: 'Nenhum reporte resolvido.', descartado: 'Nenhum reporte descartado.' };
+    box.innerHTML = `<p class="adm-vazio">${vazio[statusReportes]}</p>`;
+    return;
+  }
+
+  box.innerHTML = '';
+  j.reportes.forEach(r => box.appendChild(cardReporte(r)));
+}
+
+function atualizarQtd(n) {
+  const el = $('#qtdReportes');
+  el.hidden = !n;
+  el.textContent = n >= 50 ? '50+' : String(n);
+}
+
+// Todo texto que vem de usuário (título, nomes, motivo, conteúdo) passa
+// por esc(): o motivo é escrito pelo aluno e pode trazer <script>.
+function cardReporte(r) {
+  const d = document.createElement('div');
+  d.className = 'adm-card';
+
+  const titulo = esc(r.material.titulo);
+  const mat = r.material.arquivo_url
+    ? `<a href="${esc(r.material.arquivo_url)}" target="_blank" rel="noopener">${titulo} <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:12px"></i></a>`
+    : titulo;
+  const varios = r.pendentes_do_material > 1
+    ? `<span class="rep-varios" title="Reportes pendentes deste material, de alunos diferentes">${r.pendentes_do_material} reportes</span>`
+    : '';
+  const motivo = r.motivo
+    ? `<div class="rep-motivo">${esc(r.motivo)}</div>`
+    : '<div class="rep-motivo vazio">Sem motivo escrito.</div>';
+  const texto = r.material.texto
+    ? `<div class="rep-texto" title="Conteúdo do material (texto)">${esc(r.material.texto)}</div>`
+    : '';
+  const acoes = r.status === 'pendente'
+    ? '<div class="acoes"><button class="btn-ok">Resolvido</button><button class="btn-no">Descartar</button></div>'
+    : `<div class="acoes"><span class="rep-data">${r.status === 'resolvido' ? 'Resolvido' : 'Descartado'}${r.decidido_em ? ' em ' + esc(dataCurta(r.decidido_em)) : ''}</span></div>`;
+
+  d.innerHTML = `
+    <div class="top"><span class="rep-mat">${mat}${varios}</span><span class="rep-data">${esc(dataCurta(r.created_at))}</span></div>
+    <div class="rep-linha"><b>Turma:</b> ${esc(r.turma.nome)}</div>
+    <div class="rep-linha"><b>Professor:</b> ${esc(r.professor.nome)}</div>
+    <div class="rep-linha"><b>Reportado por:</b> ${esc(r.aluno.nome)}</div>
+    ${motivo}
+    ${texto}
+    ${acoes}`;
+
+  if (r.status === 'pendente') {
+    d.querySelector('.btn-ok').onclick = () => decidirReporte(r.id, 'resolvido', d);
+    d.querySelector('.btn-no').onclick = () => decidirReporte(r.id, 'descartado', d);
+  }
+  return d;
+}
+
+async function decidirReporte(id, decisao, card) {
+  card.querySelectorAll('button').forEach(b => b.disabled = true);
+  const j = await api('/api/admin/reporte_decidir.php', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reporte_id: id, decisao })
+  });
+  if (j.error) {
+    card.querySelectorAll('button').forEach(b => b.disabled = false);
+    EchoUIInstance.toastError(j.error);
+    return;
+  }
+  EchoUIInstance.toastSuccess(decisao === 'resolvido' ? 'Reporte marcado como resolvido.' : 'Reporte descartado.');
+  // Sai da fila de pendentes na hora; o filtro certo mostra ele de novo.
+  card.remove();
+  const restantes = $('#listaReportes').querySelectorAll('.adm-card').length;
+  atualizarQtd(restantes);
+  if (!restantes) $('#listaReportes').innerHTML = '<p class="adm-vazio">Nenhum reporte pendente.</p>';
 }
 
 (async () => {
   const user = await EchoUIInstance.checkAuth({ redirectOnFail: true });
   if (!user) return;
   if (!user.is_admin) {
+    document.querySelector('.adm-abas').hidden = true;
+    $('#secReportes').hidden = true;
+    $('#secSolicitacoes').hidden = false;
     $('#lista').innerHTML = '<p class="adm-erro">Acesso restrito a administradores.</p>';
     return;
   }
+
+  document.querySelectorAll('.adm-aba').forEach(b => b.addEventListener('click', () => mostrarAba(b.dataset.aba)));
+  document.querySelectorAll('.adm-filtro button').forEach(b => b.addEventListener('click', () => {
+    statusReportes = b.dataset.status;
+    document.querySelectorAll('.adm-filtro button').forEach(x => x.classList.toggle('ativo', x === b));
+    carregarReportes();
+  }));
+
+  // A notificação do sino abre direto nos reportes (#reportes).
+  mostrarAba(location.hash === '#reportes' ? 'reportes' : 'solicitacoes');
   carregar();
+  carregarReportes();
 })();
 </script>
 </body>
