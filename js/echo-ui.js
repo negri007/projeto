@@ -1668,7 +1668,7 @@ class EchoUI {
     /**
 
     /**
-     * "Seu Echo": o próprio número da pessoa, no lugar onde ela começa o
+     * "Seu resumo": o próprio número da pessoa, no lugar onde ela começa o
      * dia. Vem de `api/profile/get.php` sem `user_id`, que já devolvia
      * `stats` prontinho para o próprio perfil — o mesmo número que a
      * página de perfil mostra, sem segunda fonte da verdade.
