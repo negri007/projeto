@@ -973,7 +973,7 @@ padrão 50).
   **outro usuário** em `message`; é `null` em `friend_request` e
   `friend_accept`.
 - Tipos de `type`: `like`, `comment`, `share`, `mention`, `friend_request`,
-  `friend_accept`, `message`.
+  `friend_accept`, `message`, `turma_reporte` (reporte de material, só para admins; ver "Reporte de material de turma").
 - `actor_avatar` é o arquivo em `uploads/`, ou `null`.
 
 **POST /api/notifications/mark_read.php**
@@ -1622,3 +1622,70 @@ triagem_ia,created_at}] }`.
 **Só admin.** Aprovar dá o selo (`professor_status='verificado'`); recusar
 marca `recusado`. `{ ok:true, aprovado:bool }`.
 
+
+### Reporte de material de turma (01/10/2026)
+
+O aluno reporta um material do professor quando o conteúdo está fora do
+tema da turma. O reporte vai para a administração (users.is_admin), que
+verifica e decide **fora do sistema** o que fazer com o professor: decidir
+só muda o status, nada é apagado. **Sem IA**: é reporte humano. A coluna
+`origem` (`'aluno'` hoje) existe para uma verificação automática futura
+poder inserir com `'ia'`; isso não está implementado.
+
+Tabela `turma_reportes` (uma linha por material+aluno, `UNIQUE`). Apagar o
+material, a turma ou um dos usuários apaga os reportes (`ON DELETE CASCADE`).
+
+#### `POST /api/turmas/material_reportar.php` — `{ material_id, motivo? }`
+Identidade pela sessão. Na ordem:
+- material inexistente → **404** `{"error":"Material não encontrado."}`
+- quem reporta não é **membro** da turma → **403** `{"error":"Só alunos da turma podem reportar este material."}`
+- é o professor dono do material → **400** `{"error":"Você não pode reportar o próprio material."}`
+- `motivo` (opcional, com trim) acima de 500 caracteres → **400** `{"error":"O motivo pode ter no máximo 500 caracteres."}`
+- mais de 5 reportes do mesmo aluno na última hora → **429** `{"error":"Você fez muitos reportes seguidos. Tente de novo mais tarde."}`
+- já reportou este material → **409** `{"error":"Você já reportou este material."}` (vale também na corrida: é a chave única que decide)
+
+Sucesso: `{ "ok": true }`. Notifica **todos os admins** com o tipo
+`turma_reporte` (`reference_id` = id do reporte); o admin que for o próprio
+autor do reporte não é notificado.
+
+#### Mudança em `GET /api/turmas/material_listar.php`
+Cada material ganha `ja_reportei` (bool): o usuário da sessão já reportou
+este material. Para o professor dono é sempre `false`.
+
+#### Mudança em `GET /api/turmas/material_arquivo.php`
+Além do dono e dos membros, um **admin** abre o arquivo de um material que
+**tenha pelo menos um reporte** (qualquer status) — é como ele verifica o
+conteúdo sem entrar na turma. Material sem reporte continua 404 para quem
+não é da turma, admin ou não.
+
+#### `GET /api/admin/reportes.php?status=pendente|resolvido|descartado`
+**Só admin** (**403** `{"error":"Acesso restrito."}`). `status` padrão
+`pendente`; valor fora da lista → **400**. Até 50, mais recentes primeiro:
+```json
+{ "ok": true, "status": "pendente", "reportes": [ {
+  "id": 3, "motivo": "texto ou null", "origem": "aluno", "status": "pendente",
+  "created_at": "2026-10-01 18:00:00",
+  "decidido_em": null,
+  "material": { "id": 12, "titulo": "...", "arquivo_url": "api/turmas/material_arquivo.php?material_id=12" | null,
+                "texto": "trecho do conteúdo (até 2000 caracteres)" | null },
+  "turma": { "id": 8, "nome": "..." },
+  "professor": { "id": 5, "nome": "..." },
+  "aluno": { "id": 9, "nome": "..." },
+  "pendentes_do_material": 2
+} ] }
+```
+`pendentes_do_material` conta todos os reportes **pendentes** daquele
+material (de qualquer aluno), para ver se vários reclamaram da mesma coisa.
+`material.texto` só vem quando o material é de texto (sem arquivo).
+
+#### `POST /api/admin/reporte_decidir.php` — `{ reporte_id, decisao }`
+**Só admin** (403). `decisao` é `"resolvido"` ou `"descartado"` (outro
+valor → **400**). Reporte inexistente → **404**; já decidido → **409**
+`{"error":"Esse reporte já foi decidido."}`. Grava `status`,
+`decidido_por` e `decidido_em`; não apaga material nem reporte.
+`{ "ok": true, "status": "resolvido" }`.
+
+#### Notificação `turma_reporte`
+Tipo novo em `notifications.type`. Vai para os admins; `reference_id` é o
+id do **reporte**. No sino: "<nome> reportou um material de turma."; o
+clique abre `admin_professores.html#reportes`.
