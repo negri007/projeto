@@ -236,7 +236,7 @@ function turma_quiz_tool(): array
  */
 function turma_quiz_corpo(array $material, array $config): ?array
 {
-    $texto = trim((string)($material["conteudo_texto"] ?? ""));
+    $texto = turma_material_texto($material);
 
     if ($texto !== "") {
         $conteudo = [[
@@ -246,7 +246,7 @@ function turma_quiz_corpo(array $material, array $config): ?array
                     . "\n</material>\n\nMonte o quiz a partir deste material.",
         ]];
     } elseif (turma_material_resumivel($material)) {
-        // PDF (unico outro caso resumivel/quizavel).
+        // PDF (o outro caso resumivel/quizavel; texto e .txt/.md ja viraram $texto).
         $caminho = __DIR__ . "/../../uploads/" . $material["arquivo"];
         $bytes   = is_file($caminho) ? @file_get_contents($caminho) : false;
 
@@ -293,7 +293,7 @@ function turma_quiz_normalizar(string $s): string
  */
 function turma_quiz_validar(array $questoes, array $material): array
 {
-    $texto   = trim((string)($material["conteudo_texto"] ?? ""));
+    $texto   = turma_material_texto($material);
     $textoN  = $texto !== "" ? turma_quiz_normalizar($texto) : null;
     $validas = [];
 

@@ -1397,7 +1397,7 @@ Identidade pela sessão. Acesso: dono **ou** membro (o resumo é o mesmo pra
 todos). Corpo: `{ material_id, regerar? }`.
 
 Gera o resumo do material pela **API do Claude** (mesma chave de
-`ai_config.php`): texto colado vai por `ai_chamar_api()`; PDF vai como bloco
+`ai_config.php`): texto (colado, ou arquivo `.txt`/`.md` lido do disco — desde 01/10/2026; antes o `.txt` aparecia como "não resumível") vai como texto; PDF vai como bloco
 `document` (base64) na Messages API. **Cache**: o resultado fica em
 `turma_materiais.resumo` — a primeira chamada gera e grava, as próximas
 servem do cache sem gastar API (`do_cache:true`). `regerar:true` força de

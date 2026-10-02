@@ -183,11 +183,49 @@ function turma_material_caminho(array $material): ?string
     return $caminho;
 }
 
-/** Da pra gerar resumo deste material? So texto colado ou PDF, por ora.
- *  Imagem fica guardada, mas nao entra na sumarizacao v1. */
+/** Arquivos de material que SAO texto: o conteudo e lido do disco e tratado
+ *  igual ao texto colado (resumo, quiz e conferencia das fontes). */
+const TURMA_TIPOS_TEXTO = ["txt", "md"];
+
+/** Teto de leitura de um .txt/.md (o resumo/quiz cortam em 40 mil chars). */
+const TURMA_TEXTO_MAX_BYTES = 400000;
+
+/**
+ * O texto do material: o colado, ou o conteudo de um arquivo .txt/.md.
+ * Vazio para PDF e imagem (o PDF vai como documento para a IA).
+ *
+ * Antes so o texto colado contava: uma apostila enviada como .txt caia no
+ * caminho do PDF e aparecia como "nao resumivel (imagem)".
+ */
+function turma_material_texto(array $material): string
+{
+    $texto = trim((string)($material["conteudo_texto"] ?? ""));
+
+    if ($texto !== "" || !in_array($material["tipo_arquivo"] ?? "", TURMA_TIPOS_TEXTO, true)) {
+        return $texto;
+    }
+
+    // Caminho conferido (realpath dentro de uploads/turmas), nunca o do banco cru.
+    $caminho = turma_material_caminho($material);
+    $bytes   = $caminho !== null ? @file_get_contents($caminho, false, null, 0, TURMA_TEXTO_MAX_BYTES) : false;
+
+    if ($bytes === false || $bytes === "") {
+        return "";
+    }
+
+    // .txt salvo no Bloco de Notas antigo vem em Windows-1252, nao UTF-8.
+    if (!mb_check_encoding($bytes, "UTF-8")) {
+        $bytes = mb_convert_encoding($bytes, "UTF-8", "Windows-1252");
+    }
+
+    return trim(preg_replace('/^\xEF\xBB\xBF/', "", $bytes));
+}
+
+/** Da pra gerar resumo/quiz deste material? Texto (colado, .txt ou .md) ou
+ *  PDF. Imagem fica guardada, mas nao entra na sumarizacao. */
 function turma_material_resumivel(array $material): bool
 {
-    if (trim((string)($material["conteudo_texto"] ?? "")) !== "") {
+    if (turma_material_texto($material) !== "") {
         return true;
     }
 
@@ -238,10 +276,10 @@ function turma_resumir_material(array $material, PDO $pdo, int $userId): array
     }
 
     if (!turma_material_resumivel($material)) {
-        return ["ok" => false, "erro" => "Esse material ainda não pode ser resumido. Cole o texto ou envie um PDF."];
+        return ["ok" => false, "erro" => "Esse material ainda não pode ser resumido. Cole o texto ou envie um PDF ou .txt."];
     }
 
-    $texto = trim((string)($material["conteudo_texto"] ?? ""));
+    $texto = turma_material_texto($material);
     $doPdf = $texto === "";
 
     if ($doPdf) {
