@@ -1049,8 +1049,9 @@ class EchoUI {
     }
 
     /**
-     * HTML do avatar: a foto quando existe, senao a inicial do nome
-     * sobre a cor da pessoa.
+     * HTML do avatar: a inicial do nome sobre a cor da pessoa, e a foto
+     * (quando existe) por cima. Se o arquivo da foto sumir ou falhar, o
+     * <img> se remove e a inicial aparece -- nunca fica um circulo vazio.
      *
      * @param {{user_id?:number, id?:number, name?:string, avatar?:string}} user
      * @param {"sm"|"md"|"lg"} size
@@ -1063,14 +1064,12 @@ class EchoUI {
         const classes = `echo-avatar echo-avatar-${size}${link ? " echo-avatar-link" : ""}`;
         const onclick = link && id ? ` onclick="EchoUIInstance.openProfile(${id})"` : "";
 
-        if (user?.avatar) {
-            const url = `uploads/${encodeURIComponent(user.avatar)}`;
-            return `<div class="${classes}" style="background-image:url('${url}')"
-                         title="${this.escapeHTML(nome)}"${onclick}></div>`;
-        }
+        const foto = user?.avatar
+            ? `<img src="uploads/${encodeURIComponent(user.avatar)}" alt="" loading="lazy" onerror="this.remove()">`
+            : "";
 
         return `<div class="${classes}" style="background:${this.avatarColor(id)}"
-                     title="${this.escapeHTML(nome)}"${onclick}>${inicial}</div>`;
+                     title="${this.escapeHTML(nome)}"${onclick}>${inicial}${foto}</div>`;
     }
 
     /** Abre o perfil de alguem. O proprio perfil vai sem parametro. */
