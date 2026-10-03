@@ -161,6 +161,10 @@
       .turmas-area .icon-add .plus { position:absolute; right:-5px; top:-5px; width:17px; height:17px; border-radius:50%; background:var(--grad); color:#fff; font-size:11px; font-weight:700; display:grid; place-items:center; line-height:1; box-shadow:0 2px 8px rgba(29,155,240,.5); }
       .turmas-area .form-pop { margin:0 0 14px; }
       .turmas-area .form-pop.hidden { display:none; }
+      .turmas-area .convite-prof { margin:0 0 14px; padding:12px 14px; border:1px dashed var(--line2); border-radius:14px; background:var(--grad-soft); font-size:14px; color:#cfe6ff; }
+      .turmas-area .convite-prof p { margin:0 0 8px; }
+      .turmas-area .convite-prof p:last-child { margin-bottom:0; }
+      .turmas-area .convite-prof #profCardBody { margin-top:10px; }
 
       /* professor verificado (coluna direita, fora do .turmas-area) */
       #professorCard .prof-selo { display:inline-flex; align-items:center; gap:8px; font-weight:700; color:#31d0aa; background:rgba(49,208,170,.14); border:1px solid rgba(49,208,170,.32); padding:8px 12px; border-radius:999px; font-size:14px; }
@@ -250,10 +254,13 @@
                     <div class="bloco-head">
                         <h2><i class="fa-solid fa-graduation-cap"></i> Minhas turmas</h2>
                         <div class="acoes-topo">
-                            <button class="icon-add" id="btnAbrirCriar" type="button" title="Criar turma" aria-label="Criar turma"><i class="fa-solid fa-chalkboard-user"></i><span class="plus">+</span></button>
+                            <!-- Só aparece para professor verificado (js/turmas.js: aplicarPermissaoCriar). -->
+                            <button class="icon-add" id="btnAbrirCriar" type="button" title="Criar turma" aria-label="Criar turma" hidden><i class="fa-solid fa-chalkboard-user"></i><span class="plus">+</span></button>
                             <button class="icon-add" id="btnAbrirEntrar" type="button" title="Entrar por código" aria-label="Entrar por código"><i class="fa-solid fa-key"></i><span class="plus">+</span></button>
                         </div>
                     </div>
+                    <!-- Quem não é professor verificado vê este convite no lugar do botão de criar. -->
+                    <div id="conviteProfessor" class="convite-prof" hidden></div>
                     <div id="formCriar" class="form-pop hidden">
                         <div class="row">
                             <input id="novaTurma" placeholder="Nome da turma (ex.: Banco de Dados II)" style="flex:1;min-width:200px">
@@ -344,12 +351,15 @@
                 <h5>Como funciona</h5>
                 <small class="text-secondary">
                     Uma turma é um círculo do tipo acadêmico. O professor sobe o
-                    material (PDF ou texto) e a IA <strong>resume</strong>,
+                    material (PDF, .txt ou texto) e a IA <strong>resume</strong>,
                     <strong>gera quiz</strong> e aponta os <strong>alunos em risco</strong>
                     antes da prova.
                     <br><br>
                     O aluno vê o material, responde o quiz e acompanha o próprio
                     resultado.
+                    <br><br>
+                    Criar turma é para <strong>professor verificado</strong>: peça o selo
+                    aqui ao lado; um admin aprova.
                 </small>
             </div>
         </aside>
@@ -368,6 +378,6 @@
     EchoUIInstance.initHeader("academico");
 })();
 </script>
-<script src="js/turmas.js?v=20261001r"></script>
+<script src="js/turmas.js?v=20261003a"></script>
 </body>
 </html>

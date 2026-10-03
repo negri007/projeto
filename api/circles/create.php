@@ -38,6 +38,20 @@ if (mb_strlen($description) > 255) {
 }
 
 try {
+    // Turma só para professor verificado (o selo do admin). Conferido no
+    // servidor, pela sessão: esconder o botão no front não basta. Turma que
+    // já existe não passa por aqui, então segue funcionando para o dono.
+    if ($tipo === "academia") {
+        $stmt = $pdo->prepare("SELECT professor_status FROM users WHERE id = ?");
+        $stmt->execute([$userId]);
+
+        if ($stmt->fetchColumn() !== "verificado") {
+            http_response_code(403);
+            echo json_encode(["error" => "Só professor verificado pode criar turma."], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+
     $stmt = $pdo->prepare(
         "INSERT INTO circles (owner_id, name, tipo, description) VALUES (?, ?, ?, ?)"
     );

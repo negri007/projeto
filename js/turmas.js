@@ -680,6 +680,7 @@ async function initProfessor() {
 
   const status = st.status || 'nenhum';
   const admin = !!st.is_admin;
+  aplicarPermissaoCriar(status);
   const linkAdmin = admin
     ? '<a href="admin_professores.html" class="prof-adminlink"><i class="fa-solid fa-shield-halved"></i> Painel de admin</a>'
     : '';
@@ -697,11 +698,48 @@ async function initProfessor() {
   const recusado = status === 'recusado'
     ? '<p class="small" style="color:#ffb1bc;margin:0 0 8px">Seu pedido anterior foi recusado. Você pode pedir de novo.</p>' : '';
   box.innerHTML = `${recusado}
-    <p class="text-secondary small" style="margin:0 0 8px">Qualquer um cria grupo de estudo. O selo de <b>professor verificado</b> passa por aprovação.</p>
+    <p class="text-secondary small" style="margin:0 0 8px">Para criar turmas é preciso o selo de <b>professor verificado</b>, que passa pela aprovação de um admin.</p>
     <input id="profArea" class="form-control form-control-sm mb-2" placeholder="Área (ex.: Biologia)" maxlength="80">
     <textarea id="profJust" class="form-control form-control-sm mb-2" rows="3" placeholder="Por que você quer o selo? (quem é você, o que ensina)"></textarea>
     <button id="btnProf" class="btn btn-primary btn-sm w-100">Pedir verificação</button>${linkAdmin}`;
   $('#btnProf').onclick = solicitarProfessor;
+}
+
+/* Criar turma é só para professor verificado (o servidor também recusa com
+   403 em circles/create.php). Quem não é vê um convite no lugar do botão.
+   O botão nasce escondido no HTML: assim não pisca para quem não pode. */
+function aplicarPermissaoCriar(status) {
+  const pode = status === 'verificado';
+  const convite = $('#conviteProfessor');
+  // O formulário pode ter sido movido para cá (tela estreita): volta para o
+  // card antes de o convite ser reescrito, senão some junto.
+  const corpo = $('#profCardBody');
+  if (convite.contains(corpo)) $('#professorCard').appendChild(corpo);
+  $('#btnAbrirCriar').hidden = !pode;
+  if (!pode) $('#formCriar').classList.add('hidden');
+  convite.hidden = pode;
+  if (pode) return;
+
+  if (status === 'pendente') {
+    convite.innerHTML = '<p><i class="fa-solid fa-hourglass-half"></i> Sua solicitação de professor está em análise. Quando um admin aprovar, você poderá criar turmas.</p>';
+    return;
+  }
+  convite.innerHTML = `<p><i class="fa-solid fa-chalkboard-user"></i> Para criar turmas, peça o selo de <b>professor verificado</b>. Para entrar numa turma, use o código que o professor passar (<i class="fa-solid fa-key"></i>).</p>
+    <p><button type="button" class="ok" id="btnConviteProf">Pedir verificação</button></p>`;
+  $('#btnConviteProf').onclick = levarAoPedidoDeVerificacao;
+}
+
+// No desktop o formulário está na coluna da direita; abaixo de 992px essa
+// coluna some, então o formulário é MOVIDO para dentro do convite (mover,
+// e não copiar: os ids continuam únicos).
+function levarAoPedidoDeVerificacao() {
+  const corpo = $('#profCardBody');
+  if (!$('#professorCard').offsetParent) {
+    $('#conviteProfessor').appendChild(corpo);
+    $('#btnConviteProf').closest('p').remove();
+  }
+  corpo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('#profArea')?.focus({ preventScroll: true });
 }
 
 async function solicitarProfessor() {

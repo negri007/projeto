@@ -1338,6 +1338,11 @@ vertical novo não exige migração de schema.
 
 - **`POST /api/circles/create.php`** passa a aceitar `tipo` no corpo JSON
   (`"social"` | `"academia"`; valor inválido cai em `"social"`).
+  **Desde 01/10/2026, `tipo:"academia"` (turma) só para professor
+  verificado** (`users.professor_status = 'verificado'`, o selo dado pelo
+  admin). Os outros recebem **403** `{"error":"Só professor verificado
+  pode criar turma."}`. Círculo social continua livre. Turmas que já
+  existem não mudam: o dono segue gerindo as que criou antes da regra.
 - **`GET /api/circles/list.php`** e o objeto círculo em toda resposta de
   `api/circles/` agora trazem o campo `tipo`.
 
