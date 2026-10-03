@@ -914,7 +914,10 @@ sessão).
   pessoa**, não curtidas que ela deu.
 - `stats.friends` conta amizades aceitas nas duas direções.
   `stats.circles` soma círculos que ela criou mais aqueles de que
-  participa.
+  participa — **só os sociais** (`tipo = 'social'`). Turmas
+  (`tipo = 'academia'`) vivem em Aulas e não entram nessa conta; antes
+  de 01/10/2026 entravam, e o perfil mostrava "3 círculos" para quem só
+  tinha turmas, enquanto a página Círculos dizia que não havia nenhum.
 - Não existem `followers`/`following`: o modelo de amizade é mútuo, não
   tem lado seguidor. A tela de perfil passou a mostrar "amigos" e
   "círculos".
@@ -1180,6 +1183,8 @@ resultado. Query opcional: `limit` (1 a 30, padrão 8) por tipo.
 - **`circles` só devolve círculos de que o usuário da sessão
   participa.** Publicação e perfil são públicos dentro do sistema;
   círculo não é, e a busca não pode virar um índice dos grupos alheios.
+  E só os sociais (`tipo = 'social'`): turma é de Aulas e não abre em
+  `circle_chat.html` (desde 01/10/2026).
 - `q` vazio devolve as quatro listas vazias — não é erro.
 - `%` e `_` digitados são texto literal, não curinga.
 

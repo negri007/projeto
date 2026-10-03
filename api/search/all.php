@@ -147,6 +147,7 @@ try {
          FROM circles c
          LEFT JOIN circle_members cm ON cm.circle_id = c.id AND cm.user_id = :me1
          WHERE (c.owner_id = :me2 OR cm.user_id IS NOT NULL)
+           AND c.tipo = 'social'
            AND (c.name LIKE :like1 ESCAPE '!' OR c.description LIKE :like2 ESCAPE '!')
          ORDER BY c.name ASC
          LIMIT :lim"

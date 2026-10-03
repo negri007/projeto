@@ -50,8 +50,11 @@ function profile_stats(PDO $pdo, int $userId): array
                 (SELECT COUNT(*) FROM friends
                   WHERE status = 'accepted'
                     AND (user_id = :u3 OR friend_id = :u4)) AS friends,
-                (SELECT COUNT(*) FROM circles WHERE owner_id = :u5)
-                + (SELECT COUNT(*) FROM circle_members WHERE user_id = :u6) AS circles";
+                (SELECT COUNT(*) FROM circles
+                  WHERE owner_id = :u5 AND tipo = 'social')
+                + (SELECT COUNT(*) FROM circle_members cm
+                     JOIN circles c ON c.id = cm.circle_id
+                    WHERE cm.user_id = :u6 AND c.tipo = 'social') AS circles";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
