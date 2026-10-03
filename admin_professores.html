@@ -2,7 +2,7 @@
 <html lang="pt-BR" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <link rel="icon" href="assets/favicon.svg?v=20260920a" type="image/svg+xml">
     <title>ECHO - Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -50,29 +50,48 @@
     </style>
 </head>
 <body>
-<div class="adm-wrap">
-    <a href="turmas.html" class="adm-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar para Aulas</a>
-    <h1 style="margin-top:12px"><i class="fa-solid fa-shield-halved"></i> Administração</h1>
+<div class="container-fluid layout">
+    <div class="row">
+        <!-- SIDEBAR -->
+        <aside class="col-lg-2 col-md-3 d-none d-md-flex flex-column sidebar" id="echoSidebar"></aside>
 
-    <div class="adm-abas" role="tablist">
-        <button type="button" class="adm-aba ativa" role="tab" data-aba="solicitacoes" aria-selected="true">Solicitações de professor</button>
-        <button type="button" class="adm-aba" role="tab" data-aba="reportes" aria-selected="false">Reportes <span class="qtd" id="qtdReportes" hidden></span></button>
+        <main class="col-lg-10 col-md-9 main-col">
+            <div class="main-header">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="mobile-header-toggle" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebarOffcanvas" aria-label="Abrir menu">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <span class="main-header-title">Admin</span>
+                </div>
+                <div id="notificationBellContainer"></div>
+            </div>
+
+            <div class="adm-wrap">
+                <a href="turmas.html" class="adm-voltar"><i class="fa-solid fa-arrow-left"></i> Voltar para Aulas</a>
+                <h1 style="margin-top:12px"><i class="fa-solid fa-shield-halved"></i> Administração</h1>
+
+                <div class="adm-abas" role="tablist">
+                    <button type="button" class="adm-aba ativa" role="tab" data-aba="solicitacoes" aria-selected="true">Solicitações de professor</button>
+                    <button type="button" class="adm-aba" role="tab" data-aba="reportes" aria-selected="false">Reportes <span class="qtd" id="qtdReportes" hidden></span></button>
+                </div>
+
+                <section id="secSolicitacoes">
+                    <p class="sub">Aprove ou recuse quem pediu o selo de professor verificado.</p>
+                    <div id="lista"><p class="adm-vazio">Carregando…</p></div>
+                </section>
+
+                <section id="secReportes" hidden>
+                    <p class="sub">Materiais de turma que alunos reportaram como fora do tema. A decisão só muda o status: o material e o reporte continuam no sistema.</p>
+                    <div class="adm-filtro" role="group" aria-label="Filtrar reportes">
+                        <button type="button" class="ativo" data-status="pendente">Pendentes</button>
+                        <button type="button" data-status="resolvido">Resolvidos</button>
+                        <button type="button" data-status="descartado">Descartados</button>
+                    </div>
+                    <div id="listaReportes"><p class="adm-vazio">Carregando…</p></div>
+                </section>
+            </div>
+        </main>
     </div>
-
-    <section id="secSolicitacoes">
-        <p class="sub">Aprove ou recuse quem pediu o selo de professor verificado.</p>
-        <div id="lista"><p class="adm-vazio">Carregando…</p></div>
-    </section>
-
-    <section id="secReportes" hidden>
-        <p class="sub">Materiais de turma que alunos reportaram como fora do tema. A decisão só muda o status: o material e o reporte continuam no sistema.</p>
-        <div class="adm-filtro" role="group" aria-label="Filtrar reportes">
-            <button type="button" class="ativo" data-status="pendente">Pendentes</button>
-            <button type="button" data-status="resolvido">Resolvidos</button>
-            <button type="button" data-status="descartado">Descartados</button>
-        </div>
-        <div id="listaReportes"><p class="adm-vazio">Carregando…</p></div>
-    </section>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -241,6 +260,11 @@ async function decidirReporte(id, decisao, card) {
 (async () => {
   const user = await EchoUIInstance.checkAuth({ redirectOnFail: true });
   if (!user) return;
+
+  // Mesma moldura das outras telas; o painel nasce de Aulas, então é ela
+  // que fica marcada no menu.
+  $('#notificationBellContainer').innerHTML = EchoUIInstance.getNotificationBellHTML();
+  EchoUIInstance.initHeader('academico');
   if (!user.is_admin) {
     document.querySelector('.adm-abas').hidden = true;
     $('#secReportes').hidden = true;
