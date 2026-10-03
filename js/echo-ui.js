@@ -1918,3 +1918,17 @@ document.addEventListener("focusin", (ev) => {
     campo.addEventListener("input", pintar);
     campo.addEventListener("blur", () => marcador.remove(), { once: true });
 });
+
+/* ==========================================================================
+   FOTO DE POST QUE NÃO CARREGA
+
+   `uploads/` não vai para o git: um arquivo que some do disco deixava o
+   ícone de imagem quebrada no meio do post. O evento `error` de imagem não
+   borbulha, então um ouvinte só, na fase de captura, cobre todas as telas:
+   a foto some e o post fica só com o texto. Avatar tem o próprio fallback
+   (avatarHTML).
+   ========================================================================== */
+document.addEventListener("error", (e) => {
+    const el = e.target;
+    if (el instanceof HTMLImageElement && el.matches(".post-image")) el.remove();
+}, true);
