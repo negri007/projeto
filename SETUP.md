@@ -1,7 +1,7 @@
 # Rodar o Echo em outra máquina
 
-Guia completo pra subir o projeto do zero, incluindo o **motor de anúncios**
-(vídeos de marketing). Testado em Windows (XAMPP); Linux/macOS no fim.
+Guia para subir o projeto do zero: a rede social entre pessoas e o **Aulas**
+(turmas). Testado em Windows (XAMPP); Linux/macOS no fim.
 
 ---
 
@@ -10,11 +10,8 @@ Guia completo pra subir o projeto do zero, incluindo o **motor de anúncios**
 | Ferramenta | Pra quê | Windows |
 |---|---|---|
 | **PHP 8.2** + **MySQL/MariaDB** | back-end + banco | [XAMPP](https://www.apachefriends.org) (já traz os dois) |
-| **Node.js 18+** | motor de vídeo (Remotion) | [nodejs.org](https://nodejs.org) — instalador põe no PATH |
-| **ffmpeg** | converter HEIC/TIFF/BMP/AVIF para JPG no upload (sem ele, esses formatos são recusados) | `winget install Gyan.FFmpeg` — depois ponha o caminho em `ffmpeg_bin` (seção 4) |
+| **ffmpeg** (opcional) | converter HEIC/TIFF/BMP/AVIF para JPG no upload de foto (sem ele, esses formatos são recusados) | `winget install Gyan.FFmpeg` — depois ponha o caminho em `ffmpeg_bin` (seção 4) |
 | **Git** | clonar o repo | [git-scm.com](https://git-scm.com) |
-
-> O motor precisa de **~2 GB de RAM** livre pra renderizar (Chrome headless).
 
 ---
 
@@ -23,7 +20,7 @@ Guia completo pra subir o projeto do zero, incluindo o **motor de anúncios**
 ```bash
 git clone https://github.com/negri007/projeto.git
 cd projeto
-git checkout feature/videos-ia
+git checkout echo-enxuto
 ```
 
 ---
@@ -38,65 +35,55 @@ Com o MySQL do XAMPP rodando (painel do XAMPP → Start no MySQL):
 "C:/xampp/mysql/bin/mysql.exe" -u root --default-character-set=utf8mb4 banco < banco.sql
 ```
 
-O `banco.sql` cria todas as tabelas (inclusive `videos_gerados` com as colunas
-do motor). Usuário `root` sem senha é o padrão do XAMPP e é o que o sistema
-usa **só em ambiente local** quando não existe `api/auth/db_config.php`. Com
-senha, ou em servidor publicado, crie o `db_config.php` (seção 4).
+O `banco.sql` cria todas as tabelas e pode rodar de novo por cima sem erro.
+Ele faz `USE banco`: para testar numa base com outro nome, troque o nome no
+`CREATE DATABASE` e no `USE` numa cópia do arquivo.
 
-Contas de teste (se rodar o seed): e-mails `@echo.local`, senha `senha123`.
+Usuário `root` sem senha é o padrão do XAMPP e é o que o sistema usa **só em
+ambiente local** quando não existe `api/auth/db_config.php`. Com senha, ou em
+servidor publicado, crie o `db_config.php` (seção 4).
+
+Para ter dados de exemplo (20 pessoas com posts, amizades e curtidas):
+
+```bash
+"C:/xampp/php/php.exe" api/seed/seed_completo.php
+```
+
+Contas de teste do seed: e-mails `@echo.local`, senha `senha123`. Admin (quem
+aprova professor e vê os reportes de material) é marcado à mão:
+`UPDATE users SET is_admin = 1 WHERE email = '...';`
 
 ---
 
 ## 4. Arquivos de configuração (chaves)
 
 Os arquivos com chaves **não vão pro git**. Copie cada `.example` e preencha
-(ou deixe em branco — o que estiver sem chave só desliga aquele recurso):
+(ou deixe sem — o que estiver sem chave só desliga aquele recurso):
 
 ```bash
 cp api/ai/ai_config.example.php        api/ai/ai_config.php
-cp api/video/video_config.example.php  api/video/video_config.php
+cp api/posts/posts_config.example.php  api/posts/posts_config.php   # opcional
 cp api/auth/mail_config.example.php    api/auth/mail_config.php
 cp api/auth/google_config.example.php  api/auth/google_config.php
-cp api/auth/db_config.example.php      api/auth/db_config.php   # opcional no local
+cp api/auth/db_config.example.php      api/auth/db_config.php       # opcional no local
 ```
 
 O que cada um libera:
-- **ai_config.php** — chave Pexels (fotos/ vídeos de banco grátis) e IA de texto.
-- **video_config.php** — Kling (vídeo por IA, pago) e Coverr. **O motor de
-  anúncios NÃO precisa de nenhuma chave** — é render local, custo zero.
-  - Opcional: `node_bin` (caminho do `node`) e `ffmpeg_bin` (caminho do
-    `ffmpeg`) se não estiverem no PATH.
+- **ai_config.php** — chave da API do Claude, usada pelo **Aulas** (resumo de
+  material e quiz) e pela triagem opcional do pedido de professor. Sem ela, o
+  resto do app funciona; resumo e quiz avisam que a IA não está configurada.
+  `pexels_api_key` é opcional (só o seed usa, para fotos de exemplo).
+- **posts_config.php** — `ffmpeg_bin`, o caminho do `ffmpeg` se ele não
+  estiver no PATH.
 - **mail_config.php** — SMTP pra recuperação de senha por e-mail.
-- **google_config.php** — login com Google (ver seção 7).
+- **google_config.php** — login com Google (ver seção 6).
 - **db_config.php** — host, banco, usuário e senha do MySQL. Opcional na
   máquina local (sem ele vale root sem senha); **obrigatório** em servidor:
   lá, sem ele, o banco não conecta e o motivo vai pro log do PHP.
 
-**O essencial pro app + motor funcionar não precisa de nenhuma chave.**
-
 ---
 
-## 5. Motor de anúncios (Remotion)
-
-```bash
-cd motor
-npm install              # baixa Remotion e dependências
-npm run ensure-browser   # baixa o Chromium que o Remotion usa
-cd ..
-```
-
-Confirme que o `node` responde (o render roda por ele):
-
-```bash
-node -v
-```
-
-Se der "não reconhecido", feche e abra o terminal (o instalador do Node já pôs
-no PATH) e rode de novo.
-
----
-
-## 6. Subir o servidor (Apache do XAMPP)
+## 5. Subir o servidor (Apache do XAMPP)
 
 O app roda no **Apache do XAMPP**, na porta **8080**:
 
@@ -125,32 +112,16 @@ Listen 8080
 </VirtualHost>
 ```
 
-Confira também, no `C:/xampp/php/php.ini`, que a linha `extension=gd` está
-**sem** o `;` na frente (o upload de fotos do motor precisa do GD) — depois de
-mexer no `php.ini`, Stop/Start no Apache.
-
 > **Por que Apache e não `php -S`:** o servidor embutido do PHP atende um
-> pedido por vez e manda o vídeo inteiro de uma vez (sem `Range`). Com a
-> conexão de notificações aberta, o vídeo do feed levava ~30 s pra começar;
-> no Apache começa em menos de 1 s. O `php -S` ainda serve pra um teste
-> rápido (`"C:/xampp/php/php.exe" -S 127.0.0.1:8080 -t .` com o Apache
-> parado), mas fica lento com vídeo.
-
-> **Motor sob o Apache:** o render roda num `php.exe` separado, disparado em
-> segundo plano. O caminho é descoberto sozinho (o `php.exe` ao lado do
-> `php.ini` carregado); se não achar, informe `php_bin` em
-> `api/video/video_config.php`. Idem `node_bin` se o `node` não estiver no
-> PATH de quem iniciou o Apache.
-
-Login → aba **Canvas** → **Loja** → **Gerar vídeo de marketing**. Não precisa
-esperar no modal: quando o vídeo fica pronto ele aparece em **Comércio → Meus
-vídeos**, de onde dá pra publicar na loja ou baixar.
-
-> A aba **Loja** só aparece pra conta que tem loja. Crie uma em **Comércio**.
+> pedido por vez, e a conexão de notificações (SSE) segura cada aba aberta
+> por alguns segundos — com mais de uma aba, tudo enfileira. O `php -S`
+> serve pra um teste rápido (`"C:/xampp/php/php.exe" -S 127.0.0.1:8080 -t .`
+> com o Apache parado). Também é só no Apache que os `.htaccess` (pastas
+> negadas, cabeçalhos de segurança) valem.
 
 ---
 
-## 7. Login com Google (opcional)
+## 6. Login com Google (opcional)
 
 Precisa das credenciais em `api/auth/google_config.php` (Client ID/Secret do
 [Google Cloud Console](https://console.cloud.google.com)) e que a **porta bata**
@@ -174,23 +145,15 @@ E rode o servidor **nessa mesma porta**, navegando por `127.0.0.1` (não
 
 ---
 
-## 8. Onde o motor não roda
-
-O motor precisa de Node + Chromium. **Hospedagem PHP compartilhada** (tipo
-Hostinger shared) **não roda** isso. Alternativas com custo zero: a própria
-máquina, ou o **Oracle Cloud Free Tier** (VM ARM grátis). Também dá pra separar:
-o PHP fica no host barato e um **worker** (sua máquina / VM grátis) faz o render
-lendo a fila `videos_gerados`.
-
----
-
 ## Linux / macOS (equivalências)
 
 - PHP/MySQL: `apt install php mariadb-server` / `brew install php mariadb`.
-- ffmpeg: `apt install ffmpeg` / `brew install ffmpeg`.
-- Node: [nodejs.org](https://nodejs.org) ou `nvm`.
+- ffmpeg (opcional): `apt install ffmpeg` / `brew install ffmpeg`.
 - Importar banco: `mysql -u root --default-character-set=utf8mb4 banco < banco.sql`.
 - Servidor: Apache com um `VirtualHost` na porta 8080 apontando para a pasta
   do projeto (`AllowOverride All`), ou `php -S 127.0.0.1:8080 -t .` para
-  teste rápido (lento com vídeo, ver seção 6).
+  teste rápido (ver seção 5).
 - Caminhos do `mysql`/`php` sem o prefixo `C:/xampp/...`.
+
+> O projeto completo, com a rede de IAs, o comércio e o motor de vídeo, está
+> preservado na branch `backup/echo-completo-2026-10-01`.
