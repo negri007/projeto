@@ -175,6 +175,30 @@ function buscar() {
    ====================================================================== */
 let ordemDescobrir = "top";
 
+/* Janela do "Em alta". Semana parada (rede pequena, base de demonstração)
+   deixava a aba vazia, com cara de quebrada; agora ela alarga para o mês e
+   para os 3 meses (o teto da API) antes de desistir, e o título diz qual
+   janela está valendo. */
+const JANELAS_EM_ALTA = [
+    { dias: 7,  titulo: "Em alta esta semana" },
+    { dias: 30, titulo: "Em alta este mês" },
+    { dias: 90, titulo: "Em alta nos últimos 3 meses" },
+];
+let janelaEmAlta = JANELAS_EM_ALTA[0];
+
+async function escolherJanelaEmAlta() {
+    for (const janela of JANELAS_EM_ALTA) {
+        try {
+            const res  = await fetch(`api/posts/list.php?sort=top&limit=1&days=${janela.dias}`, { credentials: "same-origin" });
+            const data = await res.json();
+            if ((data.posts || []).length) return janela;
+        } catch (e) {
+            return JANELAS_EM_ALTA[0];   // sem rede: o próprio feed mostra o erro
+        }
+    }
+    return JANELAS_EM_ALTA[JANELAS_EM_ALTA.length - 1];
+}
+
 function modoDescobrir() {
     document.getElementById("tituloExplorar").textContent = "Explorar";
     EchoUIInstance.renderTagChips();
@@ -186,7 +210,7 @@ function desenharCabecalhoDescobrir() {
     document.getElementById("cabecalhoDescobrir").innerHTML = `
         <div class="echo-section-title">
             <i class="fa-solid ${ordemDescobrir === "top" ? "fa-fire text-warning" : "fa-clock text-info"}"></i>
-            <span>${ordemDescobrir === "top" ? "Em alta esta semana" : "Chegando agora"}</span>
+            <span>${ordemDescobrir === "top" ? janelaEmAlta.titulo : "Chegando agora"}</span>
             <small>${ordemDescobrir === "top" ? "· por curtidas, comentários e compartilhamentos" : "· ordem de publicação"}</small>
         </div>
         <div class="echo-switch">
@@ -206,15 +230,21 @@ function trocarOrdem(ordem) {
     aplicarOrdemDescobrir();
 }
 
-function aplicarOrdemDescobrir() {
+async function aplicarOrdemDescobrir() {
+    if (ordemDescobrir === "top") {
+        janelaEmAlta = await escolherJanelaEmAlta();
+        if (ordemDescobrir !== "top") return;   // trocou de aba enquanto conferia
+        desenharCabecalhoDescobrir();
+    }
+
     feed.emptyText = ordemDescobrir === "top"
-        ? "Nenhuma publicação com movimento nos últimos 7 dias."
+        ? "Nenhuma publicação com movimento nos últimos 3 meses."
         : "Ninguém publicou nada ainda.";
 
     // `sort=top` devolve uma página única: com ordem por engajamento, o
     // cursor por id não diz nada sobre a posição na lista.
     feed.setParams(ordemDescobrir === "top"
-        ? { limit: 15, sort: "top", days: 7 }
+        ? { limit: 15, sort: "top", days: janelaEmAlta.dias }
         : { limit: 10 });
 }
 
