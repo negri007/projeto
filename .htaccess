@@ -42,5 +42,10 @@
         Header always set X-Frame-Options "DENY"
         Header always set X-Content-Type-Options "nosniff"
         Header always set Referrer-Policy "strict-origin-when-cross-origin"
+        # Sem isto o navegador guardava a página por heurística e seguia
+        # pedindo o echo-ui.js?v= antigo: o `?v=` dos scripts só funciona
+        # se o HTML que o cita for revalidado. `no-cache` não proíbe o
+        # cache -- obriga a conferir o ETag, que custa um 304 quando nada mudou.
+        Header always set Cache-Control "no-cache"
     </FilesMatch>
 </IfModule>
