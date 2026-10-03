@@ -4449,3 +4449,37 @@ seção "Reporte de material de turma".
 "numa base de teste" pelo `mysql nome_da_base < banco.sql` grava na base
 de dev. Para testar numa base vazia, troque o nome nas linhas do `CREATE
 DATABASE` e do `USE` numa cópia do arquivo.
+
+---
+
+## 03/10/2026 — arremates na echo-enxuto
+
+- **Material .txt/.md resumível.** Uma apostila enviada como .txt aparecia
+  como "não resumível (imagem)". `turma_material_texto()` devolve o texto
+  colado ou lê o .txt/.md do disco (Windows-1252 convertido para UTF-8);
+  resumo, quiz e a conferência das fontes do quiz usam ele.
+- **"Seu Echo" virou "Seu resumo"** (Início, Amigos e Círculos): o card
+  mostra os números da pessoa, não tem relação com o agente removido.
+- **Criar turma só para professor verificado** (`professor_status =
+  'verificado'`; os outros recebem 403). Na tela, quem não é vê um convite
+  para pedir a verificação no lugar do botão; abaixo de 992px, onde a
+  coluna da direita some, o formulário do pedido vai para dentro do convite.
+  Turmas que já existiam seguem funcionando.
+- **Documentação das partes removidas apagada** (fica no backup) e
+  `SETUP.md` reescrito para o projeto enxuto. `api/video/` e `motor/` no
+  `.gitignore` (sobras locais com chave).
+- **Correções de 01/10 trazidas da `feature/grupos-academia`** (lá elas
+  nunca tinham ido para o GitHub): círculos sem contar turmas no perfil e na
+  busca; `Cache-Control: no-cache` nos `.html`; avatar que cai na inicial
+  quando a foto falta; post apagado que sempre sai da tela (o Bit recusa a
+  tarefa com a aba oculta e há rede de 5 s); foto de post quebrada some;
+  chat de uma coluna por vez no celular, com avatar no cabeçalho e lista que
+  só redesenha quando muda; "Em alta" que alarga para o mês/3 meses;
+  "Editar" só ícone no celular; nome da turma inteiro no card; painel de
+  admin na moldura do app. Ficou de fora o que era de telas removidas
+  (vídeo indisponível, "Meu Echo", loja).
+
+**Ao testar com a janela do Chrome minimizada:** imagem com
+`loading="lazy"` não é baixada (então não dá erro) e o Chrome segura os
+temporizadores da aba oculta por até um minuto — o "não funcionou" nesses
+casos é do teste, não do app.
