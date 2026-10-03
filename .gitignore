@@ -61,3 +61,11 @@ backup_*.sql
 # Arquivo de scratch/revisao que entrou por engano num commit e nao faz
 # parte do produto. Fica so na maquina.
 REVISAO-CONTEXTO.md
+
+# Sobras locais de módulos removidos no corte de escopo (01/10/2026): o
+# motor de vídeo (motor/, com node_modules) e api/video/ (o
+# video_config.php tem chave de API). O código saiu do repositório, mas as
+# pastas podem continuar na máquina de quem já tinha o projeto completo —
+# não podem voltar num commit por engano.
+api/video/
+motor/
