@@ -106,6 +106,36 @@
             background: var(--bg-card-alt);
         }
 
+        .chat-voltar {
+            display: none;
+            background: none;
+            border: 0;
+            color: var(--text-main);
+            width: 40px;
+            height: 40px;
+            margin-left: -8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .chat-voltar:hover { background: var(--bg-input); }
+
+        /* CELULAR: uma coluna por vez, como todo app de mensagens. Em 375px
+           lista e conversa lado a lado ficavam espremidas, e a altura não
+           descontava a barra de baixo -- o campo de envio ficava atrás
+           dela. Lista primeiro; tocar num contato troca para a conversa,
+           e o botão de voltar devolve para a lista. */
+        @media (max-width: 767.98px) {
+            .chat-wrapper {
+                height: calc(100vh - 57px - 60px - env(safe-area-inset-bottom, 0px));
+                height: calc(100dvh - 57px - 60px - env(safe-area-inset-bottom, 0px));
+            }
+            .friends-list { width: 100%; border-right: 0; }
+            .chat-area { display: none; min-width: 0; }
+            .chat-wrapper.conversa-aberta .friends-list { display: none; }
+            .chat-wrapper.conversa-aberta .chat-area { display: flex; }
+            .chat-voltar { display: inline-flex; align-items: center; justify-content: center; }
+            .msg { max-width: 85%; }
+        }
     </style>
 </head>
 <body>
@@ -128,14 +158,17 @@
                 <div id="notificationBellContainer"></div>
             </div>
 
-            <div class="chat-wrapper">
+            <div class="chat-wrapper" id="chatWrapper">
                 <!-- Lista de amigos -->
                 <div class="friends-list" id="friendsList"></div>
 
                 <!-- Área do chat -->
                 <div class="chat-area">
                     <div class="chat-header">
-                        <div class="friend-avatar"><i class="fa-solid fa-user"></i></div>
+                        <button type="button" class="chat-voltar" onclick="voltarParaLista()" aria-label="Voltar para a lista de conversas" title="Voltar">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <div class="friend-avatar" id="chatAvatar"><i class="fa-solid fa-user"></i></div>
                         <h6 id="chatTitle" class="m-0 fw-bold">Selecione uma conversa ao lado</h6>
                     </div>
 
@@ -217,11 +250,22 @@ async function loadFriends() {
         const data = await res.json();
 
         if (data.error) {
+            delete box.dataset.assinatura;
             box.innerHTML = `<p class='text-danger p-3 text-center small'>${EchoUIInstance.escapeHTML(data.error)}</p>`;
             return;
         }
 
         const conversas = data.conversations || [];
+
+        // Nada mudou desde a última volta do polling: não redesenha. Trocar
+        // os nós a cada 15 s engolia o clique que caísse bem na troca.
+        const assinatura = JSON.stringify([conversas, currentFriendId]);
+        if (!primeiraCarga && assinatura === box.dataset.assinatura) {
+            atualizarTituloNaoLidas(data.unread_total);
+            return;
+        }
+        box.dataset.assinatura = assinatura;
+
         box.innerHTML = "";
 
         if (conversas.length === 0) {
@@ -280,6 +324,14 @@ function openChat(friendId, name) {
     item?.classList.remove("tem-nao-lida");
     item?.querySelector(".echo-unread-badge")?.remove();
 
+    // O cabeçalho mostra o mesmo avatar do item da lista.
+    const avatarDaLista = item?.querySelector(".echo-avatar");
+    if (avatarDaLista) {
+        const copia = avatarDaLista.cloneNode(true);
+        copia.id = "chatAvatar";
+        document.getElementById("chatAvatar").replaceWith(copia);
+    }
+
     document.getElementById("msgInput").disabled = false;
     document.getElementById("btnSend").disabled = false;
 
@@ -287,10 +339,24 @@ function openChat(friendId, name) {
     const activeItem = document.getElementById("friend-item-" + currentFriendId);
     if (activeItem) activeItem.classList.add('active');
 
+    document.getElementById("chatWrapper").classList.add("conversa-aberta");
+
     loadMessages();
 
     if (intervalMessages) clearInterval(intervalMessages);
     intervalMessages = setInterval(loadMessages, 3000);
+}
+
+/** Só no celular: volta da conversa para a lista (no desktop as duas aparecem juntas). */
+function voltarParaLista() {
+    document.getElementById("chatWrapper").classList.remove("conversa-aberta");
+
+    // Fora da conversa, o polling dela não pode seguir marcando como lidas
+    // mensagens que a pessoa não está vendo.
+    if (intervalMessages) clearInterval(intervalMessages);
+    intervalMessages = null;
+    currentFriendId = null;
+    document.querySelectorAll(".friend-item.active").forEach(el => el.classList.remove("active"));
 }
 
 async function loadMessages() {
