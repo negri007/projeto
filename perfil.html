@@ -93,11 +93,13 @@
                             <input type="text" class="form-control form-control-sm" placeholder="Buscar no ECHO">
                         </div>
                         <div id="notificationBellContainer"></div>
-                        <button class="btn btn-outline-light btn-edit-profile" id="btnSecurity" data-bs-toggle="modal" data-bs-target="#changePasswordModal" title="Trocar senha">
+                        <button class="btn btn-outline-light btn-edit-profile" id="btnSecurity" data-bs-toggle="modal" data-bs-target="#changePasswordModal" title="Trocar senha" aria-label="Trocar senha">
                             <i class="fa-solid fa-key"></i>
                         </button>
-                        <button class="btn btn-outline-light btn-edit-profile" id="btnEditProfile" data-bs-toggle="modal" data-bs-target="#editProfileModal">
-                            <i class="fa-solid fa-pen me-1"></i> Editar
+                        <!-- No celular só o ícone: com o texto, "Editar" quebrava em duas linhas. -->
+                        <button class="btn btn-outline-light btn-edit-profile text-nowrap" id="btnEditProfile" data-bs-toggle="modal" data-bs-target="#editProfileModal"
+                                aria-label="Editar perfil" title="Editar perfil">
+                            <i class="fa-solid fa-pen"></i><span class="d-none d-sm-inline ms-1">Editar</span>
                         </button>
                     </div>
                 </div>
