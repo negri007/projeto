@@ -270,7 +270,6 @@ class EchoFeed {
         botao.addEventListener("animationend", () => botao.classList.remove("animando"), { once: true });
     }
 
-    /** Tira o post da lista com a animação de saída, não de um quadro para o outro. */
     /**
      * Tira a publicação da tela.
      *
@@ -285,10 +284,24 @@ class EchoFeed {
         const el = document.getElementById("post-" + postId);
         if (!el) return;
 
-        if (paraLixeira && window.EchoBit && EchoBit.levarAoLixo(el)) return;
+        const sair = () => {
+            if (!el.isConnected || el.classList.contains("saindo")) return;
+            el.classList.add("saindo");
+            el.addEventListener("animationend", () => el.remove(), { once: true });
+            // sem animação (ex.: animation: none) o animationend não vem
+            setTimeout(() => el.remove(), 600);
+        };
 
-        el.classList.add("saindo");
-        el.addEventListener("animationend", () => el.remove(), { once: true });
+        if (paraLixeira && window.EchoBit && EchoBit.levarAoLixo(el)) {
+            // Rede de segurança: se ele não pegar o post a tempo (aba em
+            // segundo plano congela o requestAnimationFrame, por exemplo),
+            // o post sai do jeito de sempre. Ao ver o elemento fora do DOM,
+            // o mascote desiste da tarefa sozinho.
+            setTimeout(sair, 5000);
+            return;
+        }
+
+        sair();
     }
 
     async postJSON(url, body) {

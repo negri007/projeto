@@ -1868,7 +1868,8 @@ window.EchoBit = {
   levarAoLixo: function (elemento, opcoes) {
     // sem ele em cena, ou com uma carga já pendurada, quem chamou trata do
     // sumiço por conta própria — por isso devolve false em vez de enfileirar
-    if (!rodando || !elemento || !elemento.isConnected || B.tarefa || carga) return false;
+    // aba escondida: o requestAnimationFrame fica congelado e ele não sairia do lugar
+    if (!rodando || document.hidden || !elemento || !elemento.isConnected || B.tarefa || carga) return false;
     opcoes = opcoes || {};
     var r = elemento.getBoundingClientRect();
     if (!r.width || r.bottom < 0 || r.top > innerHeight) return false;
