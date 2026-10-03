@@ -80,9 +80,13 @@ function grupoTurmas(titulo, icone, lista) {
   lista.forEach(c => {
     const d = document.createElement('div');
     d.className = 'turma-card' + (turmaSel === c.id ? ' sel' : '');
+    // O papel vai na linha de baixo: como etiqueta à direita, ele comia a
+    // largura do card e o nome da turma virava "Banco ...".
+    const n = Number(c.member_count) || 0;
+    const alunos = n === 1 ? '1 aluno' : `${n} alunos`;
     d.innerHTML = `<div class="tc-ic"><i class="fa-solid fa-graduation-cap"></i></div>
-      <div class="tc-body"><div class="tc-name">${esc(c.name)}</div><div class="tc-meta">${c.member_count} aluno(s)</div></div>
-      <span class="tag">${c.is_owner ? 'professor' : 'aluno'}</span>`;
+      <div class="tc-body"><div class="tc-name" title="${esc(c.name)}">${esc(c.name)}</div>
+        <div class="tc-meta">${alunos} · ${c.is_owner ? 'professor' : 'aluno'}</div></div>`;
     d.onclick = () => abrirTurma(c);
     grid.appendChild(d);
   });
